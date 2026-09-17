@@ -94,6 +94,8 @@ export class Editor {
   hidden = new Set<Id>();
   isolated: Set<Id> | null = null;
   hover: HoverState = { screen: { x: 0, y: 0 }, world: { x: 0, y: 0 }, resolved: null, entityId: null, grip: null, inside: false };
+  /** dedo situando un punto en pantalla táctil: activa la lupa y amplía la apertura de referencia */
+  touchPoint: Vec2 | null = null;
   acquisition = new AcquisitionState();
   candidateIndex = 0;
   angleLock: number | null = null;
@@ -552,7 +554,7 @@ export class Editor {
     }
     const base = this.pendingBase() ?? (gripActive ? this.gripContext!.base : null) ?? this.runner.lastPoint;
     const noSnap = req?.kind === 'point' && req.noSnap;
-    const settings = this.prefs.snap;
+    const settings = this.touchPoint ? { ...this.prefs.snap, aperturePx: this.prefs.snap.aperturePx * 2 } : this.prefs.snap;
     const exclude = new Set<Id>(this.gripContext?.refs.map((r) => r.entityId) ?? []);
     const extraCurves: Curve[] = [];
     if (this.preview?.entities) for (const pe of this.preview.entities) if (pe.owner === owner) try {

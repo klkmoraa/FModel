@@ -3,6 +3,7 @@ import type { Editor } from '../editor/editor';
 import { AssetImageCache } from '../render/assets';
 import { renderOverlay } from '../render/overlayRenderer';
 import { renderScene } from '../render/sceneRenderer';
+import { drawTouchLoupe } from '../render/loupe';
 import type { RenderTheme } from '../render/theme';
 
 interface Props {
@@ -62,7 +63,11 @@ export function CanvasView({ editor, theme, onContextMenu }: Props) {
       if (dirty.current.overlay) {
         dirty.current.overlay = false;
         const g = overlay.getContext('2d');
-        if (g) renderOverlay(g, editor, opts);
+        if (g) {
+          renderOverlay(g, editor, opts);
+          // la lupa se compone al final: amplía la escena y la superposición ya dibujadas
+          if (editor.touchPoint) drawTouchLoupe(g, scene, editor.touchPoint, overlay.width / dpr, overlay.height / dpr, themeRef.current, dpr);
+        }
       }
     } catch (err) {
       console.error('render', err);
@@ -122,7 +127,11 @@ export function CanvasView({ editor, theme, onContextMenu }: Props) {
     const isTouch = (e: PointerEvent) => e.pointerType === 'touch';
 
     const down = (e: PointerEvent) => {
-      host.setPointerCapture(e.pointerId);
+      try {
+        host.setPointerCapture(e.pointerId);
+      } catch {
+        /* el puntero ya no está activo */
+      }
       const p = local(e);
       if (isTouch(e)) {
         touch.pointers.set(e.pointerId, p);
@@ -141,6 +150,10 @@ export function CanvasView({ editor, theme, onContextMenu }: Props) {
         } else {
           window.clearTimeout(touch.longPress);
           touch.tapStart = null;
+          if (editor.touchPoint) {
+            editor.touchPoint = null;
+            editor.emit('overlay');
+          }
           const pts = [...touch.pointers.values()];
           touch.lastCenter = { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 };
           touch.lastDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
@@ -171,7 +184,11 @@ export function CanvasView({ editor, theme, onContextMenu }: Props) {
           // un dedo sin petición de punto: encuadre
           editor.view.panPixels(p.x - prev.x, p.y - prev.y);
           editor.emit('view');
-        } else editor.pointerMove(p);
+        } else {
+          if (pointLike && touch.moved) editor.touchPoint = p;
+          editor.pointerMove(p);
+          if (editor.touchPoint) editor.emit('overlay');
+        }
         return;
       }
       editor.pointerMove(p, { shift: e.shiftKey, buttons: e.buttons });
@@ -193,6 +210,10 @@ export function CanvasView({ editor, theme, onContextMenu }: Props) {
           editor.pointerUp(p, 0);
         }
         touch.tapStart = null;
+        if (editor.touchPoint) {
+          editor.touchPoint = null;
+          editor.emit('overlay');
+        }
         return;
       }
       editor.pointerUp(p, e.button, { shift: e.shiftKey, ctrl: e.ctrlKey || e.metaKey });

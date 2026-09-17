@@ -17,7 +17,7 @@
 | Rejilla, coordenadas, cruz CAD y previsualización | Disponible | `GRIDTOGGLE` `DSETTINGS` |  |
 | Selección por ventana, captura, polígono, borde, tipo y capa; ciclo de selección | Disponible | `QSELECT` `SELECTSIMILAR` |  |
 | Aislar, ocultar, bloquear y pantalla limpia; paneles acoplables | Disponible | `ISOLATEOBJECTS` `HIDEOBJECTS` `CLEANSCREENON` |  |
-| Uso táctil (encuadre, pellizco, pulsación larga) y paneles en hoja móvil | Experimental |  | Diseñado para tableta; en teléfono el dibujo detallado es limitado por el tamaño de pantalla. |
+| Uso táctil: encuadre, pellizco, pulsación larga, lupa al situar puntos y paneles en hoja móvil | Experimental |  | El dedo sitúa el punto con lupa y apertura de referencia ampliada; probado con eventos de puntero, no en dispositivos reales. En teléfono el dibujo detallado es limitado por el tamaño de pantalla. |
 
 ## Precisión
 
