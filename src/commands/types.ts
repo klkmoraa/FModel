@@ -87,7 +87,7 @@ export interface CommandApi {
   signal: AbortSignal;
 }
 
-export type CommandCategory = 'draw' | 'modify' | 'annotate' | 'block' | 'layer' | 'view' | 'layout' | 'insert' | 'inquiry' | 'manage' | 'file' | 'utility' | 'constraint';
+export type CommandCategory = 'draw' | 'modify' | 'annotate' | 'block' | 'layer' | 'view' | 'layout' | 'insert' | 'inquiry' | 'manage' | 'file' | 'utility' | 'constraint' | 'output';
 
 export interface CommandDef {
   name: string;

@@ -71,3 +71,51 @@ export class AssetImageCache implements ImageSource {
     this.images.clear();
   }
 }
+
+async function rasterToPng(dataUrl: string): Promise<string | null> {
+  const img = new Image();
+  img.src = dataUrl;
+  try {
+    await img.decode();
+  } catch {
+    return null;
+  }
+  const canvas = document.createElement('canvas');
+  canvas.width = img.naturalWidth || 1;
+  canvas.height = img.naturalHeight || 1;
+  canvas.getContext('2d')?.drawImage(img, 0, 0);
+  return canvas.toDataURL('image/png');
+}
+
+/**
+ * Prepara las imágenes referenciadas para exportación vectorial: PNG/JPEG se usan tal cual;
+ * otros formatos (SVG, GIF, WebP) y páginas de calcos PDF se rasterizan a PNG.
+ */
+export async function prepareExportImages(doc: CadDocument): Promise<(assetId: string, page?: number) => string | null> {
+  const ready = new Map<string, string>();
+  const wanted = new Map<string, { assetId: string; page?: number }>();
+  for (const e of doc.data.entities.values()) {
+    if (e.type === 'image') wanted.set(e.assetId, { assetId: e.assetId });
+    else if (e.type === 'pdfunderlay') wanted.set(`${e.assetId}#${e.page}`, { assetId: e.assetId, page: e.page });
+  }
+  for (const [key, w] of wanted) {
+    const asset = doc.data.assets.get(w.assetId);
+    if (!asset?.dataUrl) continue;
+    try {
+      if (/^data:image\/(png|jpe?g)/i.test(asset.dataUrl)) ready.set(key, asset.dataUrl);
+      else if (asset.mime === 'application/pdf') {
+        const render = await getPdfRenderer();
+        const bmp = await render(asset.dataUrl, w.page ?? 1);
+        const canvas = bmp instanceof HTMLCanvasElement ? bmp : Object.assign(document.createElement('canvas'), { width: bmp.width, height: bmp.height });
+        if (!(bmp instanceof HTMLCanvasElement)) canvas.getContext('2d')?.drawImage(bmp, 0, 0);
+        ready.set(key, canvas.toDataURL('image/png'));
+      } else {
+        const png = await rasterToPng(asset.dataUrl);
+        if (png) ready.set(key, png);
+      }
+    } catch (err) {
+      console.warn('export image', w.assetId, err);
+    }
+  }
+  return (assetId, page) => ready.get(page ? `${assetId}#${page}` : assetId) ?? null;
+}

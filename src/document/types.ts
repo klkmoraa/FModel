@@ -995,6 +995,8 @@ export interface DocumentSettings {
   /** escala de anotación actual del espacio modelo, papel:modelo (1:50 → 1/50) */
   annotationScale: number;
   annotationScales: { name: string; paper: number; drawing: number }[];
+  /** configuración de página para trazar el espacio modelo (plotScale ≤ 0 = ajustar al papel) */
+  modelPage?: PageSetup;
   currentLayer: Id;
   currentColor: ColorValue;
   currentLinetype: string;

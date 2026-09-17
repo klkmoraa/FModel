@@ -18,7 +18,9 @@ import type { GripDef } from '../model/registry';
 import { kindOf } from '../model/registry';
 import type { VisibilityOptions } from '../model/visibility';
 import { entityEditable, entityVisible } from '../model/visibility';
-import { viewportMatrix } from '../model/kinds/media';
+import { viewportMatrix, viewportOutline } from '../model/kinds/media';
+import { pointInPolygon } from '../geometry/polyline';
+import { VIEWPORT_VIEW_LABEL } from '../history/history';
 import { pickAt, selectByFence, selectInBox, selectInPolygon } from '../selection/pick';
 import { expandGroups, SelectionSet } from '../selection/selectionSet';
 import type { ResolvedPoint } from '../snap/snapEngine';
@@ -275,7 +277,79 @@ export class Editor {
 
   // ------------------------------------------------------------------ zoom
 
+  // ------------------------------------------------------------------ viewport activo
+
+  /** Viewport activo con visualización no bloqueada: la navegación cambia su vista del modelo. */
+  get navigableViewport(): ViewportEntity | null {
+    const vp = this.activeViewport;
+    return vp && !vp.displayLocked ? vp : null;
+  }
+
+  /** Activa un viewport (trabajo en modelo a través de él) o vuelve al papel con null. */
+  activateViewport(id: Id | null) {
+    if (this.activeViewportId === id) return;
+    this.runner.cancelAll();
+    this.selection.clear();
+    this.activeViewportId = id;
+    this.emit('space');
+    this.emit('view');
+  }
+
+  /** Doble clic en una presentación: dentro de un viewport lo activa; fuera vuelve al papel. */
+  doubleClick(screen: Vec2): boolean {
+    if (this.spaceKind !== 'layout' || this.runner.busy) return false;
+    const vp = this.viewportAt(this.view.toWorld(screen));
+    this.activateViewport(vp ? vp.id : null);
+    return true;
+  }
+
+  /** Viewport de la presentación actual que contiene un punto de papel. */
+  viewportAt(paper: Vec2): ViewportEntity | null {
+    if (this.spaceKind !== 'layout') return null;
+    const list = this.doc.entitiesOf(this.space).filter((e): e is ViewportEntity => e.type === 'viewport' && e.on && entityVisible(this.doc, e));
+    for (let i = list.length - 1; i >= 0; i--) if (pointInPolygon(paper, viewportOutline(list[i]))) return list[i];
+    return null;
+  }
+
+  private setViewportView(vp: ViewportEntity, viewCenter: Vec2, scale: number) {
+    if (!(scale > 0) || !Number.isFinite(scale) || !Number.isFinite(viewCenter.x) || !Number.isFinite(viewCenter.y)) return;
+    this.doc.transact(VIEWPORT_VIEW_LABEL, (tx) => tx.updateEntity<ViewportEntity>(vp.id, { viewCenter, scale, scaleName: undefined }));
+  }
+
+  /** Vector de papel → vector de modelo del viewport (deshace giro y escala). */
+  private paperToModelVector(vp: ViewportEntity, d: Vec2): Vec2 {
+    const c = Math.cos(-vp.viewTwist);
+    const s = Math.sin(-vp.viewTwist);
+    return { x: (c * d.x - s * d.y) / vp.scale, y: (s * d.x + c * d.y) / vp.scale };
+  }
+
+  private zoomViewportAt(vp: ViewportEntity, screen: Vec2, factor: number) {
+    const pm = this.screenToOwner(screen);
+    const pp = applyToPoint(viewportMatrix(vp), pm);
+    const scale = vp.scale * factor;
+    // pp = centro + R·k'·(pm − vc')  ⇒  vc' = pm − R⁻¹·(pp − centro)/k'
+    const d = this.paperToModelVector({ ...vp, scale }, { x: pp.x - vp.center.x, y: pp.y - vp.center.y });
+    this.setViewportView(vp, { x: pm.x - d.x, y: pm.y - d.y }, scale);
+  }
+
+  private panViewportPixels(vp: ViewportEntity, dx: number, dy: number) {
+    const dm = this.paperToModelVector(vp, { x: dx / this.view.scale, y: -dy / this.view.scale });
+    this.setViewportView(vp, { x: vp.viewCenter.x - dm.x, y: vp.viewCenter.y - dm.y }, vp.scale);
+  }
+
   zoomExtents() {
+    const nvp = this.navigableViewport;
+    if (nvp) {
+      const ext = this.index.extents(MODEL_SPACE_ID, (id) => {
+        const e = this.doc.entity(id);
+        return !!e && entityVisible(this.doc, e, { viewport: nvp });
+      });
+      if (!isEmptyBox(ext)) {
+        const k = 0.95 * Math.min(nvp.width / Math.max(ext.maxX - ext.minX, 1e-9), nvp.height / Math.max(ext.maxY - ext.minY, 1e-9));
+        this.setViewportView(nvp, { x: (ext.minX + ext.maxX) / 2, y: (ext.minY + ext.maxY) / 2 }, k);
+      }
+      return;
+    }
     const owner = this.space;
     const ext = this.index.extents(owner, (id) => {
       const e = this.doc.entity(id);
@@ -573,9 +647,13 @@ export class Editor {
   pointerMove(screen: Vec2, mods: { shift?: boolean; buttons?: number } = {}) {
     this.shiftDown = !!mods.shift;
     if (this.panning) {
-      this.view.panPixels(screen.x - this.panning.screen.x, screen.y - this.panning.screen.y);
+      const vp = this.navigableViewport;
+      if (vp) this.panViewportPixels(vp, screen.x - this.panning.screen.x, screen.y - this.panning.screen.y);
+      else {
+        this.view.panPixels(screen.x - this.panning.screen.x, screen.y - this.panning.screen.y);
+        this.emit('view');
+      }
       this.panning = { screen };
-      this.emit('view');
     }
     const world = this.screenToOwner(screen);
     const resolved = this.resolveCursor(screen);
@@ -781,12 +859,23 @@ export class Editor {
 
   wheel(screen: Vec2, deltaY: number) {
     const factor = Math.exp(-deltaY * 0.0015);
-    this.view.zoomAt(screen, factor);
-    this.emit('view');
+    const vp = this.navigableViewport;
+    if (vp) this.zoomViewportAt(vp, screen, factor);
+    else {
+      this.view.zoomAt(screen, factor);
+      this.emit('view');
+    }
     this.pointerMove(screen);
   }
 
   pinch(center: Vec2, factor: number, pan: Vec2) {
+    const vp = this.navigableViewport;
+    if (vp) {
+      this.panViewportPixels(vp, pan.x, pan.y);
+      const cur = this.activeViewport;
+      if (cur) this.zoomViewportAt(cur, center, factor);
+      return;
+    }
     this.view.panPixels(pan.x, pan.y);
     this.view.zoomAt(center, factor);
     this.emit('view');

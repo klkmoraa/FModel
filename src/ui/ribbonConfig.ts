@@ -142,8 +142,8 @@ export const RIBBON: RibbonTab[] = [
     label: { es: 'Presentación', en: 'Layout' },
     groups: [
       { label: { es: 'Presentación', en: 'Layout' }, tools: [t('LAYOUT', 'layout', 'Nueva', 'New', 'lg'), t('PAGESETUP', 'layout', 'Configurar página', 'Page setup', 'lg'), t('TITLEBLOCK', 'table', 'Cajetín', 'Title block')] },
-      { label: { es: 'Viewports', en: 'Viewports' }, tools: [t('MVIEW', 'viewport', 'Rectangular', 'Rectangular', 'lg'), t('MVIEWPOLY', 'polygon', 'Poligonal', 'Polygonal'), t('MSPACE', 'viewport', 'Entrar', 'Enter'), t('PSPACE', 'layout', 'Salir', 'Exit'), t('VPLOCK', 'viewport', 'Bloquear', 'Lock'), t('VPLAYER', 'layers', 'Capas en VP', 'VP layers')] },
-      { label: { es: 'Salida', en: 'Output' }, tools: [t('PLOT', 'plot', 'Trazar PDF', 'Plot PDF', 'lg'), t('PUBLISH', 'plot', 'Publicar', 'Publish', 'lg'), t('EXPORTSVG', 'export', 'SVG', 'SVG')] },
+      { label: { es: 'Viewports', en: 'Viewports' }, tools: [t('MVIEW', 'viewport', 'Rectangular', 'Rectangular', 'lg'), t('MVIEW', 'polygon', 'Poligonal', 'Polygonal', 'sm', ['P']), t('MVIEW', 'viewport', 'Ajustar a hoja', 'Fit to sheet', 'sm', ['F']), t('MSPACE', 'viewport', 'Entrar', 'Enter'), t('PSPACE', 'layout', 'Salir', 'Exit'), t('VPSCALE', 'scale', 'Escala', 'Scale'), t('VPLOCK', 'viewport', 'Bloquear', 'Lock'), t('VPLAYER', 'layers', 'Capas en VP', 'VP layers')] },
+      { label: { es: 'Salida', en: 'Output' }, tools: [t('PLOT', 'plot', 'Trazar', 'Plot', 'lg'), t('PUBLISH', 'plot', 'Publicar', 'Publish', 'lg'), t('EXPORTPDF', 'pdf', 'PDF', 'PDF'), t('EXPORTSVG', 'export', 'SVG', 'SVG')] },
     ],
   },
   {

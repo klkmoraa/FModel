@@ -5,6 +5,8 @@ import { DraftingSettings } from './dialogs/DraftingSettings';
 import { FileMenu } from './dialogs/FileMenu';
 import { AttributeExtraction } from './dialogs/AttributeExtraction';
 import { LookupTableDialog } from './dialogs/LookupTableDialog';
+import { PageSetupDialog } from './dialogs/PageSetupDialog';
+import { PublishDialog } from './dialogs/PublishDialog';
 import { tr } from './controls';
 
 export interface DialogState {
@@ -38,6 +40,8 @@ export const DIALOGS: Record<string, DialogRenderer> = {
   'file-menu': (e, close, onUi) => <FileMenu editor={e} onClose={close} onUi={onUi} />,
   'attribute-extraction': (e, close) => <AttributeExtraction editor={e} onClose={close} />,
   'lookup-table': (e, close, _onUi, st) => <LookupTableDialog editor={e} tableId={String(st.payload ?? '')} onClose={close} />,
+  'page-setup': (e, close, _onUi, st) => <PageSetupDialog editor={e} plot={!!(st.payload as { plot?: boolean } | undefined)?.plot} onClose={close} />,
+  publish: (e, close) => <PublishDialog editor={e} onClose={close} />,
 };
 
 export function registerDialog(id: string, render: DialogRenderer) {

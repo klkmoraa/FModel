@@ -8,6 +8,10 @@ export interface ChangeRecord {
   after: unknown;
 }
 
+/** Etiqueta de las transacciones de encuadre de viewport, que se fusionan si son seguidas. */
+export const VIEWPORT_VIEW_LABEL = 'VPVIEW';
+const COALESCE_MS = 1200;
+
 export interface HistoryEntry {
   id: number;
   label: string;
@@ -38,6 +42,16 @@ export class History {
 
   push(label: string, changes: ChangeRecord[]): HistoryEntry | null {
     if (!changes.length) return null;
+    // navegación continua dentro de un viewport: un único paso de deshacer por gesto
+    const last = this.undoStack[this.undoStack.length - 1];
+    const floor = this.groupStack[this.groupStack.length - 1]?.start ?? 0;
+    if (label === VIEWPORT_VIEW_LABEL && last?.label === label && this.undoStack.length > floor && Date.now() - last.timestamp < COALESCE_MS) {
+      last.changes = mergeChanges([...last.changes, ...changes]);
+      last.timestamp = Date.now();
+      this.redoStack = [];
+      this.emit();
+      return last;
+    }
     const entry: HistoryEntry = { id: ++this.seq, label, changes, timestamp: Date.now(), group: this.groupStack[0]?.label };
     this.undoStack.push(entry);
     if (this.undoStack.length > this.limit) this.undoStack.splice(0, this.undoStack.length - this.limit);

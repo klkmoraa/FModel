@@ -4,7 +4,9 @@ import { BLOCK_EDITOR_COMMANDS } from './blockEditor';
 import { DRAW_COMMANDS } from './draw';
 import { FILE_COMMANDS } from './file';
 import { GRIP } from './grips';
+import { LAYOUT_COMMANDS } from './layout';
 import { MODIFY_COMMANDS } from './modify';
+import { OUTPUT_COMMANDS } from './output';
 import { registerCommands } from './registry';
 import { UTILITY_COMMANDS } from './utility';
 import { VIEW_COMMANDS } from './view';
@@ -22,5 +24,7 @@ export function registerAllCommands() {
   registerCommands(MODIFY_COMMANDS);
   registerCommands(ANNOTATE_COMMANDS);
   registerCommands(UTILITY_COMMANDS);
+  registerCommands(LAYOUT_COMMANDS);
+  registerCommands(OUTPUT_COMMANDS);
   registerCommands([GRIP]);
 }

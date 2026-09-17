@@ -216,6 +216,7 @@ export function CanvasView({ editor, theme, onContextMenu }: Props) {
     };
     const dbl = (e: MouseEvent) => {
       if (e.button === 1) editor.zoomExtents();
+      else if (e.button === 0) editor.doubleClick(local(e));
     };
     const aux = (e: MouseEvent) => {
       if (e.button === 1 && e.detail === 2) editor.zoomExtents();
