@@ -76,7 +76,9 @@ function lineCircle(l: LineLike, c: Vec2, r: number, tol: number): { t: number; 
     else return out;
   }
   const sq = Math.sqrt(Math.max(0, disc));
-  const ts = disc <= 1e-20 * A * A || Math.abs(distToLine - r) <= tol * 1e-3 ? [-B / (2 * A)] : [(-B - sq) / (2 * A), (-B + sq) / (2 * A)];
+  // tangencia: criterio geométrico (distancia centro-recta ≈ radio), independiente de |d|
+  const tangent = Math.abs(distToLine - r) <= Math.max(tol, r * 1e-12);
+  const ts = tangent ? [-B / (2 * A)] : [(-B - sq) / (2 * A), (-B + sq) / (2 * A)];
   const e = tol / Math.sqrt(A);
   for (const t of ts) {
     if (inRange(t, l.tmin, l.tmax, e)) out.push({ t, p: { x: l.p.x + l.d.x * t, y: l.p.y + l.d.y * t } });

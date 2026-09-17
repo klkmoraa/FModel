@@ -1,0 +1,174 @@
+export interface RibbonTool {
+  cmd: string;
+  icon: string;
+  label: { es: string; en: string };
+  size?: 'lg' | 'sm';
+  args?: string[];
+}
+
+export interface RibbonGroup {
+  label: { es: string; en: string };
+  tools: RibbonTool[];
+}
+
+export interface RibbonTab {
+  id: string;
+  label: { es: string; en: string };
+  groups: RibbonGroup[];
+}
+
+const t = (cmd: string, icon: string, es: string, en: string, size: 'lg' | 'sm' = 'sm', args?: string[]): RibbonTool => ({ cmd, icon, label: { es, en }, size, args });
+
+export const RIBBON: RibbonTab[] = [
+  {
+    id: 'home',
+    label: { es: 'Inicio', en: 'Home' },
+    groups: [
+      {
+        label: { es: 'Dibujo', en: 'Draw' },
+        tools: [
+          t('LINE', 'line', 'Línea', 'Line', 'lg'),
+          t('PLINE', 'pline', 'Polilínea', 'Polyline', 'lg'),
+          t('CIRCLE', 'circle', 'Círculo', 'Circle', 'lg'),
+          t('ARC', 'arc', 'Arco', 'Arc', 'lg'),
+          t('RECTANG', 'rect', 'Rectángulo', 'Rectangle'),
+          t('POLYGON', 'polygon', 'Polígono', 'Polygon'),
+          t('ELLIPSE', 'ellipse', 'Elipse', 'Ellipse'),
+          t('SPLINE', 'spline', 'Spline', 'Spline'),
+          t('HATCH', 'hatch', 'Sombreado', 'Hatch'),
+          t('XLINE', 'xline', 'Auxiliar', 'Xline'),
+        ],
+      },
+      {
+        label: { es: 'Modificar', en: 'Modify' },
+        tools: [
+          t('MOVE', 'move', 'Desplazar', 'Move'),
+          t('COPY', 'copy', 'Copiar', 'Copy'),
+          t('ROTATE', 'rotate', 'Girar', 'Rotate'),
+          t('SCALE', 'scale', 'Escala', 'Scale'),
+          t('MIRROR', 'mirror', 'Simetría', 'Mirror'),
+          t('STRETCH', 'stretch', 'Estirar', 'Stretch'),
+          t('TRIM', 'trim', 'Recortar', 'Trim'),
+          t('EXTEND', 'extend', 'Alargar', 'Extend'),
+          t('OFFSET', 'offset', 'Desfase', 'Offset'),
+          t('FILLET', 'fillet', 'Empalme', 'Fillet'),
+          t('CHAMFER', 'chamfer', 'Chaflán', 'Chamfer'),
+          t('ARRAYRECT', 'array', 'Matriz', 'Array'),
+          t('ERASE', 'erase', 'Borrar', 'Erase'),
+          t('EXPLODE', 'explode', 'Descomponer', 'Explode'),
+        ],
+      },
+      {
+        label: { es: 'Anotación', en: 'Annotation' },
+        tools: [t('MTEXT', 'mtext', 'Texto', 'Text', 'lg'), t('DIMLINEAR', 'dimlinear', 'Cota', 'Dimension', 'lg'), t('MLEADER', 'mleader', 'Directriz', 'Leader'), t('TABLE', 'table', 'Tabla', 'Table')],
+      },
+      {
+        label: { es: 'Capas', en: 'Layers' },
+        tools: [t('LAYER', 'layers', 'Capas', 'Layers', 'lg'), t('LAYISO', 'isolate', 'Aislar capa', 'Isolate layer'), t('LAYUNISO', 'layers', 'Restaurar capas', 'Unisolate'), t('MATCHPROP', 'matchprop', 'Igualar', 'Match')],
+      },
+      {
+        label: { es: 'Bloque', en: 'Block' },
+        tools: [t('INSERT', 'insert', 'Insertar', 'Insert', 'lg'), t('BLOCK', 'block', 'Crear', 'Create'), t('BEDIT', 'bedit', 'Editar', 'Edit'), t('ATTDEF', 'attdef', 'Atributo', 'Attribute')],
+      },
+      {
+        label: { es: 'Utilidades', en: 'Utilities' },
+        tools: [t('DIST', 'measure', 'Medir', 'Measure'), t('QSELECT', 'qselect', 'Selección rápida', 'Quick select'), t('ZOOM', 'zoomextents', 'Extensión', 'Extents', 'sm', ['E'])],
+      },
+    ],
+  },
+  {
+    id: 'insert',
+    label: { es: 'Insertar', en: 'Insert' },
+    groups: [
+      { label: { es: 'Bloque', en: 'Block' }, tools: [t('INSERT', 'insert', 'Insertar', 'Insert', 'lg'), t('BLOCK', 'block', 'Crear bloque', 'Create block', 'lg'), t('WBLOCK', 'export', 'Bloque a archivo', 'Write block'), t('ATTEDIT', 'attdef', 'Editar atributos', 'Edit attributes'), t('DATAEXTRACTION', 'table', 'Extraer atributos', 'Extract attributes')] },
+      { label: { es: 'Referencia', en: 'Reference' }, tools: [t('XATTACH', 'xref', 'Enlazar DWG FModel', 'Attach drawing', 'lg'), t('IMAGEATTACH', 'image', 'Imagen', 'Image', 'lg'), t('PDFATTACH', 'pdf', 'Calco PDF', 'PDF underlay', 'lg'), t('XREFMANAGER', 'xref', 'Referencias', 'References')] },
+      { label: { es: 'Importar', en: 'Import' }, tools: [t('IMPORTDXF', 'import', 'DXF', 'DXF', 'lg'), t('OPEN', 'import', 'Abrir .fmodel', 'Open .fmodel')] },
+    ],
+  },
+  {
+    id: 'annotate',
+    label: { es: 'Anotar', en: 'Annotate' },
+    groups: [
+      { label: { es: 'Texto', en: 'Text' }, tools: [t('MTEXT', 'mtext', 'Líneas múltiples', 'Multiline', 'lg'), t('TEXT', 'text', 'Una línea', 'Single line'), t('STYLE', 'text', 'Estilos de texto', 'Text styles'), t('FIND', 'qselect', 'Buscar', 'Find')] },
+      {
+        label: { es: 'Cotas', en: 'Dimensions' },
+        tools: [
+          t('DIMLINEAR', 'dimlinear', 'Lineal', 'Linear', 'lg'),
+          t('DIMALIGNED', 'dimaligned', 'Alineada', 'Aligned'),
+          t('DIMANGULAR', 'dimangular', 'Angular', 'Angular'),
+          t('DIMRADIUS', 'dimradius', 'Radio', 'Radius'),
+          t('DIMDIAMETER', 'dimdiameter', 'Diámetro', 'Diameter'),
+          t('DIMARC', 'dimarc', 'Arco', 'Arc length'),
+          t('DIMORDINATE', 'dimordinate', 'Coordenada', 'Ordinate'),
+          t('DIMCONTINUE', 'dimcontinue', 'Continua', 'Continue'),
+          t('DIMBASELINE', 'dimbaseline', 'Línea base', 'Baseline'),
+          t('DIMSTYLE', 'dimlinear', 'Estilos', 'Styles'),
+        ],
+      },
+      { label: { es: 'Directrices', en: 'Leaders' }, tools: [t('MLEADER', 'mleader', 'Directriz múltiple', 'Multileader', 'lg'), t('MLEADERSTYLE', 'mleader', 'Estilos', 'Styles')] },
+      { label: { es: 'Tablas', en: 'Tables' }, tools: [t('TABLE', 'table', 'Tabla', 'Table', 'lg'), t('TABLESTYLE', 'table', 'Estilos', 'Styles')] },
+      { label: { es: 'Marcas', en: 'Markup' }, tools: [t('REVCLOUD', 'revcloud', 'Nube', 'Revision cloud', 'lg'), t('WIPEOUT', 'wipeout', 'Cobertura', 'Wipeout')] },
+      { label: { es: 'Escala', en: 'Scaling' }, tools: [t('SCALELISTEDIT', 'scale', 'Lista de escalas', 'Scale list')] },
+    ],
+  },
+  {
+    id: 'parametric',
+    label: { es: 'Paramétrico', en: 'Parametric' },
+    groups: [
+      { label: { es: 'Bloques dinámicos', en: 'Dynamic blocks' }, tools: [t('BEDIT', 'bedit', 'Editor de bloques', 'Block editor', 'lg'), t('DYNBLOCKSAMPLES', 'dynblock', 'Ejemplos dinámicos', 'Dynamic samples', 'lg'), t('BTESTBLOCK', 'dynblock', 'Probar bloque', 'Test block')] },
+      { label: { es: 'Restricciones', en: 'Constraints' }, tools: [t('BCPARAMETER', 'constraint', 'Parámetro de restricción', 'Constraint parameter'), t('BACTION', 'dynblock', 'Acción', 'Action'), t('BPARAMETER', 'dynblock', 'Parámetro', 'Parameter')] },
+    ],
+  },
+  {
+    id: 'modify',
+    label: { es: 'Modificar', en: 'Modify' },
+    groups: [
+      {
+        label: { es: 'Transformar', en: 'Transform' },
+        tools: [t('MOVE', 'move', 'Desplazar', 'Move', 'lg'), t('COPY', 'copy', 'Copiar', 'Copy', 'lg'), t('ROTATE', 'rotate', 'Girar', 'Rotate'), t('SCALE', 'scale', 'Escala', 'Scale'), t('MIRROR', 'mirror', 'Simetría', 'Mirror'), t('STRETCH', 'stretch', 'Estirar', 'Stretch'), t('ALIGN', 'align', 'Alinear', 'Align')],
+      },
+      {
+        label: { es: 'Editar geometría', en: 'Edit geometry' },
+        tools: [t('TRIM', 'trim', 'Recortar', 'Trim', 'lg'), t('EXTEND', 'extend', 'Alargar', 'Extend'), t('OFFSET', 'offset', 'Desfase', 'Offset', 'lg'), t('FILLET', 'fillet', 'Empalme', 'Fillet'), t('CHAMFER', 'chamfer', 'Chaflán', 'Chamfer'), t('LENGTHEN', 'lengthen', 'Longitud', 'Lengthen'), t('BREAK', 'break', 'Partir', 'Break'), t('BREAKATPOINT', 'break', 'Partir en punto', 'Break at point'), t('JOIN', 'join', 'Juntar', 'Join'), t('PEDIT', 'pedit', 'Editar polilínea', 'Edit polyline'), t('REVERSE', 'join', 'Invertir', 'Reverse')],
+      },
+      { label: { es: 'Matrices', en: 'Arrays' }, tools: [t('ARRAYRECT', 'array', 'Rectangular', 'Rectangular', 'lg'), t('ARRAYPOLAR', 'polararray', 'Polar', 'Polar'), t('ARRAYPATH', 'spline', 'Trayectoria', 'Path')] },
+      { label: { es: 'Organizar', en: 'Organize' }, tools: [t('GROUP', 'group', 'Agrupar', 'Group'), t('UNGROUP', 'group', 'Desagrupar', 'Ungroup'), t('DRAWORDER', 'draworder', 'Orden', 'Draw order'), t('EXPLODE', 'explode', 'Descomponer', 'Explode'), t('ERASE', 'erase', 'Borrar', 'Erase'), t('MATCHPROP', 'matchprop', 'Igualar propiedades', 'Match properties')] },
+      { label: { es: 'Booleanas', en: 'Booleans' }, tools: [t('REGION', 'region', 'Región', 'Region'), t('UNION', 'region', 'Unión', 'Union'), t('SUBTRACT', 'region', 'Diferencia', 'Subtract'), t('INTERSECT', 'region', 'Intersección', 'Intersect')] },
+    ],
+  },
+  {
+    id: 'layout',
+    label: { es: 'Presentación', en: 'Layout' },
+    groups: [
+      { label: { es: 'Presentación', en: 'Layout' }, tools: [t('LAYOUT', 'layout', 'Nueva', 'New', 'lg'), t('PAGESETUP', 'layout', 'Configurar página', 'Page setup', 'lg'), t('TITLEBLOCK', 'table', 'Cajetín', 'Title block')] },
+      { label: { es: 'Viewports', en: 'Viewports' }, tools: [t('MVIEW', 'viewport', 'Rectangular', 'Rectangular', 'lg'), t('MVIEWPOLY', 'polygon', 'Poligonal', 'Polygonal'), t('MSPACE', 'viewport', 'Entrar', 'Enter'), t('PSPACE', 'layout', 'Salir', 'Exit'), t('VPLOCK', 'viewport', 'Bloquear', 'Lock'), t('VPLAYER', 'layers', 'Capas en VP', 'VP layers')] },
+      { label: { es: 'Salida', en: 'Output' }, tools: [t('PLOT', 'plot', 'Trazar PDF', 'Plot PDF', 'lg'), t('PUBLISH', 'plot', 'Publicar', 'Publish', 'lg'), t('EXPORTSVG', 'export', 'SVG', 'SVG')] },
+    ],
+  },
+  {
+    id: 'manage',
+    label: { es: 'Gestionar', en: 'Manage' },
+    groups: [
+      { label: { es: 'Calidad', en: 'Quality' }, tools: [t('AUDIT', 'audit', 'Auditar', 'Audit', 'lg'), t('HEALTHREPORT', 'audit', 'Informe de salud', 'Health report', 'lg'), t('PURGE', 'purge', 'Limpiar', 'Purge'), t('OVERKILL', 'overkill', 'Duplicados', 'Overkill'), t('COMPARE', 'compare', 'Comparar', 'Compare')] },
+      { label: { es: 'Personalizar', en: 'Customize' }, tools: [t('ALIASEDIT', 'properties', 'Alias', 'Aliases', 'lg'), t('SHORTCUTS', 'properties', 'Atajos', 'Shortcuts'), t('OPTIONS', 'properties', 'Opciones', 'Options')] },
+      { label: { es: 'Versiones', en: 'Versions' }, tools: [t('VERSIONS', 'history', 'Historial', 'History', 'lg'), t('RECOVER', 'history', 'Recuperar', 'Recover')] },
+    ],
+  },
+  {
+    id: 'output',
+    label: { es: 'Salida', en: 'Output' },
+    groups: [
+      { label: { es: 'Trazar', en: 'Plot' }, tools: [t('PLOT', 'plot', 'Trazar', 'Plot', 'lg'), t('PUBLISH', 'plot', 'Publicar', 'Publish', 'lg'), t('PAGESETUP', 'layout', 'Página', 'Page setup')] },
+      { label: { es: 'Exportar', en: 'Export' }, tools: [t('EXPORTDXF', 'export', 'DXF', 'DXF', 'lg'), t('EXPORTSVG', 'export', 'SVG', 'SVG'), t('EXPORTPDF', 'pdf', 'PDF', 'PDF'), t('EXPORTJSON', 'export', 'JSON depuración', 'Debug JSON'), t('SAVEAS', 'export', 'Paquete .fmodel', '.fmodel package')] },
+    ],
+  },
+  {
+    id: 'view',
+    label: { es: 'Vista', en: 'View' },
+    groups: [
+      { label: { es: 'Navegar', en: 'Navigate' }, tools: [t('ZOOM', 'zoomextents', 'Extensión', 'Extents', 'lg', ['E']), t('ZOOM', 'zoom', 'Ventana', 'Window', 'sm', ['W']), t('ZOOM', 'zoom', 'Previo', 'Previous', 'sm', ['P']), t('ZOOM', 'zoom', 'Objeto', 'Object', 'sm', ['O']), t('PAN', 'pan', 'Encuadre', 'Pan'), t('VIEW', 'viewport', 'Vistas', 'Views')] },
+      { label: { es: 'Visibilidad', en: 'Visibility' }, tools: [t('ISOLATEOBJECTS', 'isolate', 'Aislar', 'Isolate'), t('HIDEOBJECTS', 'isolate', 'Ocultar', 'Hide'), t('UNISOLATEOBJECTS', 'isolate', 'Mostrar todo', 'Show all')] },
+      { label: { es: 'Paneles', en: 'Palettes' }, tools: [t('PROPERTIES', 'properties', 'Propiedades', 'Properties', 'lg'), t('LAYER', 'layers', 'Capas', 'Layers'), t('TOOLPALETTES', 'palettes', 'Paletas', 'Palettes'), t('CLEANSCREENON', 'zoomextents', 'Pantalla limpia', 'Clean screen')] },
+    ],
+  },
+];

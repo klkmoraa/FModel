@@ -1,0 +1,174 @@
+/* ==========================================================================
+   FModel 2D CAD · tokens derivados del brandbook FusionStructure 2026
+   Familia «Modelo» (FS-M01 Dibujo CAD): #7657D5 día · #A990FF noche.
+   Marca madre: #1AA57A (solo en el brazo de la ménsula).
+   Papel técnico de día, carbón de noche; arcilla leve con luz arriba-izquierda.
+   ========================================================================== */
+
+:root {
+  /* tipografía */
+  --fs-font-display: 'Space Grotesk Variable', 'Space Grotesk', 'Inter Variable', Inter, ui-sans-serif, system-ui, sans-serif;
+  --fs-font-ui: 'Inter Variable', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --fs-font-data: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', 'Cascadia Code', monospace;
+
+  /* marca y familia */
+  --fs-brand-accent: #1aa57a;
+  --fs-family-modelo: #7657d5;
+  --fm-accent: var(--fs-family-modelo);
+  --fm-accent-ink: #ffffff;
+  --fm-accent-soft: color-mix(in srgb, var(--fm-accent) 12%, transparent);
+  --fm-accent-line: color-mix(in srgb, var(--fm-accent) 45%, transparent);
+
+  /* neutros día */
+  --n-000: #fffefa;
+  --n-050: #f7f6f1;
+  --n-100: #edefe9;
+  --n-200: #dde2dc;
+  --n-300: #c6cdc6;
+  --n-400: #a7b1a9;
+  --n-500: #7e8a84;
+  --n-600: #5c6a6f;
+  --n-700: #3f4a50;
+  --n-900: #14171a;
+
+  --paper: var(--n-050);
+  --surface: var(--n-000);
+  --surface-sunken: var(--n-100);
+  --surface-hover: color-mix(in srgb, var(--n-900) 5%, var(--surface));
+  --line: var(--n-300);
+  --line-soft: var(--n-200);
+  --line-strong: var(--n-400);
+  --ink: var(--n-900);
+  --ink-strong: var(--n-700);
+  --ink-secondary: var(--n-600);
+  --ink-muted: var(--n-500);
+  --ink-faint: var(--n-400);
+
+  /* señales (pertenecen al dato, no a la decoración) */
+  --fs-signal-axial: #0f95d1;
+  --fs-signal-moment: #ed4b46;
+  --fs-signal-shear: #468c09;
+  --fs-signal-deformed: #8b5cf6;
+  --fs-signal-attention: #d9720a;
+
+  /* estados */
+  --fs-status-disponible: #277654;
+  --fs-status-experimental: #8a6110;
+  --fs-status-planeado: #5c6a6f;
+  --fs-status-no-comprometido: #a7b1a9;
+  --fm-danger: #c9362f;
+
+  /* materia · arcilla */
+  --radius-xs: 6px;
+  --radius-sm: 12px;
+  --radius-md: 18px;
+  --radius-lg: 24px;
+  --radius-pill: 999px;
+  --clay-light: rgb(255 255 255 / 85%);
+  --clay-dark: rgb(20 23 26 / 14%);
+  --clay-dark-soft: rgb(20 23 26 / 8%);
+  --clay-dark-strong: rgb(20 23 26 / 22%);
+  --clay-veil: rgb(20 23 26 / 45%);
+  --press: translateY(1.5px);
+
+  /* movimiento */
+  --fs-instant: 90ms;
+  --fs-quick: 140ms;
+  --fs-bridge: 200ms;
+  --fs-reveal: 280ms;
+  --fs-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --fs-ease-firm: cubic-bezier(0.65, 0, 0.35, 1);
+
+  /* densidad CAD */
+  --fm-topbar-h: 46px;
+  --fm-ribbon-h: 92px;
+  --fm-status-h: 32px;
+  --fm-control-h: 30px;
+  --fm-gap: 8px;
+
+  color-scheme: light;
+}
+
+:root,
+[data-theme] {
+  --shadow-raised: 2px 4px 7px -1px var(--clay-dark), 1px 1px 2px var(--clay-dark), inset 1.5px 1.5px 2px var(--clay-light), inset -2px -2px 4px var(--clay-dark-soft);
+  --shadow-float: 4px 8px 14px -2px var(--clay-dark-strong), 1px 2px 4px var(--clay-dark), inset 1.5px 1.5px 2px var(--clay-light), inset -2px -2px 4px var(--clay-dark-soft);
+  --shadow-lifted: 5px 10px 16px -2px var(--clay-dark-strong), 2px 3px 5px var(--clay-dark), inset 2px 2px 3px var(--clay-light);
+  --shadow-inset: inset 2px 2.5px 5px var(--clay-dark), inset -1.5px -1.5px 3px var(--clay-light);
+  --shadow-selected: inset 2px 2.5px 5px var(--clay-dark), inset -1px -1px 2px var(--clay-light), 0 0 0 1.5px var(--fm-accent);
+  --shadow-sheet: 0 -6px 12px -2px var(--clay-dark-strong), inset 1px 1px 2px var(--clay-light);
+  --shadow-chip: 1px 2px 4px -1px var(--clay-dark), inset 1px 1px 1.5px var(--clay-light), inset -1px -1px 2px var(--clay-dark-soft);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='dia']) {
+    --n-000: #0e1113;
+    --n-050: #14171a;
+    --n-100: #1b1f22;
+    --n-200: #252a2e;
+    --n-300: #333a3e;
+    --n-400: #465055;
+    --n-500: #5e6a6f;
+    --n-600: #8b9599;
+    --n-700: #b4bdc0;
+    --n-900: #f2f4f3;
+    --surface: var(--n-100);
+    --surface-sunken: var(--n-000);
+    --fs-family-modelo: #a990ff;
+    --fm-accent-ink: #0e1113;
+    --fs-signal-axial: #63c5ff;
+    --fs-signal-moment: #ff8e80;
+    --fs-signal-shear: #55c990;
+    --fs-signal-attention: #f3c553;
+    --fs-status-disponible: #55c990;
+    --fs-status-experimental: #f3c553;
+    --fs-status-planeado: #8b9599;
+    --fm-danger: #ff8e80;
+    --clay-light: rgb(255 255 255 / 16%);
+    --clay-dark: rgb(0 0 0 / 55%);
+    --clay-dark-soft: rgb(0 0 0 / 35%);
+    --clay-dark-strong: rgb(0 0 0 / 70%);
+    --clay-veil: rgb(0 0 0 / 62%);
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme='noche'] {
+  --n-000: #0e1113;
+  --n-050: #14171a;
+  --n-100: #1b1f22;
+  --n-200: #252a2e;
+  --n-300: #333a3e;
+  --n-400: #465055;
+  --n-500: #5e6a6f;
+  --n-600: #8b9599;
+  --n-700: #b4bdc0;
+  --n-900: #f2f4f3;
+  --surface: var(--n-100);
+  --surface-sunken: var(--n-000);
+  --fs-family-modelo: #a990ff;
+  --fm-accent-ink: #0e1113;
+  --fs-signal-axial: #63c5ff;
+  --fs-signal-moment: #ff8e80;
+  --fs-signal-shear: #55c990;
+  --fs-signal-attention: #f3c553;
+  --fs-status-disponible: #55c990;
+  --fs-status-experimental: #f3c553;
+  --fs-status-planeado: #8b9599;
+  --fm-danger: #ff8e80;
+  --clay-light: rgb(255 255 255 / 16%);
+  --clay-dark: rgb(0 0 0 / 55%);
+  --clay-dark-soft: rgb(0 0 0 / 35%);
+  --clay-dark-strong: rgb(0 0 0 / 70%);
+  --clay-veil: rgb(0 0 0 / 62%);
+  color-scheme: dark;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --fs-instant: 0ms;
+    --fs-quick: 0ms;
+    --fs-bridge: 0ms;
+    --fs-reveal: 0ms;
+  }
+}

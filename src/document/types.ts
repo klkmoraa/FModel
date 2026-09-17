@@ -412,7 +412,8 @@ export interface ViewportEntity extends EntityBase {
   /** unidades de papel por unidad de modelo (1:50 en mm con modelo en mm = 1/50) */
   scale: number;
   viewTwist: number;
-  locked: boolean;
+  /** visualización bloqueada: el encuadre y la escala no cambian desde dentro */
+  displayLocked: boolean;
   on: boolean;
   frozenLayers: Id[];
   layerOverrides: Record<Id, Partial<Pick<LayerRecord, 'color' | 'linetype' | 'lineweight' | 'transparency'>>>;
@@ -801,6 +802,12 @@ export interface ArrayAction extends DynActionBase {
   type: 'array';
   columnOffset: number;
   rowOffset: number;
+  /**
+   * Extensión FModel: matriz polar alrededor de la base del parámetro. `polarCount` es una
+   * expresión (p. ej. el nombre de una variable de usuario) y `fillAngle` el ángulo a llenar (grados).
+   */
+  polarCount?: string;
+  fillAngle?: number;
 }
 export interface LookupAction extends DynActionBase {
   type: 'lookup';
