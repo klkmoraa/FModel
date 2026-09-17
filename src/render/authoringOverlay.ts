@@ -1,7 +1,10 @@
 import { ACTION_TYPE_LABEL, paramsWithoutAction } from '../blocks/authoring';
+import { buildScope, evaluateDynamic } from '../blocks/dynamic';
+import { refPoint, refSegment } from '../constraints/solver';
+import { evaluate } from '../lib/expr';
 import type { Vec2 } from '../geometry/vec';
 import { add, angleOf, dist, len, mid, normalize, perp, scale, sub } from '../geometry/vec';
-import type { DynParam } from '../document/types';
+import type { BlockRecord, DynParam, GeoConstraintType, Id } from '../document/types';
 import type { Editor } from '../editor/editor';
 import type { RenderTheme } from './theme';
 
@@ -97,6 +100,165 @@ export function drawAuthoringOverlay(g: CanvasRenderingContext2D, editor: Editor
     const anchor = drawParam(g, p, toS, tick, gripSquare);
     label(`${p.label || p.name}${valueText(p, fmt)}`, anchor, warn, subText);
   }
+  g.restore();
+  drawConstraints(g, editor, theme);
+}
+
+const GLYPH: Record<GeoConstraintType, string> = {
+  horizontal: 'H',
+  vertical: 'V',
+  parallel: '∥',
+  perpendicular: '⊥',
+  coincident: '•',
+  tangent: 'T',
+  concentric: '◎',
+  equal: '=',
+  symmetric: '[ ]',
+  fixed: 'F',
+  collinear: '⋯',
+};
+
+/** Conflictos de la definición con sus valores por defecto, cacheados por versión de bloques. */
+let conflictCache: { key: string; ids: Set<Id> } | null = null;
+function conflictsOf(editor: Editor, block: BlockRecord): Set<Id> {
+  const key = `${block.id}|${block.revision}|${editor.ctx.blocksVersion}|${editor.doc.version}`;
+  if (conflictCache?.key === key) return conflictCache.ids;
+  let ids = new Set<Id>();
+  try {
+    ids = new Set(evaluateDynamic(editor.ctx, block, editor.doc.entitiesOf(block.id), undefined).conflicts);
+  } catch {
+    /* la validación del panel informa del error */
+  }
+  conflictCache = { key, ids };
+  return ids;
+}
+
+/**
+ * Glifos de restricciones geométricas junto a cada objeto referenciado y cotas de las
+ * restricciones dimensionales con su nombre y valor; en conflicto, en color de aviso.
+ */
+function drawConstraints(g: CanvasRenderingContext2D, editor: Editor, theme: RenderTheme) {
+  const s = editor.blockEdit;
+  if (!s || s.testing || editor.space !== s.blockId) return;
+  const block = editor.doc.data.blocks.get(s.blockId);
+  const def = block?.dynamic;
+  if (!block || !def?.constraints.length) return;
+  const toS = (p: Vec2) => editor.ownerToScreen(p);
+  const conflicts = conflictsOf(editor, block);
+  const warn = theme.dark ? '#f3c553' : '#d9720a';
+  const ink = theme.dark ? '#63c5ff' : '#0f95d1';
+  let scope: Record<string, number> = {};
+  try {
+    scope = buildScope(def, undefined);
+  } catch {
+    scope = {};
+  }
+  const fmt = (v: number) => String(Math.round(v * 1000) / 1000);
+
+  const badge = (text: string, at: Vec2, color: string, alpha: number) => {
+    g.globalAlpha = alpha;
+    g.font = '600 10px "IBM Plex Mono", ui-monospace, monospace';
+    const w = Math.max(14, g.measureText(text).width + 8);
+    const x = Math.round(at.x - w / 2);
+    const y = Math.round(at.y - 8);
+    g.fillStyle = theme.tooltipBg;
+    g.strokeStyle = color;
+    g.lineWidth = 1;
+    g.setLineDash([]);
+    g.beginPath();
+    const rr = (g as { roundRect?: (x: number, y: number, w: number, h: number, r: number) => void }).roundRect;
+    if (typeof rr === 'function') rr.call(g, x, y, w, 16, 4);
+    else g.rect(x, y, w, 16);
+    g.fill();
+    g.stroke();
+    g.fillStyle = color;
+    g.textBaseline = 'middle';
+    g.textAlign = 'center';
+    g.fillText(text, at.x, y + 8.5);
+    g.textAlign = 'left';
+    g.globalAlpha = 1;
+  };
+
+  /** Anclaje en pantalla de una referencia: punto medio del tramo desplazado, o el punto. */
+  const anchorOf = (entityId: Id, part: string, offset: number): Vec2 | null => {
+    const e = editor.doc.entity(entityId);
+    if (!e) return null;
+    const seg = refSegment(e, part === 'edge' ? 'segment:0' : part);
+    if (seg && (part === 'edge' || part.startsWith('segment:'))) {
+      const a = toS(seg[0]);
+      const b = toS(seg[1]);
+      const n = normalize(perp(sub(b, a)));
+      return add(mid(a, b), scale(len(n) ? n : { x: 0, y: -1 }, offset));
+    }
+    const p = refPoint(e, part === 'edge' ? 'center' : part);
+    return p ? add(toS(p), { x: offset * 0.7, y: -offset * 0.7 }) : null;
+  };
+
+  g.save();
+  def.constraints.forEach((c, index) => {
+    const conflict = conflicts.has(c.id);
+    const color = conflict ? warn : ink;
+    if (c.kind === 'geometric') {
+      const alpha = c.enabled ? 1 : 0.4;
+      c.refs.forEach((r, i) => {
+        const at = anchorOf(r.entityId, r.part, 14 + i * 2);
+        if (at) badge(`${GLYPH[c.type]}${c.refs.length > 1 ? String(index + 1) : ''}`, at, color, alpha);
+      });
+      return;
+    }
+    let value: number | null = null;
+    try {
+      value = evaluate(c.expression, scope);
+    } catch {
+      value = null;
+    }
+    const numeric = /^\s*-?\d+(\.\d+)?\s*$/.test(c.expression);
+    const text = `${c.type === 'radius' ? 'R ' : c.type === 'diameter' ? 'Ø ' : ''}${c.name} = ${numeric || value === null ? c.expression : `${c.expression} (${fmt(value)})`}${c.type === 'angular' ? '°' : ''}`;
+    const [r0, r1] = c.refs;
+    const e0 = r0 ? editor.doc.entity(r0.entityId) : undefined;
+    const e1 = r1 ? editor.doc.entity(r1.entityId) : undefined;
+    if ((c.type === 'radius' || c.type === 'diameter') && e0 && (e0.type === 'circle' || e0.type === 'arc')) {
+      const center = toS(e0.center);
+      const edge = toS({ x: e0.center.x + e0.radius * Math.SQRT1_2, y: e0.center.y + e0.radius * Math.SQRT1_2 });
+      g.strokeStyle = color;
+      g.setLineDash([3, 3]);
+      g.beginPath();
+      g.moveTo(center.x, center.y);
+      g.lineTo(edge.x, edge.y);
+      g.stroke();
+      badge(text, add(edge, { x: 18, y: -10 }), color, 1);
+      return;
+    }
+    if (c.type === 'angular' && e0) {
+      const at = anchorOf(r0.entityId, r0.part, 22);
+      if (at) badge(text, at, color, 1);
+      return;
+    }
+    const p0 = e0 ? refPoint(e0, r0.part) : null;
+    const p1 = e1 ? refPoint(e1, r1.part) : null;
+    if (!p0 || !p1) return;
+    let a = toS(p0);
+    let b = toS(p1);
+    if (c.type === 'linear-h') b = { x: b.x, y: a.y };
+    if (c.type === 'linear-v') b = { x: a.x, y: b.y };
+    const d = sub(b, a);
+    const n = len(d) > 1e-9 ? normalize(perp(d)) : { x: 0, y: -1 };
+    const off = scale(n, -18);
+    const a2 = add(a, off);
+    const b2 = add(b, off);
+    g.strokeStyle = color;
+    g.lineWidth = 1;
+    g.setLineDash([]);
+    g.beginPath();
+    g.moveTo(a.x, a.y);
+    g.lineTo(a2.x, a2.y);
+    g.moveTo(b.x, b.y);
+    g.lineTo(b2.x, b2.y);
+    g.moveTo(a2.x, a2.y);
+    g.lineTo(b2.x, b2.y);
+    g.stroke();
+    badge(text, mid(a2, b2), color, 1);
+  });
   g.restore();
 }
 

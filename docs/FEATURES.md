@@ -2,7 +2,7 @@
 
 > Archivo generado con `node scripts/features-md.mjs` desde `src/app/features.ts`, la misma fuente que la pestaña «Estado de funciones» de la ayuda (F1). No lo edites a mano.
 
-**Disponible**: 37 · **Experimental**: 3 · **Planeado**: 1 · **No comprometido**: 1
+**Disponible**: 38 · **Experimental**: 2 · **Planeado**: 1 · **No comprometido**: 1
 
 - **Disponible**: funciona de extremo a extremo y tiene pruebas.
 - **Experimental**: funciona con limitaciones documentadas.
@@ -64,7 +64,7 @@
 | Definiciones, inserción con autoescala, atributos, extracción, biblioteca compartida local | Disponible | `BLOCK` `INSERT` `ATTDEF` `ATTEDIT` `DATAEXTRACTION` `WBLOCK` |  |
 | Bloques dinámicos: parámetros, acciones, estados de visibilidad, tablas de consulta, fórmulas y variables | Disponible | `BEDIT` `BPARAMETER` `BACTION` `BVSTATE` `BVARIABLE` |  |
 | Editor de bloques con prueba, edición en contexto, validación y vista previa en vivo | Disponible | `BEDIT` `BTESTBLOCK` `BCLOSE` |  |
-| Restricciones geométricas y dimensionales dentro de bloques | Experimental | `BCONSTRAINT` `BCPARAMETER` | El resolvedor es numérico; los glifos de restricción aún no se dibujan en el lienzo. |
+| Restricciones geométricas y dimensionales dentro de bloques, con glifos, cotas de restricción y conflictos en el lienzo | Disponible | `BCONSTRAINT` `BCPARAMETER` | Resolvedor numérico por mínimos cuadrados amortiguados: las restricciones incompatibles se marcan en conflicto en lugar de ignorarse. |
 
 ## Paletas
 

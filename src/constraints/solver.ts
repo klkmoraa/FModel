@@ -89,6 +89,24 @@ function segmentPaths(e: Entity, part: string): [[string, string], [string, stri
   return null;
 }
 
+/** Punto referenciado por una restricción (para dibujar sus glifos), o null si no aplica. */
+export function refPoint(e: Entity, part: string): { x: number; y: number } | null {
+  const p = pointPaths(e, part);
+  if (!p) return null;
+  const x = getPath(e, p[0]);
+  const y = getPath(e, p[1]);
+  return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null;
+}
+
+/** Segmento referenciado por una restricción, o null si no aplica. */
+export function refSegment(e: Entity, part: string): [{ x: number; y: number }, { x: number; y: number }] | null {
+  const s = segmentPaths(e, part);
+  if (!s) return null;
+  const a = { x: getPath(e, s[0][0]), y: getPath(e, s[0][1]) };
+  const b = { x: getPath(e, s[1][0]), y: getPath(e, s[1][1]) };
+  return [a, b].every((q) => Number.isFinite(q.x) && Number.isFinite(q.y)) ? [a, b] : null;
+}
+
 interface Model {
   vars: VarRef[];
   index: Map<string, number>;
