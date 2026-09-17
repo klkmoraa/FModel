@@ -2,7 +2,7 @@ import { TAU, DEG } from '../../geometry/angle';
 import { splineThroughPoints } from '../../geometry/spline';
 import type { Vec2 } from '../../geometry/vec';
 import { normalize } from '../../geometry/vec';
-import type { CadDocument, Transaction } from '../../document/document';
+import type { CadDocument } from '../../document/document';
 import { createDocumentData, defaultPageSetup, DIMSTYLE_ISO_ID, ISO_DIMSTYLE, LAYER0_ID, LT_CONTINUOUS_ID, PAPER_SIZES, TEXTSTYLE_STANDARD_ID } from '../../document/defaults';
 import { newId } from '../../document/ids';
 import type {
@@ -143,6 +143,13 @@ export function importDxfIntoDocument(doc: CadDocument, text: string, opts: { re
 
     const dimByName = new Map<string, Id>();
     for (const d of doc.data.dimStyles.values()) dimByName.set(d.name.toUpperCase(), d.id);
+    // flechas: DIMBLK (342) o DIMBLK1/DIMBLK2 (343/344) con DIMSAH (173) apuntan a registros de bloque
+    const arrowBlockNames = new Map<string, string>();
+    for (const rec of dxf.tables.get('BLOCK_RECORD')?.records ?? []) {
+      const br = new R(rec);
+      arrowBlockNames.set(br.str(5).toUpperCase(), br.str(2).toUpperCase());
+    }
+    const arrowOf = (handle: string): ArrowType => ARROWS[arrowBlockNames.get(handle.toUpperCase()) ?? ''] ?? 'closed-filled';
     for (const rec of dxf.tables.get('DIMSTYLE')?.records ?? []) {
       const r = new R(rec);
       const name = r.str(2);
@@ -166,7 +173,7 @@ export function importDxfIntoDocument(doc: CadDocument, text: string, opts: { re
         precision: r.num(271, ISO_DIMSTYLE.precision),
         textVertical: r.num(77, 1) === 0 ? 'centered' : 'above',
         textAlignment: r.num(73, 0) === 1 ? 'horizontal' : 'aligned',
-        decimalSeparator: r.str(278, '.') === ',' ? ',' : '.',
+        decimalSeparator: r.num(278, 46) === 44 ? ',' : '.',
         prefix: prefix ?? '',
         suffix: suffix ?? '',
         tolerance: r.num(71) ? 'deviation' : 'none',
@@ -175,8 +182,8 @@ export function importDxfIntoDocument(doc: CadDocument, text: string, opts: { re
         altUnits: r.num(170) === 1,
         altFactor: r.num(143, 25.4),
         roundOff: r.num(45),
-        arrow1: 'closed-filled',
-        arrow2: 'closed-filled',
+        arrow1: arrowOf(r.num(173) === 1 ? r.str(343) : r.str(342)),
+        arrow2: arrowOf(r.num(173) === 1 ? r.str(344) : r.str(342)),
       });
       dimByName.set(name.toUpperCase(), id);
     }
@@ -569,7 +576,6 @@ export function importDxfIntoDocument(doc: CadDocument, text: string, opts: { re
       if (layout) convertList(b.entities, () => layout);
     }
     convertList(dxf.entities, (r) => (r.num(67) === 1 ? (firstLayout ?? MODEL_SPACE_ID) : (opts.owner ?? MODEL_SPACE_ID)));
-    void tx as unknown as Transaction;
   });
 
   const total = Object.values(report.imported).reduce((a, b) => a + b, 0);
@@ -589,6 +595,23 @@ function trueColor(n: number): string {
 function transparencyOf(v: number): number {
   const alpha = v & 0xff;
   return Math.max(0, Math.min(90, Math.round((1 - alpha / 255) * 100)));
+}
+
+/**
+ * Decodifica los bytes de un DXF: R2007 (AC1021) y posteriores son UTF-8; las versiones
+ * anteriores usan la página de códigos de $DWGCODEPAGE (Windows-1252 si no se reconoce).
+ */
+export function decodeDxfBytes(bytes: Uint8Array): string {
+  const head = new TextDecoder('latin1').decode(bytes.subarray(0, 8192));
+  const ver = /\$ACADVER\s*\r?\n\s*1\s*\r?\n\s*(AC\d{4})/.exec(head)?.[1];
+  if (!ver || ver >= 'AC1021' || bytes[0] === 0xef) return new TextDecoder('utf-8').decode(bytes);
+  const cp = /\$DWGCODEPAGE\s*\r?\n\s*3\s*\r?\n\s*(\S+)/.exec(head)?.[1]?.toUpperCase() ?? 'ANSI_1252';
+  const map: Record<string, string> = { ANSI_1250: 'windows-1250', ANSI_1251: 'windows-1251', ANSI_1252: 'windows-1252', ANSI_1253: 'windows-1253', ANSI_1254: 'windows-1254', ANSI_1257: 'windows-1257', ANSI_932: 'shift_jis', ANSI_936: 'gbk', ANSI_949: 'euc-kr', ANSI_950: 'big5' };
+  try {
+    return new TextDecoder(map[cp] ?? 'windows-1252').decode(bytes);
+  } catch {
+    return new TextDecoder('windows-1252').decode(bytes);
+  }
 }
 
 /** Decodifica códigos de control DXF en texto. */

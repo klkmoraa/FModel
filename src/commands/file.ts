@@ -42,11 +42,11 @@ const NEW: CommandDef = {
 export async function openBytes(api: CommandApi, name: string, bytes: Uint8Array) {
   const lower = name.toLowerCase();
   if (lower.endsWith('.dxf')) {
-    const { importDxfIntoDocument } = await import('../io/dxf/importDxf');
-    const report = importDxfIntoDocument(api.editor.doc, new TextDecoder().decode(bytes), { replace: true });
+    const { decodeDxfBytes, importDxfIntoDocument } = await import('../io/dxf/importDxf');
+    const report = importDxfIntoDocument(api.editor.doc, decodeDxfBytes(bytes), { replace: true });
     api.editor.fileName = fileBaseName(name);
     api.info(L(report.summary.es, report.summary.en));
-    requestUi('import-report', report);
+    requestUi('conversion-report', { kind: 'import', name, report });
     api.editor.zoomExtents();
     return;
   }
@@ -167,4 +167,39 @@ const RECOVER: CommandDef = {
   },
 };
 
-export const FILE_COMMANDS: CommandDef[] = [NEW, OPEN, QSAVE, SAVEAS, EXPORTJSON, VERSIONS, RECOVER];
+const IMPORTDXF: CommandDef = {
+  name: 'IMPORTDXF',
+  aliases: ['DXFIN', 'IMPORTARDXF'],
+  category: 'file',
+  label: L('Importar DXF', 'Import DXF'),
+  description: L('Inserta un DXF en el dibujo actual (capas, estilos y bloques se fusionan por nombre) y muestra el informe de conversión.', 'Inserts a DXF into the current drawing (layers, styles and blocks merge by name) and shows the conversion report.'),
+  async run(api) {
+    const f = await openFile({ 'application/dxf': ['.dxf'] }, 'DXF');
+    if (!f) return;
+    const { decodeDxfBytes, importDxfIntoDocument } = await import('../io/dxf/importDxf');
+    const report = importDxfIntoDocument(api.editor.doc, decodeDxfBytes(f.bytes), { owner: api.editor.inputOwner });
+    api.info(L(report.summary.es, report.summary.en));
+    requestUi('conversion-report', { kind: 'import', name: f.name, report });
+    api.editor.zoomExtents();
+  },
+};
+
+const EXPORTDXF: CommandDef = {
+  name: 'EXPORTDXF',
+  aliases: ['DXFOUT', 'EXPORTARDXF'],
+  category: 'file',
+  readOnly: true,
+  label: L('Exportar DXF', 'Export DXF'),
+  description: L('Guarda el dibujo como DXF R2010 (UTF-8) con capas, bloques, presentaciones y viewports; muestra qué se conservó, qué se convirtió y qué se omitió.', 'Saves the drawing as DXF R2010 (UTF-8) with layers, blocks, layouts and viewports; reports what was kept, converted or skipped.'),
+  async run(api) {
+    const { exportDxf, exportSummary } = await import('../io/dxf/exportDxf');
+    const { text, report } = exportDxf(api.editor.doc, api.editor.ctx);
+    const name = `${api.editor.fileName || api.editor.doc.settings.title || 'dibujo'}.dxf`;
+    const handle = await saveFile(new Blob([text], { type: 'application/dxf' }), name, { 'application/dxf': ['.dxf'] }, 'DXF');
+    const summary = exportSummary(report);
+    api.info(L(`${summary.es}${handle ? ` → ${handle.name}` : ''}`, `${summary.en}${handle ? ` → ${handle.name}` : ''}`));
+    requestUi('conversion-report', { kind: 'export', name: handle?.name ?? name, report });
+  },
+};
+
+export const FILE_COMMANDS: CommandDef[] = [NEW, OPEN, QSAVE, SAVEAS, EXPORTJSON, VERSIONS, RECOVER, IMPORTDXF, EXPORTDXF];

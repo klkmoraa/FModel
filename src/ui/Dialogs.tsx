@@ -4,6 +4,7 @@ import type { Editor } from '../editor/editor';
 import { DraftingSettings } from './dialogs/DraftingSettings';
 import { FileMenu } from './dialogs/FileMenu';
 import { AttributeExtraction } from './dialogs/AttributeExtraction';
+import { ConversionReportDialog, type ConversionPayload } from './dialogs/ConversionReportDialog';
 import { LookupTableDialog } from './dialogs/LookupTableDialog';
 import { PageSetupDialog } from './dialogs/PageSetupDialog';
 import { PublishDialog } from './dialogs/PublishDialog';
@@ -42,6 +43,7 @@ export const DIALOGS: Record<string, DialogRenderer> = {
   'lookup-table': (e, close, _onUi, st) => <LookupTableDialog editor={e} tableId={String(st.payload ?? '')} onClose={close} />,
   'page-setup': (e, close, _onUi, st) => <PageSetupDialog editor={e} plot={!!(st.payload as { plot?: boolean } | undefined)?.plot} onClose={close} />,
   publish: (e, close) => <PublishDialog editor={e} onClose={close} />,
+  'conversion-report': (e, close, _onUi, st) => <ConversionReportDialog editor={e} payload={st.payload as ConversionPayload | undefined} onClose={close} />,
 };
 
 export function registerDialog(id: string, render: DialogRenderer) {

@@ -1321,3 +1321,43 @@ table.grid tr.is-active td {
     order: -1;
   }
 }
+
+/* --------------------------------------------------------------- conversion report */
+
+.report {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.report section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.report h3 {
+  margin: 0;
+}
+.report__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.report__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-sunken);
+  font: 11.5px/1 var(--fs-font-data);
+}
+.report__chip code {
+  color: var(--fm-accent);
+}
+.report__warnings {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12px;
+  color: var(--ink-secondary);
+}
