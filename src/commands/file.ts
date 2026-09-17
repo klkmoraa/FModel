@@ -9,7 +9,7 @@ import { runHeavy } from '../workers/client';
 
 const FMODEL_ACCEPT = { 'application/x-fmodel': ['.fmodel'], 'application/json': ['.json'] };
 
-async function confirmDiscard(api: CommandApi): Promise<boolean> {
+export async function confirmDiscard(api: CommandApi): Promise<boolean> {
   if (!api.editor.doc.dirty) return true;
   const r = await api.getKeyword({
     prompt: L('Hay cambios sin guardar. ¿Descartarlos?', 'There are unsaved changes. Discard them?'),

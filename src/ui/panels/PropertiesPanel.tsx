@@ -3,7 +3,8 @@ import type { Entity, EntityType, InsertEntity } from '../../document/types';
 import type { Editor } from '../../editor/editor';
 import { insertAttributes } from '../../model/kinds/insert';
 import { useEditorEvents } from '../hooks';
-import { ColorPicker, LinetypeSelect, LineweightSelect, MIXED, NumberField, TextField, tr } from '../controls';
+import { ColorPicker, LinetypeSelect, LineweightSelect, NumberField, TextField, tr } from '../controls';
+import { PropertyField } from './propertyFields';
 import type { PropRow } from './propertyDefs';
 import { GENERAL_ROWS, rowsForType } from './propertyDefs';
 import { dynamicPropertyRows } from '../../blocks/dynamicProperties';
@@ -39,25 +40,6 @@ export function PropertiesPanel({ editor }: { editor: Editor }) {
   const filter = typeFilter !== 'all' && byType.has(typeFilter) ? typeFilter : byType.size === 1 ? [...byType.keys()][0] : 'all';
   const targets = filter === 'all' ? selected : selected.filter((e) => e.type === filter);
 
-  const apply = (row: PropRow, value: unknown) => {
-    if (!row.set) return;
-    let rejected = 0;
-    doc.transact(`PROPERTIES ${row.key}`, (tx) => {
-      for (const e of targets) {
-        const cur = doc.entity(e.id);
-        if (!cur) continue;
-        try {
-          const next = row.set!(cur, value, ctx);
-          if (next) tx.put('entities', next);
-          else rejected++;
-        } catch {
-          rejected++;
-        }
-      }
-    });
-    if (rejected) editor.runner.message('warn', { es: `${rejected} objeto(s) no aceptaron el valor «${String(value)}» (fuera de rango o no aplicable).`, en: `${rejected} object(s) rejected value "${String(value)}" (out of range or not applicable).` });
-  };
-
   if (!selected.length) return <CurrentProperties editor={editor} />;
 
   const rows: PropRow[] = [...GENERAL_ROWS, ...(filter !== 'all' ? rowsForType(filter) : [])];
@@ -75,101 +57,6 @@ export function PropertiesPanel({ editor }: { editor: Editor }) {
     g.push(r);
     groups.set(r.group, g);
   }
-
-  const renderRow = (row: PropRow) => {
-    const vals = targets.map((e) => {
-      try {
-        return row.get(e, ctx);
-      } catch {
-        return null;
-      }
-    });
-    const first = vals[0];
-    const mixed = vals.some((v) => JSON.stringify(v) !== JSON.stringify(first));
-    const label = row.label[lang];
-    let control: React.ReactNode;
-    switch (row.kind) {
-      case 'readonly':
-        control = <input className="input input--mono" readOnly value={mixed ? MIXED : typeof first === 'number' ? (Math.round(first * 1e4) / 1e4).toString() : String(first ?? '—')} aria-label={label} />;
-        break;
-      case 'number':
-        control = <NumberField lang={lang} value={typeof first === 'number' ? first : null} mixed={mixed} onCommit={(v) => apply(row, v)} ariaLabel={label} />;
-        break;
-      case 'angle':
-        control = <NumberField lang={lang} value={typeof first === 'number' ? first : null} mixed={mixed} suffix="°" onCommit={(v) => apply(row, v)} ariaLabel={label} />;
-        break;
-      case 'text':
-        control = <TextField value={String(first ?? '')} mixed={mixed} onCommit={(v) => apply(row, v)} ariaLabel={label} />;
-        break;
-      case 'multiline':
-        control = <TextField multiline value={String(first ?? '')} mixed={mixed} onCommit={(v) => apply(row, v)} ariaLabel={label} />;
-        break;
-      case 'bool':
-        control = <input type="checkbox" checked={!mixed && !!first} ref={(el) => {
-              if (el) el.indeterminate = mixed;
-            }} onChange={(e) => apply(row, e.target.checked)} aria-label={label} />;
-        break;
-      case 'color':
-        control = <ColorPicker lang={lang} value={String(first)} mixed={mixed} onChange={(c) => apply(row, c)} />;
-        break;
-      case 'layer':
-        control = (
-          <select className="select" value={mixed ? 'mixed' : String(first)} onChange={(e) => apply(row, e.target.value)} aria-label={label}>
-            {mixed && <option value="mixed">{MIXED}</option>}
-            {[...doc.data.layers.values()]
-              .sort((a, b) => a.name.localeCompare(b.name))
-              .map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.name}
-                </option>
-              ))}
-          </select>
-        );
-        break;
-      case 'linetype':
-        control = <LinetypeSelect doc={doc} lang={lang} value={String(first)} mixed={mixed} onChange={(v) => apply(row, v)} />;
-        break;
-      case 'lineweight':
-        control = <LineweightSelect lang={lang} value={Number(first)} mixed={mixed} onChange={(v) => apply(row, v)} />;
-        break;
-      case 'transparency':
-        control = (
-          <div style={{ display: 'flex', gap: 4 }}>
-            <select className="select" style={{ width: 96 }} value={mixed ? 'mixed' : typeof first === 'number' ? 'value' : String(first)} onChange={(e) => apply(row, e.target.value === 'value' ? 0 : e.target.value)}>
-              {mixed && <option value="mixed">{MIXED}</option>}
-              <option value="ByLayer">{tr(lang, 'PorCapa', 'ByLayer')}</option>
-              <option value="ByBlock">{tr(lang, 'PorBloque', 'ByBlock')}</option>
-              <option value="value">{tr(lang, 'Valor', 'Value')}</option>
-            </select>
-            {typeof first === 'number' && !mixed && <NumberField lang={lang} value={first} suffix="%" onCommit={(v) => apply(row, v)} />}
-          </div>
-        );
-        break;
-      case 'select': {
-        let options = row.options;
-        if (!options && (row.key === 'style')) options = [...doc.data.textStyles.values()].map((s) => ({ value: s.id, label: s.name }));
-        if (!options && row.key === 'dstyle') options = [...doc.data.dimStyles.values()].map((s) => ({ value: s.id, label: s.name }));
-        if (!options && row.key === 'mlstyle') options = [...doc.data.mleaderStyles.values()].map((s) => ({ value: s.id, label: s.name }));
-        control = (
-          <select className="select" value={mixed ? 'mixed' : String(first)} onChange={(e) => apply(row, e.target.value)} aria-label={label}>
-            {mixed && <option value="mixed">{MIXED}</option>}
-            {(options ?? []).map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-        );
-        break;
-      }
-    }
-    return (
-      <div className="field" key={row.key}>
-        <label title={label}>{label}</label>
-        {control}
-      </div>
-    );
-  };
 
   const single = targets.length === 1 ? targets[0] : null;
 
@@ -195,7 +82,7 @@ export function PropertiesPanel({ editor }: { editor: Editor }) {
           <summary>
             <span className="eyebrow">{GROUP_LABELS[g][lang === 'es' ? 0 : 1]}</span>
           </summary>
-          <div className="section__body">{rs.map(renderRow)}</div>
+          <div className="section__body">{rs.map((row) => <PropertyField key={row.key} editor={editor} row={row} targets={targets} />)}</div>
         </details>
       ))}
       {single?.type === 'insert' && <InsertExtras editor={editor} e={single as InsertEntity} />}

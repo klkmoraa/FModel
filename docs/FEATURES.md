@@ -99,7 +99,7 @@
 
 | Función | Estado | Comandos | Notas |
 |---|---|---|---|
-| Dibujos referenciados (enlazar/superponer), recarga, descarga, unión, ruta, detección de ciclos | Disponible | `XATTACH` `XREFMANAGER` `XRELOAD` `XBIND` `XREPATH` |  |
+| Dibujos referenciados (enlazar/superponer), recarga, descarga, apertura, unión, ruta, detección de ciclos | Disponible | `XATTACH` `XREFMANAGER` `XRELOAD` `XOPEN` `XBIND` `XREPATH` |  |
 | Imágenes y calcos PDF con recorte, opacidad, atenuación y bloqueo | Disponible | `IMAGEATTACH` `PDFATTACH` `IMAGECLIP` `IMAGEADJUST` |  |
 | Referencias a objetos sobre la geometría de calcos PDF | Planeado |  |  |
 
@@ -114,7 +114,7 @@
 
 | Función | Estado | Comandos | Notas |
 |---|---|---|---|
-| Paleta de comandos, alias y atajos configurables, repetir último, favoritos, ayuda contextual | Disponible | `OPTIONS` `HELP` |  |
+| Paleta de comandos, alias y atajos configurables, repetir último, favoritos, propiedades rápidas, historial de comandos y ayuda contextual | Disponible | `OPTIONS` `HELP` `QUICKPROPERTIES` `TEXTSCR` |  |
 | Autoguardado, recuperación tras cierre y versiones locales | Disponible | `VERSIONS` `RECOVER` |  |
 | Español e inglés | Disponible | `OPTIONS` |  |
 | Aplicación instalable con uso sin conexión (PWA) y apertura de .fmodel/.dxf desde el sistema | Experimental | `UPDATEAPP` | El service worker precarga toda la versión y está cubierto por pruebas; la instalación y la apertura de archivos dependen del navegador (Safari no abre archivos desde el sistema). |

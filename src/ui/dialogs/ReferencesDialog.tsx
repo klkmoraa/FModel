@@ -124,6 +124,9 @@ export function ReferencesDialog({ editor, onClose }: { editor: Editor; onClose:
                               {tr(lang, 'Descargar', 'Unload')}
                             </button>
                           )}
+                          <button className="btn btn--sm" onClick={() => run('XOPEN', [b.name])}>
+                            {tr(lang, 'Abrir', 'Open')}
+                          </button>
                           <button className="btn btn--sm" onClick={() => run('XREPATH', [b.name])}>
                             {tr(lang, 'Ruta…', 'Path…')}
                           </button>

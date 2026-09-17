@@ -11,6 +11,7 @@ import { openFile } from '../storage/fileAccess';
 import { forgetXrefHandle, LIBRARY_PREFIX, readXrefBytes, rememberXrefHandle } from '../xref/sources';
 import type { XrefSource } from '../xref/xref';
 import { attachXref, bindXref, detachXref, readXrefSource, reloadXref, unloadXref, XrefError } from '../xref/xref';
+import { confirmDiscard, openBytes } from './file';
 import { add, K, L } from './helpers';
 import type { CommandApi, CommandDef } from './types';
 import { CommandError } from './types';
@@ -144,6 +145,24 @@ const XREFMANAGER: CommandDef = {
   label: L('Referencias externas', 'External references'),
   description: L('Gestor de dibujos referenciados, imágenes y calcos PDF: estado, recarga, descarga, desenlace, unión y cambio de ruta.', 'Manager for referenced drawings, images and PDF underlays: status, reload, unload, detach, bind and repath.'),
   run() {},
+};
+
+const XOPEN: CommandDef = {
+  name: 'XOPEN',
+  aliases: ['ABRIRREF'],
+  category: 'insert',
+  readOnly: true,
+  label: L('Abrir referencia', 'Open reference'),
+  description: L('Abre el dibujo de origen de una referencia para editarlo (sustituye al dibujo actual tras confirmar).', 'Opens the source drawing of a reference for editing (replaces the current drawing after confirming).'),
+  async run(api, args) {
+    const b = await pickXref(api, args?.join(' '));
+    const res = await readXrefBytes(b.id, b.xref!.path, true);
+    if (!res) throw new CommandError(L(`No hay acceso al origen de «${b.name}» (${b.xref!.path}). Usa XREPATH para designarlo.`, `No access to the source of "${b.name}" (${b.xref!.path}). Use XREPATH to pick it.`));
+    if (!(await confirmDiscard(api))) return;
+    await openBytes(api, res.name, res.bytes);
+    getServices().fileHandle = null;
+    api.info(L(`Abierto «${res.name}». Al volver al dibujo anfitrión, recarga la referencia con XRELOAD.`, `Opened "${res.name}". Back in the host drawing, reload the reference with XRELOAD.`));
+  },
 };
 
 const XRELOAD: CommandDef = {
@@ -397,4 +416,4 @@ const IMAGEADJUST: CommandDef = {
   },
 };
 
-export const REFERENCE_COMMANDS: CommandDef[] = [XATTACH, XREFMANAGER, XRELOAD, XUNLOAD, XDETACH, XBIND, XREPATH, IMAGEATTACH, PDFATTACH, IMAGECLIP, IMAGEADJUST];
+export const REFERENCE_COMMANDS: CommandDef[] = [XATTACH, XREFMANAGER, XOPEN, XRELOAD, XUNLOAD, XDETACH, XBIND, XREPATH, IMAGEATTACH, PDFATTACH, IMAGECLIP, IMAGEADJUST];

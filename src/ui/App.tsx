@@ -1,4 +1,5 @@
 import { Moon, Redo2, Search, Sun, Undo2 } from 'lucide-react';
+import { QuickProperties } from './QuickProperties';
 import { Onboarding } from './Onboarding';
 import { comboOf } from './keys';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -174,6 +175,7 @@ export function App({ editor }: { editor: Editor }) {
             <DynamicInput ref={dynRef} editor={editor} />
             <CommandLine ref={cmdRef} editor={editor} />
             <CyclingList editor={editor} />
+            <QuickProperties editor={editor} onMore={() => openUi('panel:properties')} />
           </div>
           <SpaceTabs editor={editor} onUi={openUi} />
         </section>

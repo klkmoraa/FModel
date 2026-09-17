@@ -466,6 +466,21 @@ const UPDATEAPP: CommandDef = {
   },
 };
 
+const QUICKPROPERTIES: CommandDef = {
+  name: 'QUICKPROPERTIES',
+  aliases: ['QP', 'QPMODE', 'PROPIEDADESRAPIDAS'],
+  category: 'utility',
+  readOnly: true,
+  transparent: true,
+  label: L('Propiedades rápidas', 'Quick properties'),
+  description: L('Activa o desactiva la tarjeta flotante con las propiedades principales de la selección.', 'Turns the floating card with the main properties of the selection on or off.'),
+  run(api) {
+    const on = !api.editor.prefs.quickProperties;
+    api.editor.setPrefs({ quickProperties: on });
+    api.info(on ? L('Propiedades rápidas activadas: selecciona objetos para verlas.', 'Quick properties on: select objects to see them.') : L('Propiedades rápidas desactivadas.', 'Quick properties off.'));
+  },
+};
+
 const TEXTSCR: CommandDef = {
   name: 'TEXTSCR',
   aliases: ['HISTORIALCOMANDOS'],
@@ -549,6 +564,7 @@ const COUNT: CommandDef = {
 };
 
 export const UTILITY_COMMANDS: CommandDef[] = [
+  QUICKPROPERTIES,
   UPDATEAPP,
   TEXTSCR,
   DIST,

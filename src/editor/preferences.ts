@@ -16,6 +16,8 @@ export interface Preferences {
   transparencyDisplay: boolean;
   selectionCycling: boolean;
   rolloverHighlight: boolean;
+  /** tarjeta flotante de propiedades al seleccionar (QP) */
+  quickProperties: boolean;
   crosshairSize: number; // % de la pantalla, 100 = completa
   pickboxPx: number;
   gripSizePx: number;
@@ -68,6 +70,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   transparencyDisplay: true,
   selectionCycling: true,
   rolloverHighlight: true,
+  quickProperties: false,
   crosshairSize: 5,
   pickboxPx: 6,
   gripSizePx: 7,

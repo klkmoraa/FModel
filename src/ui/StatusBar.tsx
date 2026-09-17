@@ -22,6 +22,7 @@ export function StatusBar({ editor, onOpenSettings, fullscreen, onFullscreen }: 
     { label: tr(lang, 'RASTREO', 'OTRACK'), title: 'F11', on: snap.otrack, act: () => editor.toggleSnapSetting('otrack') },
     { label: 'DYN', title: 'F12', on: editor.prefs.dynamicInput.on, act: () => editor.command('DYNTOGGLE') },
     { label: tr(lang, 'GLN', 'LWT'), title: tr(lang, 'Mostrar grosores', 'Show lineweights'), on: editor.prefs.lineweightDisplay, act: () => editor.command('LWDISPLAY') },
+    { label: tr(lang, 'PR', 'QP'), title: tr(lang, 'Propiedades rápidas al seleccionar', 'Quick properties on selection'), on: editor.prefs.quickProperties, act: () => editor.command('QUICKPROPERTIES') },
     { label: tr(lang, 'CICLO', 'CYCLE'), title: tr(lang, 'Ciclo de selección', 'Selection cycling'), on: editor.prefs.selectionCycling, act: () => editor.setPrefs({ selectionCycling: !editor.prefs.selectionCycling }) },
   ];
   const isolated = !!editor.isolated || editor.hidden.size > 0;
