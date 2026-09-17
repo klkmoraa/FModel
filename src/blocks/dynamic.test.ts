@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createDocument, entityDefaults } from '../document/defaults';
-import type { BlockRecord, DynamicBlockDefinition, DynamicInstanceState, Entity, LineEntity, Vec2 } from '../document/types';
+import type { Vec2 } from '../geometry/vec';
+import type { BlockRecord, DynamicBlockDefinition, DynamicInstanceState, Entity, LineEntity } from '../document/types';
 import { createContext } from '../model/context';
 import { applyValueSet, buildScope, evaluateDynamic } from './dynamic';
 
@@ -10,7 +11,7 @@ let seq = 0;
 const line = (ax: number, ay: number, bx: number, by: number, id?: string): LineEntity => ({ ...entityDefaults(doc), id: id ?? `d${++seq}`, order: ++seq, type: 'line', start: { x: ax, y: ay }, end: { x: bx, y: by } });
 
 const emptyDef = (): DynamicBlockDefinition => ({ parameters: [], actions: [], constraints: [], lookups: [], variables: [], propertyOrder: [] });
-const block = (def: Partial<DynamicBlockDefinition>): BlockRecord => ({ id: 'b1', name: 'Puerta', kind: 'block', basePoint: { x: 0, y: 0 }, entities: [], units: 'mm', explodable: true, revision: 1, dynamic: { ...emptyDef(), ...def } });
+const block = (def: Partial<DynamicBlockDefinition>): BlockRecord => ({ id: 'b1', name: 'Puerta', kind: 'normal', basePoint: { x: 0, y: 0 }, description: '', units: 'mm', explodable: true, scaleUniformly: false, annotative: false, revision: 1, dynamic: { ...emptyDef(), ...def } });
 
 const linear = (over: Partial<Record<string, unknown>> = {}) => ({
   id: 'p1',
