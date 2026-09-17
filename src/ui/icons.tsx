@@ -398,6 +398,42 @@ const paths: Record<string, JSX.Element> = {
       <path d="M4 14v6h16v-6" />
     </>
   ),
+  publish: (
+    <>
+      <path d="M7 9V3h10v6" />
+      <rect x="3" y="9" width="18" height="8" rx="1.5" />
+      <path d="M8 14h9v7H8z" />
+      <path d="M5 21h2" />
+    </>
+  ),
+  pagesetup: (
+    <>
+      <path d="M5 3h9l5 5v13H5z" />
+      <path d="M14 3v5h5" />
+      <path d="M8 12h4M8 16h7" />
+      <circle cx="17" cy="16" r="2" />
+    </>
+  ),
+  svg: (
+    <>
+      <path d="M6 3h9l4 4v14H6z" />
+      <path d="M15 3v4h4" />
+      <path d="M8.5 17c2.5 0 2.5-5 5-5s2.5 3 2.5 3" />
+    </>
+  ),
+  clip: (
+    <>
+      <path d="M7 3v13a3 3 0 0 0 6 0V6a1.5 1.5 0 0 0-3 0v10" />
+      <path d="M3 8h4M17 3v6" />
+    </>
+  ),
+  lock: (
+    <>
+      <rect x="5" y="10" width="14" height="10" rx="1.5" />
+      <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+      <path d="M12 14v2" />
+    </>
+  ),
   plot: (
     <>
       <path d="M7 9V3h10v6" />
