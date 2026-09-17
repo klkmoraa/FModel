@@ -215,3 +215,8 @@ export function attributesToCsv(data: { tags: string[]; rows: AttributeRow[] }, 
   for (const r of data.rows) lines.push([r.handle, r.block, r.layer, r.x.toFixed(6), r.y.toFixed(6), r.rotation.toFixed(4), ...data.tags.map((t) => r.values[t] ?? '')].map(esc).join(sep));
   return lines.join('\n');
 }
+
+/** Definición insertable por el usuario: normal y no dependiente de una referencia externa («ref|bloque»). */
+export function isInsertableBlock(b: BlockRecord): boolean {
+  return b.kind === 'normal' && !b.name.includes('|');
+}

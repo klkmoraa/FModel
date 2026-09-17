@@ -78,7 +78,7 @@ export function FileMenu({ editor, onClose, onUi }: { editor: Editor; onClose: (
                 onClick={() => {
                   if (editor.doc.dirty && !window.confirm(tr(lang, 'Hay cambios sin guardar. ¿Descartarlos?', 'Unsaved changes. Discard them?'))) return;
                   const res = readPackage(d.bytes);
-                  editor.doc.replaceData(res.data);
+                  editor.doc.replaceData(res.data, res.documentId);
                   editor.fileName = d.name.replace(/\.fmodel$/, '');
                   editor.zoomExtents();
                   onClose();

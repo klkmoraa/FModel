@@ -1,6 +1,6 @@
 import { Pencil, Star, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { blockUsage } from '../../blocks/blockOps';
+import { blockUsage, isInsertableBlock } from '../../blocks/blockOps';
 import type { Editor } from '../../editor/editor';
 import { blockThumbnail } from '../../render/thumbnail';
 import { loadLibrary, removeFromLibrary, importLibraryBlock, type LibraryBlock } from '../../blocks/library';
@@ -20,7 +20,7 @@ export function BlocksPanel({ editor, onUi }: { editor: Editor; onUi: (ui: strin
   const [lib, setLib] = useState<LibraryBlock[]>(() => loadLibrary());
   const usage = useMemo(() => blockUsage(doc), [doc.version]); // eslint-disable-line react-hooks/exhaustive-deps
   const blocks = [...doc.data.blocks.values()]
-    .filter((b) => b.kind === 'normal')
+    .filter(isInsertableBlock)
     .filter((b) => (tab === 'favorites' ? b.favorite : true))
     .filter((b) => !q || `${b.name} ${b.description} ${b.category ?? ''}`.toLowerCase().includes(q.toLowerCase()))
     .sort((a, b) => a.name.localeCompare(b.name));

@@ -1,4 +1,5 @@
 import { Plus, Star, Trash2 } from 'lucide-react';
+import { isInsertableBlock } from '../../blocks/blockOps';
 import { useMemo, useState } from 'react';
 import { hatchDefaults } from '../../commands/draw';
 import type { Editor } from '../../editor/editor';
@@ -104,7 +105,7 @@ export function ToolPalettesPanel({ editor }: { editor: Editor }) {
   const [q, setQ] = useState('');
 
   const builtIn: Palette[] = useMemo(() => {
-    const blocks = [...doc.data.blocks.values()].filter((b) => b.kind === 'normal');
+    const blocks = [...doc.data.blocks.values()].filter(isInsertableBlock);
     const byCat = new Map<string, typeof blocks>();
     for (const b of blocks) {
       const c = b.category ?? tr(lang, 'Bloques', 'Blocks');

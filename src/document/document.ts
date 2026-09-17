@@ -160,7 +160,8 @@ export class Transaction {
 }
 
 export class CadDocument {
-  readonly id: Id;
+  /** identidad estable del dibujo (se conserva al guardar y abrir) */
+  id: Id;
   data: DocumentData;
   readonly history: History;
   readonly reactors: Reactor[] = [];
@@ -300,7 +301,13 @@ export class CadDocument {
   }
 
   /** Sustituye todo el contenido (abrir, recuperar). No es deshacible. */
-  replaceData(data: DocumentData) {
+  /**
+   * Sustituye el contenido del documento. `id` conserva la identidad del archivo abierto
+   * (versiones, recuperación y detección de referencias circulares dependen de ella);
+   * sin `id` se trata de un dibujo nuevo con identidad propia.
+   */
+  replaceData(data: DocumentData, id: Id = newId('doc')) {
+    this.id = id;
     this.data = data;
     this.history.clear();
     this.emit({ label: 'load', source: 'load', changes: [] });

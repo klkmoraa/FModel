@@ -1,5 +1,5 @@
 import { requestUi } from '../app/services';
-import { createBlock, extractAttributes, insertBlock, validateBlockName } from '../blocks/blockOps';
+import { createBlock, extractAttributes, insertBlock, isInsertableBlock, validateBlockName } from '../blocks/blockOps';
 import { resetDynamic, validateDynamicBlock } from '../blocks/dynamic';
 import { installDynamicSamples } from '../blocks/samples';
 import { saveToLibrary } from '../blocks/library';
@@ -21,7 +21,7 @@ const INSERT: CommandDef = {
     const doc = api.editor.doc;
     let name = args?.[0];
     if (!name) {
-      const blocks = [...doc.data.blocks.values()].filter((b) => b.kind === 'normal').map((b) => b.name);
+      const blocks = [...doc.data.blocks.values()].filter(isInsertableBlock).map((b) => b.name);
       if (!blocks.length) throw new CommandError(L('El dibujo no tiene bloques. Crea uno con BLOCK o usa los ejemplos dinámicos.', 'The drawing has no blocks. Create one with BLOCK or use the dynamic samples.'));
       const r = await api.getString({ prompt: L(`Nombre del bloque (${blocks.slice(0, 6).join(', ')}${blocks.length > 6 ? '…' : ''})`, `Block name (${blocks.slice(0, 6).join(', ')}${blocks.length > 6 ? '…' : ''})`), allowSpaces: true, defaultValue: blocks[0] });
       if (r.kind !== 'string') return;

@@ -7,6 +7,7 @@ import { GRIP } from './grips';
 import { LAYOUT_COMMANDS } from './layout';
 import { MODIFY_COMMANDS } from './modify';
 import { OUTPUT_COMMANDS } from './output';
+import { REFERENCE_COMMANDS } from './references';
 import { registerCommands } from './registry';
 import { UTILITY_COMMANDS } from './utility';
 import { VIEW_COMMANDS } from './view';
@@ -26,5 +27,6 @@ export function registerAllCommands() {
   registerCommands(UTILITY_COMMANDS);
   registerCommands(LAYOUT_COMMANDS);
   registerCommands(OUTPUT_COMMANDS);
+  registerCommands(REFERENCE_COMMANDS);
   registerCommands([GRIP]);
 }

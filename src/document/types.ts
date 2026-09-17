@@ -632,6 +632,14 @@ export interface XrefInfo {
   lastLoaded?: number;
   /** id del documento referenciado cuando se resolvió */
   documentId?: Id;
+  /** origen: archivo del usuario o dibujo guardado en la biblioteca local del navegador */
+  source?: 'file' | 'library';
+  /** definiciones anidadas creadas al cargar (se sustituyen al recargar) */
+  ownedBlocks?: Id[];
+  /** capas «xref|capa» creadas al cargar (sus propiedades locales se conservan al recargar) */
+  ownedLayers?: Id[];
+  /** último error de resolución */
+  error?: string;
 }
 
 export interface BlockRecord {

@@ -51,7 +51,7 @@ export async function openBytes(api: CommandApi, name: string, bytes: Uint8Array
     return;
   }
   const res = readPackage(bytes);
-  api.editor.doc.replaceData(res.data);
+  api.editor.doc.replaceData(res.data, res.documentId);
   api.editor.fileName = fileBaseName(name);
   api.editor.ctx.fileName = name;
   for (const w of res.warnings) api.warn(L(w, w));
@@ -159,7 +159,7 @@ const RECOVER: CommandDef = {
     if (!(await confirmDiscard(api))) return;
     const { fromNativeFile } = await import('../io/native');
     const res = fromNativeFile(rec.file);
-    api.editor.doc.replaceData(res.data);
+    api.editor.doc.replaceData(res.data, res.documentId);
     api.editor.fileName = rec.name;
     api.editor.doc.dirty = true;
     api.editor.zoomExtents();

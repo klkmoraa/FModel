@@ -8,6 +8,7 @@ import { ConversionReportDialog, type ConversionPayload } from './dialogs/Conver
 import { LookupTableDialog } from './dialogs/LookupTableDialog';
 import { PageSetupDialog } from './dialogs/PageSetupDialog';
 import { PublishDialog } from './dialogs/PublishDialog';
+import { ReferencesDialog } from './dialogs/ReferencesDialog';
 import { tr } from './controls';
 
 export interface DialogState {
@@ -43,6 +44,7 @@ export const DIALOGS: Record<string, DialogRenderer> = {
   'lookup-table': (e, close, _onUi, st) => <LookupTableDialog editor={e} tableId={String(st.payload ?? '')} onClose={close} />,
   'page-setup': (e, close, _onUi, st) => <PageSetupDialog editor={e} plot={!!(st.payload as { plot?: boolean } | undefined)?.plot} onClose={close} />,
   publish: (e, close) => <PublishDialog editor={e} onClose={close} />,
+  references: (e, close) => <ReferencesDialog editor={e} onClose={close} />,
   'conversion-report': (e, close, _onUi, st) => <ConversionReportDialog editor={e} payload={st.payload as ConversionPayload | undefined} onClose={close} />,
 };
 
