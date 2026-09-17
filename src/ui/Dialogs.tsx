@@ -4,7 +4,9 @@ import type { Editor } from '../editor/editor';
 import { DraftingSettings } from './dialogs/DraftingSettings';
 import { FileMenu } from './dialogs/FileMenu';
 import { AttributeExtraction } from './dialogs/AttributeExtraction';
+import { CompareDialog } from './dialogs/CompareDialog';
 import { ConversionReportDialog, type ConversionPayload } from './dialogs/ConversionReportDialog';
+import { HealthReportDialog } from './dialogs/HealthReportDialog';
 import { LookupTableDialog } from './dialogs/LookupTableDialog';
 import { PageSetupDialog } from './dialogs/PageSetupDialog';
 import { PublishDialog } from './dialogs/PublishDialog';
@@ -45,6 +47,8 @@ export const DIALOGS: Record<string, DialogRenderer> = {
   'page-setup': (e, close, _onUi, st) => <PageSetupDialog editor={e} plot={!!(st.payload as { plot?: boolean } | undefined)?.plot} onClose={close} />,
   publish: (e, close) => <PublishDialog editor={e} onClose={close} />,
   references: (e, close) => <ReferencesDialog editor={e} onClose={close} />,
+  'health-report': (e, close, _onUi, st) => <HealthReportDialog editor={e} payload={st.payload as Parameters<typeof HealthReportDialog>[0]['payload']} onClose={close} />,
+  compare: (e, close) => <CompareDialog editor={e} onClose={close} />,
   'conversion-report': (e, close, _onUi, st) => <ConversionReportDialog editor={e} payload={st.payload as ConversionPayload | undefined} onClose={close} />,
 };
 

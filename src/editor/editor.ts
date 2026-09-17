@@ -6,6 +6,7 @@ import type { Mat2D } from '../geometry/matrix';
 import { applyToPoint, invert } from '../geometry/matrix';
 import type { Vec2 } from '../geometry/vec';
 import { dist } from '../geometry/vec';
+import type { DrawingDiff } from '../audit/compare';
 import { parameterPoints } from '../blocks/authoring';
 import { CancelError, type CommandDef, type InputRequest, type Lang, type PreviewSpec } from '../commands/types';
 import { CommandRunner } from '../commands/runner';
@@ -85,7 +86,9 @@ export class Editor {
   views = new Map<Id, ViewTransform>();
   activeViewportId: Id | null = null;
   blockEdit: BlockEditSession | null = null;
-  /** estado de autoría del Editor de bloques (estado de visibilidad mostrado) */
+  /** comparación activa con otra revisión (COMPARE) */
+  compare: { diff: DrawingDiff; label: string } | null = null;
+    /** estado de autoría del Editor de bloques (estado de visibilidad mostrado) */
   blockEditState: { currentVisibility: string | null } = { currentVisibility: null };
   preview: PreviewSpec | null = null;
   hidden = new Set<Id>();

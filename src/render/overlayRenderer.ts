@@ -206,6 +206,18 @@ export function renderOverlay(g: CanvasRenderingContext2D, editor: Editor, opts:
   const sel = new Set<string>(editor.selection.list);
   for (const id of editor.requestIds) sel.add(id);
   if (sel.size && sel.size < 5000) renderHighlight(g, editor, sel, theme.accent, { ...opts, dash: [5, 4], boost: 1.6 });
+  // comparación de revisiones: eliminados como fantasma, añadidos y modificados resaltados
+  if (editor.compare) {
+    const { diff } = editor.compare;
+    const owner = editor.inputOwner;
+    const removed = diff.removed.filter((e) => e.owner === owner);
+    if (removed.length) renderPreviewEntities(g, editor, removed, theme.diffRemoved, opts);
+    const inSpace = (id: string) => editor.doc.entity(id)?.owner === owner;
+    const added = diff.added.filter(inSpace);
+    const modified = diff.modified.map((m) => m.id).filter(inSpace);
+    if (added.length) renderHighlight(g, editor, added, theme.diffAdded, { ...opts, dash: null, boost: 1.8 });
+    if (modified.length) renderHighlight(g, editor, modified, theme.diffModified, { ...opts, dash: null, boost: 1.8 });
+  }
   // ventana en curso: vista previa de lo que se seleccionaría
   if (editor.window?.dragging) {
     const w = editor.window;

@@ -27,6 +27,10 @@ export interface RenderTheme {
   tooltipInk: string;
   construction: string;
   marginLine: string;
+  /** comparación de revisiones: señales de dato del brandbook */
+  diffAdded: string;
+  diffModified: string;
+  diffRemoved: string;
 }
 
 export const THEME_NIGHT: RenderTheme = {
@@ -57,6 +61,9 @@ export const THEME_NIGHT: RenderTheme = {
   tooltipInk: '#f2f4f3',
   construction: 'rgba(169,144,255,0.55)',
   marginLine: 'rgba(20,23,26,0.25)',
+  diffAdded: '#55c990',
+  diffModified: '#f3c553',
+  diffRemoved: '#ff8e80',
 };
 
 export const THEME_DAY: RenderTheme = {
@@ -87,6 +94,9 @@ export const THEME_DAY: RenderTheme = {
   tooltipInk: '#f7f6f1',
   construction: 'rgba(118,87,213,0.5)',
   marginLine: 'rgba(20,23,26,0.3)',
+  diffAdded: '#468c09',
+  diffModified: '#d9720a',
+  diffRemoved: '#ed4b46',
 };
 
 export function themeFor(dark: boolean, bg: 'auto' | 'paper' | 'charcoal' | 'black'): RenderTheme {
