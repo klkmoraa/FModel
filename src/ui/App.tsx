@@ -69,14 +69,7 @@ export function App({ editor }: { editor: Editor }) {
     return () => window.removeEventListener('fmodel:ui', handler);
   }, [openUi]);
 
-  const runCommand = useCallback(
-    (name: string, args?: string[]) => {
-      const def = findCommand(name);
-      if (def?.ui) openUi(def.ui, def.name);
-      editor.command(name, args);
-    },
-    [editor, openUi],
-  );
+  const runCommand = useCallback((name: string, args?: string[]) => editor.command(name, args), [editor]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

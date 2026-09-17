@@ -98,6 +98,8 @@ export class Editor {
   requestIds: Id[] = [];
   cycling: CyclingState | null = null;
   gripContext: GripEditContext | null = null;
+  /** último punto designado con su referencia a objeto (para asociatividad) */
+  lastPick: ResolvedPoint | null = null;
   shiftDown = false;
   lastCreated: Id | null = null;
   fileName = '';
@@ -650,6 +652,7 @@ export class Editor {
 
     if (req && (req.kind === 'point' || req.kind === 'distance' || req.kind === 'angle')) {
       const r = this.resolveCursor(screen);
+      this.lastPick = r;
       this.runner.submitPoint(r.p);
       this.acquisition.points = [];
       return;

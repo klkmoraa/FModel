@@ -12,11 +12,8 @@ export function Ribbon({ editor, onUi }: { editor: Editor; onUi: (ui: string, cm
   const lang = editor.lang;
   const current = RIBBON.find((r) => r.id === tab) ?? RIBBON[0];
   const activeName = editor.runner.active?.def.name;
-  const run = (cmd: string, args?: string[]) => {
-    const def = findCommand(cmd);
-    if (def?.ui) onUi(def.ui, def.name);
-    editor.command(cmd, args);
-  };
+  const run = (cmd: string, args?: string[]) => editor.command(cmd, args);
+  void onUi;
   return (
     <nav className={`ribbon${collapsed ? ' ribbon--collapsed' : ''}`} aria-label={lang === 'es' ? 'Cinta de herramientas' : 'Tool ribbon'}>
       <div className="ribbon__tabs" role="tablist">

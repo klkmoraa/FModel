@@ -7,6 +7,7 @@ import './styles/app.css';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { setServices } from './app/services';
+import { installDimensionAssociativity } from './annotation/assoc';
 import { installDynamicBlocks } from './blocks/install';
 import { registerAllCommands } from './commands';
 import { createDocument } from './document/defaults';
@@ -19,6 +20,7 @@ registerAllCommands();
 const doc = createDocument({ title: 'Sin título' });
 const editor = new Editor(doc);
 installDynamicBlocks(editor.ctx);
+installDimensionAssociativity(doc, editor.ctx);
 
 const persistence = new Persistence(
   () => editor.doc,

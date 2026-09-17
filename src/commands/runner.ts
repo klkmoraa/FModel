@@ -5,6 +5,7 @@ import type { Id } from '../document/types';
 import { parseAngle, parseCoordinateInput } from '../snap/coords';
 import { evaluate } from '../lib/expr';
 import type { Editor } from '../editor/editor';
+import { requestUi } from '../app/services';
 import { findCommand } from './registry';
 import type { CommandApi, CommandDef, InputRequest, InputResponse, Keyword, L10n, PreviewSpec } from './types';
 import { CancelError, CommandError } from './types';
@@ -97,6 +98,7 @@ export class CommandRunner {
       this.history = [def.name, ...this.history.filter((h) => h !== def.name)].slice(0, 50);
     }
     this.pushLog('command', `${def.transparent && this.stack.length > 1 ? "'" : ''}${def.name}`);
+    if (def.ui) requestUi(def.ui);
     const grouped = !def.readOnly && !doc.history.inGroup;
     if (grouped) doc.history.beginGroup(tr(this.editor.lang, def.label));
     let failed = false;
