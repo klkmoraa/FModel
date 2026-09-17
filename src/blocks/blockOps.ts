@@ -5,13 +5,13 @@ import { newId } from '../document/ids';
 import type { AttdefEntity, BlockRecord, DrawingUnits, Entity, Id, InsertEntity } from '../document/types';
 import { MODEL_SPACE_ID } from '../document/types';
 
+/** Caracteres prohibidos en nombres de bloque; el asterisco además está reservado a los bloques anónimos (*U1). */
 export const INVALID_BLOCK_CHARS = /[<>/\\":;?*|=`]/;
 
 export function validateBlockName(doc: CadDocument, name: string, exceptId?: Id): string | null {
   const n = name.trim();
   if (!n) return 'El nombre del bloque no puede estar vacío. / Block name cannot be empty.';
   if (INVALID_BLOCK_CHARS.test(n)) return 'Caracteres no válidos en el nombre. / Invalid characters in name.';
-  if (n.startsWith('*')) return 'Los nombres que empiezan por * están reservados. / Names starting with * are reserved.';
   for (const b of doc.data.blocks.values()) if (b.id !== exceptId && b.name.toLowerCase() === n.toLowerCase()) return `Ya existe el bloque «${b.name}». / Block "${b.name}" already exists.`;
   return null;
 }
