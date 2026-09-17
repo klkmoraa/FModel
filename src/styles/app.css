@@ -56,14 +56,31 @@ button {
 
 .app {
   display: grid;
-  grid-template-rows: var(--fm-topbar-h) auto minmax(0, 1fr) var(--fm-status-h);
+  grid-template-rows: var(--fm-topbar-h) auto minmax(0, 1fr) auto var(--fm-status-h);
   height: 100dvh;
   width: 100vw;
   background: var(--paper);
 }
 
+/* filas fijas: una sección oculta deja su franja vacía en lugar de desplazar a las demás */
+.app > .topbar {
+  grid-row: 1;
+}
+.app > .ribbon {
+  grid-row: 2;
+}
+.app > .workspace {
+  grid-row: 3;
+}
+.app > .mobile-tools {
+  grid-row: 4;
+}
+.app > .statusbar {
+  grid-row: 5;
+}
+
 .app--clean {
-  grid-template-rows: 0 0 minmax(0, 1fr) var(--fm-status-h);
+  grid-template-rows: 0 0 minmax(0, 1fr) auto var(--fm-status-h);
 }
 .app--clean .topbar,
 .app--clean .ribbon {
@@ -1069,7 +1086,7 @@ table.grid tr.is-active td {
     --fm-status-h: 0px;
   }
   .app {
-    grid-template-rows: var(--fm-topbar-h) 0 minmax(0, 1fr) auto;
+    grid-template-rows: var(--fm-topbar-h) 0 minmax(0, 1fr) auto 0;
   }
   .ribbon,
   .doc-tabs,
