@@ -1,4 +1,5 @@
 import type { CadDocument } from '../document/document';
+import { newId } from '../document/ids';
 import type { Id } from '../document/types';
 import { readPackage, toNativeFile, writePackage } from '../io/native';
 import type { NativeFile } from '../io/native';
@@ -106,7 +107,7 @@ export class Persistence {
   async saveVersion(label: string, auto = false): Promise<VersionRecord> {
     const doc = this.getDoc();
     const bytes = writePackage(doc.data, doc.id);
-    const rec: VersionRecord = { id: `${doc.id}:${Date.now()}`, documentId: doc.id, name: this.getName(), label, savedAt: Date.now(), auto, entityCount: doc.data.entities.size, bytes };
+    const rec: VersionRecord = { id: `${doc.id}:${newId('v')}`, documentId: doc.id, name: this.getName(), label, savedAt: Date.now(), auto, entityCount: doc.data.entities.size, bytes };
     await idbPut('versions', rec);
     // conservar como máximo 40 versiones automáticas por documento
     const all = (await idbAll<VersionRecord>('versions')).filter((v) => v.documentId === doc.id && v.auto).sort((a, b) => b.savedAt - a.savedAt);
