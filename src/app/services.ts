@@ -28,6 +28,6 @@ export function hasServices(): boolean {
 }
 
 /** Solicita a la interfaz abrir un panel/diálogo (desacoplado de React). */
-export function requestUi(ui: string, payload?: unknown) {
-  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('fmodel:ui', { detail: { ui, payload } }));
+export function requestUi(ui: string, payload?: unknown, cmd?: string) {
+  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('fmodel:ui', { detail: { ui, payload, cmd } }));
 }

@@ -67,6 +67,8 @@ export interface TraverseEnv {
   forceColor?: string;
   /** atenuación de todo lo dibujado (0–1), p. ej. edición en contexto */
   fade?: number;
+  /** false: la transparencia de objetos y capas no se muestra (TRANSPARENCYDISPLAY) */
+  showTransparency?: boolean;
   construction?: string;
 }
 
@@ -147,7 +149,7 @@ export function resolveItemStyle(env: TraverseEnv, inh: InheritCtx, e: Entity, o
   const fade = env.fade ?? 0;
   return {
     color: plotColor(env, colorHex),
-    alpha: transparencyAlpha(inh.transparency) * (1 - fade),
+    alpha: (env.showTransparency === false ? 1 : transparencyAlpha(inh.transparency)) * (1 - fade),
     lineweight,
     dash,
     layer: inh.layer?.id ?? LAYER0_ID,

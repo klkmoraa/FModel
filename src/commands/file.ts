@@ -132,15 +132,8 @@ const VERSIONS: CommandDef = {
   readOnly: true,
   ui: 'versions',
   label: L('Historial de versiones', 'Version history'),
-  description: L('Muestra versiones locales guardadas, permite restaurar y comparar.', 'Shows local saved versions; restore and compare.'),
-  async run(api) {
-    const label = await api.getString({ prompt: L('Etiqueta para guardar una versión ahora (Intro para solo ver)', 'Label to save a version now (Enter to just view)'), allowNone: true, allowSpaces: true });
-    if (label.kind === 'string' && label.value) {
-      await getServices().persistence.saveVersion(label.value);
-      api.info(L(`Versión «${label.value}» guardada.`, `Version "${label.value}" saved.`));
-    }
-    requestUi('versions');
-  },
+  description: L('Guarda, restaura, compara y elimina versiones locales del dibujo.', 'Saves, restores, compares and deletes local versions of the drawing.'),
+  run() {},
 };
 
 const RECOVER: CommandDef = {

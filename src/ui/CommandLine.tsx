@@ -33,6 +33,12 @@ export const CommandLine = forwardRef<CommandLineHandle, { editor: Editor }>(fun
     logRef.current?.scrollTo({ top: logRef.current.scrollHeight });
   }, [editor.runner.log.length]);
 
+  useEffect(() => {
+    const toggle = () => setShowLog((v) => !v);
+    window.addEventListener('fmodel:cmdlog', toggle);
+    return () => window.removeEventListener('fmodel:cmdlog', toggle);
+  }, []);
+
   const suggestions = useMemo(() => {
     if (pending || !text.trim() || text.includes(' ')) return [];
     return searchCommands(text, lang, 7);

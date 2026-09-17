@@ -10,7 +10,7 @@ import type { DrawingDiff } from '../audit/compare';
 import { parameterPoints } from '../blocks/authoring';
 import { CancelError, type CommandDef, type InputRequest, type Lang, type PreviewSpec } from '../commands/types';
 import { CommandRunner } from '../commands/runner';
-import { findCommand, setUserAliases } from '../commands/registry';
+import { setUserAliases } from '../commands/registry';
 import type { CadDocument } from '../document/document';
 import type { Entity, EntityType, Id, ViewportEntity } from '../document/types';
 import { MODEL_SPACE_ID } from '../document/types';
@@ -529,12 +529,7 @@ export class Editor {
 
   /** Ejecuta un comando por nombre desde la interfaz. */
   command(name: string, args?: string[]) {
-    const def = findCommand(name);
-    if (!def) {
-      void this.runner.execute(name, args);
-      return;
-    }
-    void this.runner.run(def, args);
+    void this.runner.execute(name, args);
   }
 
   // ------------------------------------------------------------------ resolución de puntos

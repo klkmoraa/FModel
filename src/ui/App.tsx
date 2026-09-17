@@ -1,4 +1,6 @@
 import { Moon, Redo2, Search, Sun, Undo2 } from 'lucide-react';
+import { Onboarding } from './Onboarding';
+import { comboOf } from './keys';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { findCommand } from '../commands/registry';
 import type { Editor } from '../editor/editor';
@@ -16,17 +18,6 @@ import { SpaceTabs } from './SpaceTabs';
 import { StatusBar } from './StatusBar';
 import { Docks } from './Docks';
 import { Dialogs, type DialogState } from './Dialogs';
-
-function comboOf(e: KeyboardEvent): string {
-  const parts: string[] = [];
-  if (e.ctrlKey || e.metaKey) parts.push('Ctrl');
-  if (e.altKey) parts.push('Alt');
-  if (e.shiftKey && e.key.length > 1) parts.push('Shift');
-  if (e.shiftKey && (e.ctrlKey || e.metaKey) && e.key.length === 1) parts.push('Shift');
-  const k = e.key.length === 1 ? e.key.toUpperCase() : e.key;
-  parts.push(k);
-  return parts.join('+');
-}
 
 export function App({ editor }: { editor: Editor }) {
   useEditorEvents(editor, ['prefs', 'command', 'space']);
@@ -50,6 +41,10 @@ export function App({ editor }: { editor: Editor }) {
   }, [editor.prefs.theme, lang, dark]);
 
   const openUi = useCallback((ui: string, cmd?: string, payload?: unknown) => {
+    if (ui === 'clean-screen') {
+      setClean((c) => !c);
+      return;
+    }
     if (ui.startsWith('panel:')) {
       if (isMobile) setMobileSheet(ui.slice(6));
       editor.emit('prefs');
@@ -81,7 +76,7 @@ export function App({ editor }: { editor: Editor }) {
         setPalette(true);
         return;
       }
-      if (palette || dialog) return;
+      if (palette || dialog || !editor.prefs.onboardingDone) return;
       if (inField && !target.classList.contains('cmdline__input')) return;
       editor.shiftDown = e.shiftKey;
       // atajos configurables
@@ -89,8 +84,7 @@ export function App({ editor }: { editor: Editor }) {
       if (sc && (e.ctrlKey || e.metaKey || e.key.startsWith('F') || e.key === 'Delete')) {
         if (!(inField && e.key === 'Delete')) {
           e.preventDefault();
-          if (sc === 'CLEANSCREENON') setClean((c) => !c);
-          else if (sc === 'PROPERTIES') openUi('panel:properties');
+          if (sc === 'PROPERTIES') openUi('panel:properties');
           else if (sc === 'TOOLPALETTES') openUi('panel:palettes');
           else runCommand(sc);
           return;
@@ -210,6 +204,7 @@ export function App({ editor }: { editor: Editor }) {
       )}
       {palette && <CommandPalette editor={editor} onClose={() => setPalette(false)} onRun={(n) => runCommand(n)} />}
       <Dialogs editor={editor} state={dialog} onClose={() => setDialog(null)} onUi={openUi} />
+      {!editor.prefs.onboardingDone && !dialog && <Onboarding editor={editor} />}
     </div>
   );
 }

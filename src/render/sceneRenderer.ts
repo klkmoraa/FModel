@@ -33,6 +33,7 @@ function envFor(editor: Editor, theme: RenderTheme, extra: Partial<TraverseEnv> 
     viewport: null,
     dashScale: 1,
     construction: theme.construction,
+    showTransparency: editor.prefs.transparencyDisplay,
     ...extra,
   };
 }

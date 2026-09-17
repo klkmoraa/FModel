@@ -3,9 +3,10 @@ import { tessellateCurve } from '../geometry/curves';
 import { tessellatePolyline } from '../geometry/polyline';
 import type { Vec2 } from '../geometry/vec';
 import { dist } from '../geometry/vec';
-import { defaultPageSetup, paperExtents, STANDARD_SCALES, unitConversion } from '../document/defaults';
+import { defaultPageSetup, entityDefaults, LAYER0_ID, paperExtents, STANDARD_SCALES, TEXTSTYLE_STANDARD_ID, unitConversion } from '../document/defaults';
+import { insertBlock } from '../blocks/blockOps';
 import { newId } from '../document/ids';
-import type { Entity, Id, LayoutRecord, ViewportEntity } from '../document/types';
+import type { AttdefEntity, Entity, Id, LayoutRecord, LineEntity, LwPolylineEntity, TextEntity, ViewportEntity } from '../document/types';
 import { MODEL_SPACE_ID } from '../document/types';
 import { kindOf } from '../model/registry';
 import { entityVisible } from '../model/visibility';
@@ -401,4 +402,72 @@ const LAYOUT: CommandDef = {
   },
 };
 
-export const LAYOUT_COMMANDS: CommandDef[] = [MVIEW, MSPACE, PSPACE, VPSCALE, VPLOCK, VPLAYER, LAYOUT];
+const TITLEBLOCK_NAME = 'FM Cajetín';
+
+/** Definición del cajetín (180 × 45 mm en papel) con atributos cuyos valores admiten campos. */
+function ensureTitleBlock(api: CommandApi): Id {
+  const doc = api.editor.doc;
+  const existing = doc.findByName('blocks', TITLEBLOCK_NAME);
+  if (existing) return existing.id;
+  const id = newId('blk');
+  api.apply('TITLEBLOCK', (tx) => {
+    tx.add('blocks', { id, name: TITLEBLOCK_NAME, kind: 'normal', basePoint: { x: 0, y: 0 }, description: 'Cajetín FModel: proyecto, plano, escala, fecha, hoja, revisión y autor.', units: 'unitless', explodable: true, scaleUniformly: true, annotative: false, revision: 1 });
+    const base = { ...entityDefaults(doc, id), layer: LAYER0_ID, color: 'ByBlock', linetype: 'ByBlock', lineweight: -2, transparency: 'ByLayer' as const };
+    const line = (a: Vec2, b: Vec2, lw = -2) => tx.addEntity<LineEntity>({ ...base, lineweight: lw, type: 'line', start: a, end: b });
+    const W = 180;
+    const H = 45;
+    tx.addEntity<LwPolylineEntity>({ ...base, lineweight: 50, type: 'lwpolyline', closed: true, vertices: [{ x: 0, y: 0 }, { x: W, y: 0 }, { x: W, y: H }, { x: 0, y: H }] });
+    line({ x: 0, y: 30 }, { x: W, y: 30 });
+    line({ x: 0, y: 15 }, { x: W, y: 15 });
+    line({ x: 110, y: 0 }, { x: 110, y: 30 });
+    line({ x: 145, y: 0 }, { x: 145, y: 30 });
+    const label = (text: string, x: number, y: number) =>
+      tx.addEntity<TextEntity>({ ...base, type: 'text', text, position: { x, y }, height: 1.8, rotation: 0, widthFactor: 1, oblique: 0, style: TEXTSTYLE_STANDARD_ID, halign: 'left', valign: 'baseline' });
+    const attr = (tag: string, prompt: string, defaultValue: string, x: number, y: number, height: number) =>
+      tx.addEntity<AttdefEntity>({ ...base, type: 'attdef', tag, prompt, defaultValue, position: { x, y }, height, rotation: 0, style: TEXTSTYLE_STANDARD_ID, halign: 'left', valign: 'baseline', invisible: false, constant: false, verify: false, preset: false, lockPosition: true, multiline: false });
+    label('PROYECTO', 2, 41.5);
+    attr('PROYECTO', 'Proyecto', '{{title}}', 2, 33.5, 4.5);
+    label('PLANO', 2, 26.5);
+    attr('PLANO', 'Título del plano', '', 2, 19, 3.5);
+    label('DIBUJÓ', 2, 11.5);
+    attr('AUTOR', 'Autor', '{{author}}', 2, 4.5, 3);
+    label('ESCALA', 112, 26.5);
+    attr('ESCALA', 'Escala', '1:1', 112, 19, 3.5);
+    label('FECHA', 112, 11.5);
+    attr('FECHA', 'Fecha', '{{date}}', 112, 4.5, 3);
+    label('HOJA', 147, 26.5);
+    attr('HOJA', 'Hoja', '{{sheet}}', 147, 19, 3.5);
+    label('REVISIÓN', 147, 11.5);
+    attr('REVISION', 'Revisión', 'A', 147, 4.5, 3);
+  });
+  return id;
+}
+
+const TITLEBLOCK: CommandDef = {
+  name: 'TITLEBLOCK',
+  aliases: ['CAJETIN', 'MARCO'],
+  category: 'layout',
+  icon: 'table',
+  label: L('Cajetín', 'Title block'),
+  description: L('Dibuja el marco en la zona imprimible e inserta un cajetín con proyecto, plano, escala, fecha, hoja, revisión y autor (campos que se actualizan solos).', 'Draws the frame on the printable area and inserts a title block with project, sheet title, scale, date, sheet, revision and author (self-updating fields).'),
+  async run(api) {
+    const layout = currentLayout(api);
+    toPaper(api);
+    const doc = api.editor.doc;
+    const plano = await api.getString({ prompt: L('Título del plano', 'Sheet title'), defaultValue: layout.name, allowSpaces: true });
+    if (plano.kind !== 'string') return;
+    const vp = viewportsOf(api, layout.id).find((v) => v.scaleName);
+    const escala = await api.getString({ prompt: L('Escala', 'Scale'), defaultValue: vp?.scaleName ?? '1:1', allowSpaces: false });
+    if (escala.kind !== 'string') return;
+    const blockId = ensureTitleBlock(api);
+    const { width: W, height: H } = paperExtents(layout.page);
+    const m = layout.page.margins;
+    api.apply('TITLEBLOCK', (tx) => {
+      add<LwPolylineEntity>(api, 'TITLEBLOCK', { type: 'lwpolyline', owner: layout.id, closed: true, lineweight: 70, vertices: [{ x: m.left, y: m.bottom }, { x: W - m.right, y: m.bottom }, { x: W - m.right, y: H - m.top }, { x: m.left, y: H - m.top }] });
+      insertBlock(tx, doc, blockId, layout.id, { x: W - m.right - 180, y: m.bottom }, { x: 1, y: 1 }, 0, { PLANO: plano.value, ESCALA: escala.value });
+    });
+    api.info(L('Cajetín insertado. Edita sus valores con ATTEDIT o en Propiedades; fecha, hoja, proyecto y autor se actualizan solos.', 'Title block inserted. Edit its values with ATTEDIT or Properties; date, sheet, project and author update automatically.'));
+  },
+};
+
+export const LAYOUT_COMMANDS: CommandDef[] = [MVIEW, MSPACE, PSPACE, VPSCALE, VPLOCK, VPLAYER, LAYOUT, TITLEBLOCK];

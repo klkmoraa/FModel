@@ -85,10 +85,11 @@ export class CommandRunner {
       this.message('error', { es: `Comando desconocido «${nameOrAlias}». Escribe ? o usa la paleta de comandos (Ctrl+K).`, en: `Unknown command "${nameOrAlias}". Type ? or open the command palette (Ctrl+K).` });
       return;
     }
-    return this.run(def, args);
+    return this.run(def, args, nameOrAlias.trim().replace(/^[_.'-]+/, '').toUpperCase());
   }
 
-  async run(def: CommandDef, args?: string[]): Promise<void> {
+  /** `invokedAs`: nombre o alias escrito (p. ej. DIMSTYLE abre el administrador en su pestaña). */
+  async run(def: CommandDef, args?: string[], invokedAs?: string): Promise<void> {
     if (this.busy && !def.transparent) this.cancelAll();
     const doc = this.editor.doc;
     const active: ActiveCommand = { def, abort: new AbortController(), pending: null, lastPoint: this.lastPoint };
@@ -98,7 +99,7 @@ export class CommandRunner {
       this.history = [def.name, ...this.history.filter((h) => h !== def.name)].slice(0, 50);
     }
     this.pushLog('command', `${def.transparent && this.stack.length > 1 ? "'" : ''}${def.name}`);
-    if (def.ui) requestUi(def.ui);
+    if (def.ui) requestUi(def.ui, undefined, invokedAs ?? def.name);
     const grouped = !def.readOnly;
     if (grouped) doc.history.beginGroup(tr(this.editor.lang, def.label));
     let failed = false;

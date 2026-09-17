@@ -445,6 +445,19 @@ const CHPROP: CommandDef = {
   },
 };
 
+const TEXTSCR: CommandDef = {
+  name: 'TEXTSCR',
+  aliases: ['HISTORIALCOMANDOS'],
+  category: 'utility',
+  readOnly: true,
+  transparent: true,
+  label: L('Historial de comandos', 'Command history'),
+  description: L('Muestra u oculta el historial de la línea de comandos (F2).', 'Shows or hides the command line history (F2).'),
+  run() {
+    if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('fmodel:cmdlog'));
+  },
+};
+
 const HELP: CommandDef = { name: 'HELP', aliases: ['AYUDA', '?'], category: 'utility', readOnly: true, transparent: true, ui: 'help', label: L('Ayuda', 'Help'), description: L('Ayuda contextual, lista de comandos y estado de funciones.', 'Contextual help, command list and feature status.'), run() {} };
 const OPTIONS: CommandDef = { name: 'OPTIONS', aliases: ['OP', 'OPCIONES', 'CONFIG'], category: 'utility', readOnly: true, ui: 'options', label: L('Opciones', 'Options'), description: L('Preferencias, alias, atajos, autoguardado y paneles.', 'Preferences, aliases, shortcuts, autosave and panels.'), icon: 'properties', run() {} };
 const ALIASEDIT: CommandDef = { name: 'ALIASEDIT', aliases: ['ALIAS'], category: 'utility', readOnly: true, ui: 'options', label: L('Editar alias', 'Edit aliases'), description: L('Personaliza los alias de comandos.', 'Customizes command aliases.'), run() {} };
@@ -516,6 +529,7 @@ const COUNT: CommandDef = {
 };
 
 export const UTILITY_COMMANDS: CommandDef[] = [
+  TEXTSCR,
   DIST,
   AREA,
   ID,

@@ -7,6 +7,10 @@ import { AttributeExtraction } from './dialogs/AttributeExtraction';
 import { CompareDialog } from './dialogs/CompareDialog';
 import { ConversionReportDialog, type ConversionPayload } from './dialogs/ConversionReportDialog';
 import { HealthReportDialog } from './dialogs/HealthReportDialog';
+import { HelpDialog } from './dialogs/HelpDialog';
+import { OptionsDialog } from './dialogs/OptionsDialog';
+import { StylesDialog } from './dialogs/StylesDialog';
+import { VersionsDialog } from './dialogs/VersionsDialog';
 import { LookupTableDialog } from './dialogs/LookupTableDialog';
 import { PageSetupDialog } from './dialogs/PageSetupDialog';
 import { PublishDialog } from './dialogs/PublishDialog';
@@ -49,8 +53,23 @@ export const DIALOGS: Record<string, DialogRenderer> = {
   references: (e, close) => <ReferencesDialog editor={e} onClose={close} />,
   'health-report': (e, close, _onUi, st) => <HealthReportDialog editor={e} payload={st.payload as Parameters<typeof HealthReportDialog>[0]['payload']} onClose={close} />,
   compare: (e, close) => <CompareDialog editor={e} onClose={close} />,
+  help: (e, close) => <HelpDialog editor={e} onClose={close} />,
+  options: (e, close, _onUi, st) => <OptionsDialog editor={e} onClose={close} initialTab={st.cmd === 'ALIASEDIT' ? 'aliases' : st.cmd === 'SHORTCUTS' ? 'shortcuts' : undefined} />,
+  styles: (e, close, _onUi, st) => <StylesDialog editor={e} onClose={close} initialTab={styleTabFor(st.cmd)} />,
+  versions: (e, close, onUi) => <VersionsDialog editor={e} onClose={close} onUi={onUi} />,
   'conversion-report': (e, close, _onUi, st) => <ConversionReportDialog editor={e} payload={st.payload as ConversionPayload | undefined} onClose={close} />,
 };
+
+/** Pestaña inicial del administrador de estilos según el alias usado (DIMSTYLE, TABLESTYLE…). */
+function styleTabFor(cmd?: string) {
+  const c = (cmd ?? '').toUpperCase();
+  if (c === 'DIMSTYLE' || c === 'D') return 'dimStyles' as const;
+  if (c === 'MLEADERSTYLE' || c === 'MLS') return 'mleaderStyles' as const;
+  if (c === 'TABLESTYLE' || c === 'TS') return 'tableStyles' as const;
+  if (c === 'MLSTYLE') return 'mlineStyles' as const;
+  if (c === 'SCALELISTEDIT' || c === 'ESCALAS') return 'scales' as const;
+  return undefined;
+}
 
 export function registerDialog(id: string, render: DialogRenderer) {
   DIALOGS[id] = render;

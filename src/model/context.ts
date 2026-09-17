@@ -55,7 +55,7 @@ export class ModelContext implements EvalContext {
       return;
     }
     for (const c of e.changes) {
-      if (c.coll === 'blocks' || c.coll === 'textStyles' || c.coll === 'dimStyles' || c.coll === 'mlineStyles' || c.coll === 'settings') {
+      if (c.coll === 'blocks' || c.coll === 'textStyles' || c.coll === 'dimStyles' || c.coll === 'mleaderStyles' || c.coll === 'tableStyles' || c.coll === 'mlineStyles' || c.coll === 'settings') {
         this.invalidateBlocks();
         return;
       }

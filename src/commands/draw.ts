@@ -116,7 +116,7 @@ const LINE: CommandDef = {
 
 const PLINE: CommandDef = {
   name: 'PLINE',
-  aliases: ['PL', 'POL', 'POLILINEA'],
+  aliases: ['PL', 'POLILINEA'],
   category: 'draw',
   label: L('Polilínea', 'Polyline'),
   description: L('Crea una polilínea 2D de segmentos rectos y de arco con grosor opcional.', 'Creates a 2D polyline of line and arc segments with optional width.'),
