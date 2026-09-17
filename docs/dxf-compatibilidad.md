@@ -77,6 +77,12 @@ Para intercambiar con DWG, convierte a DXF con la herramienta de tu programa CAD
 
 ## Importación (DXF → FModel)
 
+La prueba de interoperabilidad `src/io/dxf/foreignDxf.test.ts` importa un archivo escrito por
+**ezdxf** (un escritor ajeno, no FModel) con líneas, arcos, elipses, polilíneas con pandeo,
+spline, texto acentuado, texto de párrafos, cotas lineal y alineada, bloque con inserción
+escalada y girada, sombreado y sólido; el archivo se regenera con
+`python scripts/make-dxf-fixture.py`.
+
 ### Se conserva
 
 `LINE`, `POINT`, `CIRCLE`, `ARC`, `ELLIPSE`, `LWPOLYLINE`, `POLYLINE` 2D, `SPLINE`, `TEXT`, `MTEXT`, `INSERT` con `ATTRIB`, `ATTDEF`, `HATCH` (patrón, sólido, islas), `XLINE`, `RAY`, `DIMENSION` (lineal, alineada, angular, radio, diámetro, coordenada), `LEADER`, `VIEWPORT` de presentación, `LAYOUT`, capas, tipos de línea, estilos de texto y de cota (incluidas flechas `DIMBLK`), bloques y unidades (`$INSUNITS`).
