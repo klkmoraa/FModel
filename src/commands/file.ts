@@ -1,9 +1,10 @@
 import { getServices, requestUi } from '../app/services';
 import { createDocumentData } from '../document/defaults';
-import { readPackage, writeDebugJson, writePackage } from '../io/native';
+import { fromNativeFile, readPackage, writeDebugJson, writePackage } from '../io/native';
 import { downloadBlob, openFile, saveFile } from '../storage/fileAccess';
 import { K, L } from './helpers';
 import type { CommandApi, CommandDef } from './types';
+import { decodeDxfBytes, importDxfIntoDocument } from '../io/dxf/importDxf';
 
 const FMODEL_ACCEPT = { 'application/x-fmodel': ['.fmodel'], 'application/json': ['.json'] };
 
@@ -42,7 +43,6 @@ const NEW: CommandDef = {
 export async function openBytes(api: CommandApi, name: string, bytes: Uint8Array) {
   const lower = name.toLowerCase();
   if (lower.endsWith('.dxf')) {
-    const { decodeDxfBytes, importDxfIntoDocument } = await import('../io/dxf/importDxf');
     const report = importDxfIntoDocument(api.editor.doc, decodeDxfBytes(bytes), { replace: true });
     api.editor.fileName = fileBaseName(name);
     api.info(L(report.summary.es, report.summary.en));
@@ -150,7 +150,6 @@ const RECOVER: CommandDef = {
       return;
     }
     if (!(await confirmDiscard(api))) return;
-    const { fromNativeFile } = await import('../io/native');
     const res = fromNativeFile(rec.file);
     api.editor.doc.replaceData(res.data, res.documentId);
     api.editor.fileName = rec.name;
@@ -169,7 +168,6 @@ const IMPORTDXF: CommandDef = {
   async run(api) {
     const f = await openFile({ 'application/dxf': ['.dxf'] }, 'DXF');
     if (!f) return;
-    const { decodeDxfBytes, importDxfIntoDocument } = await import('../io/dxf/importDxf');
     const report = importDxfIntoDocument(api.editor.doc, decodeDxfBytes(f.bytes), { owner: api.editor.inputOwner });
     api.info(L(report.summary.es, report.summary.en));
     requestUi('conversion-report', { kind: 'import', name: f.name, report });

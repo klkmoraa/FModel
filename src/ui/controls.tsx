@@ -3,6 +3,7 @@ import { aciToHex, colorLabel, displayColor } from '../document/colors';
 import type { CadDocument } from '../document/document';
 import { LINEWEIGHTS } from '../document/types';
 import type { Lang } from '../commands/types';
+import { evaluate } from '../lib/expr';
 
 export const MIXED = '*VARIOS*';
 
@@ -24,7 +25,6 @@ export function NumberField({ value, onCommit, mixed, readOnly, step, suffix, la
     const t = text.trim();
     if (!t || (!mixed && t === fmt(value))) return;
     try {
-      const { evaluate } = await import('../lib/expr');
       const v = evaluate(t.replace(',', '.'));
       if (!Number.isFinite(v)) throw new Error('nan');
       setErr(false);

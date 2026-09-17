@@ -4,7 +4,7 @@ FModel lee y escribe DXF ASCII. El formato nativo sigue siendo `.fmodel` (versio
 
 - **Exportación:** DXF R2010 (`AC1024`), codificación UTF-8, unidades según `$INSUNITS`.
 - **Importación:** DXF R12 a R2018. Los archivos anteriores a R2007 se decodifican con su `$DWGCODEPAGE` (Windows-1252 por defecto); R2007+ como UTF-8. DXF binario no se admite.
-- **Validación:** los archivos exportados se auditan en las pruebas con `ezdxf` (lectura estricta y `audit()` sin errores ni correcciones) y se reimportan comprobando tipos, capas, bloques, atributos y viewports.
+- **Validación:** la prueba automática (`src/io/dxf/exportDxf.test.ts`) comprueba estructura, handles únicos y la ida y vuelta de tipos, capas, bloques, atributos y viewports. El mismo dibujo de prueba se audita con `ezdxf` mediante `scripts/audit-dxf.py` (lectura estricta, recuperación y `audit()`): resultado actual sin errores ni correcciones.
 
 ## DWG
 

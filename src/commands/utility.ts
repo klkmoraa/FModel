@@ -3,7 +3,7 @@ import type { Vec2 } from '../geometry/vec';
 import { dist } from '../geometry/vec';
 import { newId } from '../document/ids';
 import type { DrawingUnits, Entity, Id } from '../document/types';
-import { layerUsage, mergeLayers, isolateLayers, unisolateLayers } from '../layers/layerOps';
+import { captureLayerState, isolateLayers, layerUsage, mergeLayers, restoreLayerState, unisolateLayers, wildcardMatch } from '../layers/layerOps';
 import { kindOf } from '../model/registry';
 import { formatAngle, formatLength } from '../model/format';
 import { typeLabel } from '../model/typeLabels';
@@ -274,7 +274,6 @@ const QSELECT: CommandDef = {
     const layers = [...doc.data.layers.values()].map((l) => l.name);
     const l = await api.getString({ prompt: L('Capa (nombre, * comodín)', 'Layer (name, * wildcard)'), defaultValue: '*', allowSpaces: true });
     if (l.kind !== 'string') return;
-    const { wildcardMatch } = await import('../layers/layerOps');
     const layerIds = [...doc.data.layers.values()].filter((x) => wildcardMatch(l.value, x.name)).map((x) => x.id);
     const ids = quickSelect(editor.ctx, editor.inputOwner, { types: t.value === '*' ? undefined : (t.value.split(',').map((s) => s.trim()) as Entity['type'][]), layers: l.value === '*' ? undefined : layerIds }, editor.visibility()).filter((id) => editor.isSelectable(id));
     editor.selection.set(ids);
@@ -490,7 +489,6 @@ const NAMEDLAYERSTATE: CommandDef = {
     if (k.kind !== 'keyword') return;
     const n = await api.getString({ prompt: L('Nombre del estado', 'State name'), allowSpaces: true });
     if (n.kind !== 'string' || !n.value) return;
-    const { captureLayerState, restoreLayerState } = await import('../layers/layerOps');
     if (k.key === 'Save') {
       const existing = doc.findByName('layerStates', n.value);
       api.apply('LAYERSTATE', (tx) => tx.put('layerStates', { ...captureLayerState(doc, n.value), id: existing?.id ?? newId('lstate') }));

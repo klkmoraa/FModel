@@ -4,7 +4,8 @@ import type { Curve } from '../geometry/curves';
 import { tessellateCurve } from '../geometry/curves';
 import type { Mat2D } from '../geometry/matrix';
 import { compose, reflection, rotation, scaling, translation } from '../geometry/matrix';
-import { pointsSignedArea, tessellatePolyline } from '../geometry/polyline';
+import { intersectCurves } from '../geometry/intersect';
+import { curvesToVertices, pointInPolygon, pointsSignedArea, tessellatePolyline } from '../geometry/polyline';
 import type { Vec2 } from '../geometry/vec';
 import { angleOf, dist, sub } from '../geometry/vec';
 import type { ArrayEntity, BlockRecord, Entity, GroupRecord, Id, Loop, LwPolylineEntity, Polyline2dEntity, RegionEntity } from '../document/types';
@@ -395,7 +396,6 @@ async function trimOrExtend(api: CommandApi, kind: 'trim' | 'extend') {
         if (!e) continue;
         // punto de designación: primera intersección del borde con el objeto
         const fenceCurves: Curve[] = pts.slice(1).map((p, i) => ({ kind: 'line', a: pts[i], b: p }));
-        const { intersectCurves } = await import('../geometry/intersect');
         const hit = kindOf(e).curves(e, editor.ctx).flatMap((c) => fenceCurves.flatMap((f) => intersectCurves(c, f)))[0];
         if (hit && apply(id, hit.p, false)) n++;
       }
@@ -542,7 +542,6 @@ const STRETCH: CommandDef = {
         pts.push(p.p);
       }
       if (pts.length < 3) return;
-      const { pointInPolygon } = await import('../geometry/polyline');
       inside = (p) => pointInPolygon(p, pts);
       ids = selectInPolygon(editor.ctx, editor.index, editor.inputOwner, pts, true, undefined, editor.visibility());
     } else {
@@ -813,7 +812,6 @@ const PEDIT: CommandDef = {
       if (!(conv.kind === 'keyword' && conv.key === 'Yes')) return;
       const joined = joinEntities(e, [], api.editor.ctx);
       const [c] = kindOf(e).curves(e, api.editor.ctx);
-      const { curvesToVertices } = await import('../geometry/polyline');
       const { vertices } = curvesToVertices([c]);
       const p: LwPolylineEntity = { ...e, type: 'lwpolyline', vertices, closed: false } as unknown as LwPolylineEntity;
       void joined;

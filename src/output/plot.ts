@@ -1,4 +1,3 @@
-import { PDFDocument } from 'pdf-lib';
 import type { BBox } from '../geometry/bbox';
 import { boxFromPoints, emptyBox, expandBox, isEmptyBox, transformBox } from '../geometry/bbox';
 import type { Mat2D } from '../geometry/matrix';
@@ -14,7 +13,6 @@ import { layerVisible } from '../model/visibility';
 import type { TraverseEnv } from '../render/traverse';
 import { drawEntity, drawSpace, visibleEntities } from '../render/traverse';
 import type { SpatialIndex } from '../spatial/spatialIndex';
-import { PdfBackend } from './pdfBackend';
 import { SvgBackend } from './svgBackend';
 import type { ImageProvider, VectorBackend } from './vectorSink';
 import { VectorSink } from './vectorSink';
@@ -179,6 +177,8 @@ export function exportSvg(pc: PlotContext, spaceId: Id, pageOverride?: PageSetup
 
 /** PDF vectorial de una o varias hojas (PUBLISH). */
 export async function exportPdf(pc: PlotContext, spaceIds: Id[], pageOverride?: PageSetup): Promise<ExportResult<Uint8Array>> {
+  // pdf-lib solo se descarga cuando se exporta un PDF
+  const [{ PDFDocument }, { PdfBackend }] = await Promise.all([import('pdf-lib'), import('./pdfBackend')]);
   const pdf = await PDFDocument.create();
   pdf.setTitle(pc.doc.settings.title || 'FModel 2D CAD');
   pdf.setCreator('FModel 2D CAD');
