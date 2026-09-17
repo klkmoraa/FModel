@@ -6,6 +6,7 @@ import type { Mat2D } from '../geometry/matrix';
 import { applyToPoint, invert } from '../geometry/matrix';
 import type { Vec2 } from '../geometry/vec';
 import { dist } from '../geometry/vec';
+import { parameterPoints } from '../blocks/authoring';
 import { CancelError, type CommandDef, type InputRequest, type Lang, type PreviewSpec } from '../commands/types';
 import { CommandRunner } from '../commands/runner';
 import { findCommand, setUserAliases } from '../commands/registry';
@@ -82,6 +83,8 @@ export class Editor {
   views = new Map<Id, ViewTransform>();
   activeViewportId: Id | null = null;
   blockEdit: BlockEditSession | null = null;
+  /** estado de autoría del Editor de bloques (estado de visibilidad mostrado) */
+  blockEditState: { currentVisibility: string | null } = { currentVisibility: null };
   preview: PreviewSpec | null = null;
   hidden = new Set<Id>();
   isolated: Set<Id> | null = null;
@@ -252,6 +255,24 @@ export class Editor {
     return { hidden: this.hidden, isolated: this.isolated, viewport: this.activeViewport };
   }
 
+  /**
+   * Objetos de la definición en edición que no pertenecen al estado de visibilidad actual.
+   * Se dibujan atenuados y siguen siendo designables para poder cambiarlos de estado.
+   */
+  blockStateHidden(): Set<Id> | null {
+    const s = this.blockEdit;
+    if (!s || this.space !== s.blockId) return null;
+    const vis = this.doc.data.blocks.get(s.blockId)?.dynamic?.parameters.find((p) => p.type === 'visibility');
+    if (!vis || vis.type !== 'visibility') return null;
+    const name = this.blockEditState.currentVisibility ?? vis.defaultState;
+    const state = vis.states.find((x) => x.name === name) ?? vis.states[0];
+    if (!state) return null;
+    const visible = new Set(state.visible);
+    const out = new Set<Id>();
+    for (const e of this.doc.entitiesOf(s.blockId)) if (!visible.has(e.id)) out.add(e.id);
+    return out;
+  }
+
   // ------------------------------------------------------------------ zoom
 
   zoomExtents() {
@@ -260,9 +281,12 @@ export class Editor {
       const e = this.doc.entity(id);
       return !!e && entityVisible(this.doc, e, { hidden: this.hidden, isolated: this.isolated });
     });
+    // en el Editor de bloques el encuadre incluye los parámetros y sus etiquetas
+    const def = this.blockEdit && !this.blockEdit.testing && owner === this.blockEdit.blockId ? this.doc.data.blocks.get(owner)?.dynamic : undefined;
+    for (const p of def?.parameters ?? []) for (const q of parameterPoints(p)) expandBox(ext, { minX: q.x, minY: q.y, maxX: q.x, maxY: q.y });
     if (this.spaceKind === 'layout' && isEmptyBox(ext)) this.fitLayout(this.view);
     else if (!isEmptyBox(ext)) {
-      const pad = Math.max(ext.maxX - ext.minX, ext.maxY - ext.minY) * 0.02 || 1;
+      const pad = Math.max(ext.maxX - ext.minX, ext.maxY - ext.minY) * (def?.parameters.length ? 0.1 : 0.02) || 1;
       this.view.fit(inflate(ext, pad));
     }
     this.emit('view');

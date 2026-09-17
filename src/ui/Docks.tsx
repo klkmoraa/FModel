@@ -7,6 +7,7 @@ import { LayersPanel } from './panels/LayersPanel';
 import { PropertiesPanel } from './panels/PropertiesPanel';
 import { BlocksPanel } from './panels/BlocksPanel';
 import { ToolPalettesPanel } from './panels/ToolPalettesPanel';
+import { BlockAuthoringPanel } from './panels/BlockAuthoringPanel';
 import { tr } from './controls';
 
 export const PANELS: Record<string, { icon: string; label: { es: string; en: string }; render: (editor: Editor, onUi: (ui: string, cmd?: string) => void) => React.ReactNode }> = {
@@ -14,13 +15,23 @@ export const PANELS: Record<string, { icon: string; label: { es: string; en: str
   layers: { icon: 'layers', label: { es: 'Capas', en: 'Layers' }, render: (e) => <LayersPanel editor={e} /> },
   blocks: { icon: 'block', label: { es: 'Bloques', en: 'Blocks' }, render: (e, onUi) => <BlocksPanel editor={e} onUi={onUi} /> },
   palettes: { icon: 'palettes', label: { es: 'Paletas', en: 'Palettes' }, render: (e) => <ToolPalettesPanel editor={e} /> },
+  authoring: { icon: 'dynblock', label: { es: 'Autoría', en: 'Authoring' }, render: (e) => <BlockAuthoringPanel editor={e} /> },
 };
 
+/** Paneles de un lado; «Autoría» solo existe durante una sesión del Editor de bloques. */
+function dockPanels(editor: Editor, side: 'left' | 'right'): string[] {
+  const { left, right } = editor.prefs.panels;
+  const list = (side === 'left' ? left : right).filter((p) => PANELS[p] && (p !== 'authoring' || editor.blockEdit));
+  if (editor.blockEdit && side === 'right' && ![...left, ...right].includes('authoring')) return ['authoring', ...list];
+  return list;
+}
+
 export function Docks({ editor, side, mobileSheet, onCloseSheet, onUi }: { editor: Editor; side: 'left' | 'right'; mobileSheet: string | null; onCloseSheet: () => void; onUi: (ui: string, cmd?: string) => void }) {
-  useEditorEvents(editor, ['prefs']);
+  useEditorEvents(editor, ['prefs', 'space']);
   const lang = editor.lang;
   const isMobile = useMediaQuery('(max-width: 820px)');
-  const panels = (side === 'left' ? editor.prefs.panels.left : editor.prefs.panels.right).filter((p) => PANELS[p]);
+  const panels = dockPanels(editor, side);
+  const editing = !!editor.blockEdit;
   const [active, setActive] = useState(panels[0] ?? '');
   const [width, setWidth] = useState(() => {
     try {
@@ -43,6 +54,13 @@ export function Docks({ editor, side, mobileSheet, onCloseSheet, onUi }: { edito
     window.addEventListener('fmodel:panel', onPanel);
     return () => window.removeEventListener('fmodel:panel', onPanel);
   }, [panels, collapsed, editor, side]);
+
+  // al abrir el Editor de bloques se muestra la autoría en el lado donde viva
+  useEffect(() => {
+    if (!editing || !dockPanels(editor, side).includes('authoring')) return;
+    setActive('authoring');
+    if (editor.prefs.panels.collapsed.includes(side)) editor.setPrefs({ panels: { ...editor.prefs.panels, collapsed: editor.prefs.panels.collapsed.filter((c) => c !== side) } });
+  }, [editing, editor, side]);
 
   const sheetPanel = isMobile && mobileSheet && panels.includes(mobileSheet) ? mobileSheet : null;
   if (isMobile && !sheetPanel) return null;

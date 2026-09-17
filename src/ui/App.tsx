@@ -49,21 +49,21 @@ export function App({ editor }: { editor: Editor }) {
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#14171a' : '#f7f6f1');
   }, [editor.prefs.theme, lang, dark]);
 
-  const openUi = useCallback((ui: string, cmd?: string) => {
+  const openUi = useCallback((ui: string, cmd?: string, payload?: unknown) => {
     if (ui.startsWith('panel:')) {
       if (isMobile) setMobileSheet(ui.slice(6));
       editor.emit('prefs');
       window.dispatchEvent(new CustomEvent('fmodel:panel', { detail: ui.slice(6) }));
       return;
     }
-    setDialog({ id: ui, cmd });
+    setDialog({ id: ui, cmd, payload });
   }, [editor, isMobile]);
 
   // Los comandos con UI abren su panel o diálogo
   useEffect(() => {
     const handler = (e: Event) => {
-      const d = (e as CustomEvent<{ ui: string; cmd?: string; args?: unknown }>).detail;
-      openUi(d.ui, d.cmd);
+      const d = (e as CustomEvent<{ ui: string; cmd?: string; payload?: unknown }>).detail;
+      openUi(d.ui, d.cmd, d.payload);
     };
     window.addEventListener('fmodel:ui', handler);
     return () => window.removeEventListener('fmodel:ui', handler);

@@ -4,11 +4,14 @@ import type { Editor } from '../editor/editor';
 import { DraftingSettings } from './dialogs/DraftingSettings';
 import { FileMenu } from './dialogs/FileMenu';
 import { AttributeExtraction } from './dialogs/AttributeExtraction';
+import { LookupTableDialog } from './dialogs/LookupTableDialog';
 import { tr } from './controls';
 
 export interface DialogState {
   id: string;
   cmd?: string;
+  /** datos de apertura (p. ej. id de la tabla de consulta) */
+  payload?: unknown;
 }
 
 export function Dialog({ title, onClose, children, footer, wide, lang }: { title: string; onClose: () => void; children: ReactNode; footer?: ReactNode; wide?: boolean; lang: 'es' | 'en' }) {
@@ -34,6 +37,7 @@ export const DIALOGS: Record<string, DialogRenderer> = {
   'drafting-settings': (e, close) => <DraftingSettings editor={e} onClose={close} />,
   'file-menu': (e, close, onUi) => <FileMenu editor={e} onClose={close} onUi={onUi} />,
   'attribute-extraction': (e, close) => <AttributeExtraction editor={e} onClose={close} />,
+  'lookup-table': (e, close, _onUi, st) => <LookupTableDialog editor={e} tableId={String(st.payload ?? '')} onClose={close} />,
 };
 
 export function registerDialog(id: string, render: DialogRenderer) {

@@ -99,7 +99,7 @@ export class CommandRunner {
     }
     this.pushLog('command', `${def.transparent && this.stack.length > 1 ? "'" : ''}${def.name}`);
     if (def.ui) requestUi(def.ui);
-    const grouped = !def.readOnly && !doc.history.inGroup;
+    const grouped = !def.readOnly;
     if (grouped) doc.history.beginGroup(tr(this.editor.lang, def.label));
     let failed = false;
     try {

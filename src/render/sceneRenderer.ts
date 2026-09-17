@@ -192,13 +192,19 @@ export function renderScene(g: CanvasRenderingContext2D, editor: Editor, opts: S
   if (kind === 'block' && editor.blockEdit?.inPlace) {
     const ip = editor.blockEdit.inPlace;
     const faded: TraverseEnv = { ...env, fade: 0.7, hidden: new Set([ip.insertId]) };
-    const inv = invert(ip.matrix);
+    // ip.matrix lleva del anfitrión (mundo) a coordenadas del bloque
     sink.save();
-    sink.transform(inv);
-    drawSpace(sink, faded, editor.blockEdit.previousSpace, editor.index, transformBox(view.visibleBox(), ip.matrix));
+    sink.transform(ip.matrix);
+    drawSpace(sink, faded, editor.blockEdit.previousSpace, editor.index, transformBox(view.visibleBox(), invert(ip.matrix)));
     sink.restore();
   }
-  drawSpace(sink, env, editor.space, editor.index, view.visibleBox(50));
+  const stateHidden = kind === 'block' ? editor.blockStateHidden() : null;
+  if (stateHidden?.size) {
+    // objetos fuera del estado de visibilidad actual: atenuados debajo del resto
+    drawSpace(sink, { ...env, isolated: stateHidden, fade: 0.8 }, editor.space, editor.index, view.visibleBox(50));
+    const hidden = new Set([...(env.hidden ?? []), ...stateHidden]);
+    drawSpace(sink, { ...env, hidden }, editor.space, editor.index, view.visibleBox(50));
+  } else drawSpace(sink, env, editor.space, editor.index, view.visibleBox(50));
   sink.end();
 }
 

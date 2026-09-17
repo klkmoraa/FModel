@@ -115,8 +115,9 @@ export const RIBBON: RibbonTab[] = [
     id: 'parametric',
     label: { es: 'Paramétrico', en: 'Parametric' },
     groups: [
-      { label: { es: 'Bloques dinámicos', en: 'Dynamic blocks' }, tools: [t('BEDIT', 'bedit', 'Editor de bloques', 'Block editor', 'lg'), t('DYNBLOCKSAMPLES', 'dynblock', 'Ejemplos dinámicos', 'Dynamic samples', 'lg'), t('BTESTBLOCK', 'dynblock', 'Probar bloque', 'Test block')] },
-      { label: { es: 'Restricciones', en: 'Constraints' }, tools: [t('BCPARAMETER', 'constraint', 'Parámetro de restricción', 'Constraint parameter'), t('BACTION', 'dynblock', 'Acción', 'Action'), t('BPARAMETER', 'dynblock', 'Parámetro', 'Parameter')] },
+      { label: { es: 'Bloques dinámicos', en: 'Dynamic blocks' }, tools: [t('BEDIT', 'bedit', 'Editor de bloques', 'Block editor', 'lg'), t('DYNBLOCKSAMPLES', 'dynblock', 'Ejemplos dinámicos', 'Dynamic samples', 'lg'), t('BTESTBLOCK', 'dynblock', 'Probar bloque', 'Test block'), t('BVSTATE', 'dynblock', 'Estados de visibilidad', 'Visibility states'), t('BCLOSE', 'bedit', 'Cerrar editor', 'Close editor')] },
+      { label: { es: 'Autoría', en: 'Authoring' }, tools: [t('BPARAMETER', 'dynblock', 'Parámetro', 'Parameter'), t('BACTION', 'dynblock', 'Acción', 'Action'), t('BVARIABLE', 'constraint', 'Variable', 'Variable')] },
+      { label: { es: 'Restricciones', en: 'Constraints' }, tools: [t('BCONSTRAINT', 'constraint', 'Geométrica', 'Geometric'), t('BCPARAMETER', 'constraint', 'Parámetro de restricción', 'Constraint parameter')] },
     ],
   },
   {

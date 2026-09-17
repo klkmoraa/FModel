@@ -1,5 +1,6 @@
 import { ANNOTATE_COMMANDS } from './annotate';
 import { BLOCK_COMMANDS } from './blocks';
+import { BLOCK_EDITOR_COMMANDS } from './blockEditor';
 import { DRAW_COMMANDS } from './draw';
 import { FILE_COMMANDS } from './file';
 import { GRIP } from './grips';
@@ -17,6 +18,7 @@ export function registerAllCommands() {
   registerCommands(VIEW_COMMANDS);
   registerCommands(FILE_COMMANDS);
   registerCommands(BLOCK_COMMANDS);
+  registerCommands(BLOCK_EDITOR_COMMANDS);
   registerCommands(MODIFY_COMMANDS);
   registerCommands(ANNOTATE_COMMANDS);
   registerCommands(UTILITY_COMMANDS);
