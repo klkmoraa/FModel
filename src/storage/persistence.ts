@@ -110,7 +110,7 @@ export class Persistence {
     const rec: VersionRecord = { id: `${doc.id}:${newId('v')}`, documentId: doc.id, name: this.getName(), label, savedAt: Date.now(), auto, entityCount: doc.data.entities.size, bytes };
     await idbPut('versions', rec);
     // conservar como máximo 40 versiones automáticas por documento
-    const all = (await idbAll<VersionRecord>('versions')).filter((v) => v.documentId === doc.id && v.auto).sort((a, b) => b.savedAt - a.savedAt);
+    const all = (await idbAll<VersionRecord>('versions')).filter((v) => v.documentId === doc.id && v.auto).sort((a, b) => b.savedAt - a.savedAt || (a.id < b.id ? 1 : a.id > b.id ? -1 : 0));
     for (const old of all.slice(40)) await idbDelete('versions', old.id);
     return rec;
   }
@@ -118,7 +118,8 @@ export class Persistence {
   async versions(documentId?: Id): Promise<VersionRecord[]> {
     try {
       const all = await idbAll<VersionRecord>('versions');
-      return all.filter((v) => !documentId || v.documentId === documentId).sort((a, b) => b.savedAt - a.savedAt);
+      // desempate por identificador: dos guardados en el mismo milisegundo se listan siempre igual
+      return all.filter((v) => !documentId || v.documentId === documentId).sort((a, b) => b.savedAt - a.savedAt || (a.id < b.id ? 1 : a.id > b.id ? -1 : 0));
     } catch {
       return [];
     }
