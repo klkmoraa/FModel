@@ -1,0 +1,21 @@
+{
+  "name": "FModel 2D CAD",
+  "short_name": "FModel CAD",
+  "description": "Dibujo técnico 2D preciso, local-first, de la familia FusionStructure.",
+  "lang": "es",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#14171A",
+  "theme_color": "#14171A",
+  "categories": ["productivity", "utilities"],
+  "icons": [
+    { "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ],
+  "file_handlers": [
+    { "action": ".", "accept": { "application/x-fmodel": [".fmodel"], "application/dxf": [".dxf"] } }
+  ]
+}

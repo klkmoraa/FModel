@@ -14,6 +14,9 @@ import { createDocument } from './document/defaults';
 import { Editor } from './editor/editor';
 import { Persistence } from './storage/persistence';
 import { App } from './ui/App';
+import { consumeLaunchQueue, registerServiceWorker } from './pwa/register';
+import { queueLaunchedFile } from './commands/file';
+import { setPendingUpdate } from './commands/utility';
 
 registerAllCommands();
 
@@ -35,6 +38,15 @@ setServices({
   fileHandle: null,
   openUi: (ui) => window.dispatchEvent(new CustomEvent('fmodel:ui', { detail: { ui } })),
   toast: (kind, text) => editor.runner.message(kind, text),
+});
+
+registerServiceWorker((apply) => {
+  editor.runner.message('info', { es: 'Hay una versión nueva de FModel lista. Guarda tu trabajo y escribe ACTUALIZAR para aplicarla.', en: 'A new FModel version is ready. Save your work and type UPDATEAPP to apply it.' });
+  setPendingUpdate(apply);
+});
+consumeLaunchQueue((file) => {
+  queueLaunchedFile(file);
+  editor.command('_OPENLAUNCHED');
 });
 
 // exposición para depuración en consola

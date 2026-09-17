@@ -1,8 +1,9 @@
 import { getServices, requestUi } from '../app/services';
 import { compareDrawings } from '../audit/compare';
-import { analyzeDrawing, applyHealthFixes } from '../audit/health';
+import { applyHealthFixes } from '../audit/health';
 import type { DocumentData } from '../document/types';
 import { readXrefSource } from '../xref/xref';
+import { runHeavy } from '../workers/client';
 import { openFile } from '../storage/fileAccess';
 import { K, L } from './helpers';
 import type { CommandDef } from './types';
@@ -21,11 +22,12 @@ const AUDIT: CommandDef = {
     const given = args?.[0] ? editor.runner.matchKeyword(args[0], kws) : null;
     const k = given ? { kind: 'keyword' as const, key: given } : await api.getKeyword({ prompt: L('¿Corregir los errores detectados?', 'Fix any errors detected?'), keywords: kws, defaultValue: 'Yes' });
     if (k.kind !== 'keyword') return;
-    const before = analyzeDrawing(editor.doc, editor.ctx);
+    api.info(L('Analizando el dibujo en segundo plano…', 'Analyzing the drawing in the background…'));
+    const before = await runHeavy('analyze', { data: editor.doc.data });
     const fixable = before.issues.filter((i) => i.fixable).length;
     if (k.key === 'Yes' && fixable) {
       const fixes = api.apply('AUDIT', (tx) => applyHealthFixes(tx, editor.doc, before));
-      const after = analyzeDrawing(editor.doc, editor.ctx);
+      const after = await runHeavy('analyze', { data: editor.doc.data });
       api.info(L(`AUDIT: ${before.issues.length} problema(s), ${fixes} corrección(es). Puntuación ${before.score} → ${after.score}.`, `AUDIT: ${before.issues.length} issue(s), ${fixes} fix(es). Score ${before.score} → ${after.score}.`));
       requestUi('health-report', { report: after, fixed: fixes });
       return;
@@ -43,8 +45,8 @@ const HEALTHREPORT: CommandDef = {
   icon: 'audit',
   label: L('Informe de salud del dibujo', 'Drawing health report'),
   description: L('Puntuación y lista de problemas por categoría (geometría, duplicados, referencias, bloques, estándares y elementos sin uso) con acceso a cada objeto.', 'Score and issue list by category (geometry, duplicates, references, blocks, standards and unused items) with access to each object.'),
-  run(api) {
-    requestUi('health-report', { report: analyzeDrawing(api.editor.doc, api.editor.ctx), fixed: 0 });
+  async run(api) {
+    requestUi('health-report', { report: await runHeavy('analyze', { data: api.editor.doc.data }), fixed: 0 });
   },
 };
 

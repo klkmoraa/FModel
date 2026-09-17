@@ -61,9 +61,9 @@ export const FEATURES: Feature[] = [
   F('Productividad', 'Productivity', 'Paleta de comandos, alias y atajos configurables, repetir último, favoritos, ayuda contextual', 'Command palette, configurable aliases and shortcuts, repeat last, favorites, contextual help', 'available', ['OPTIONS', 'HELP']),
   F('Productividad', 'Productivity', 'Autoguardado, recuperación tras cierre y versiones locales', 'Autosave, crash recovery and local versions', 'available', ['VERSIONS', 'RECOVER']),
   F('Productividad', 'Productivity', 'Español e inglés', 'Spanish and English', 'available', ['OPTIONS']),
-  F('Productividad', 'Productivity', 'Uso sin conexión instalable (PWA)', 'Installable offline use (PWA)', 'planned'),
+  F('Productividad', 'Productivity', 'Aplicación instalable con uso sin conexión (PWA) y apertura de .fmodel/.dxf desde el sistema', 'Installable app with offline use (PWA) and opening .fmodel/.dxf from the system', 'experimental', ['UPDATEAPP'], ['El service worker precarga toda la versión y está cubierto por pruebas; la instalación y la apertura de archivos dependen del navegador (Safari no abre archivos desde el sistema).', 'The service worker precaches the whole version and is covered by tests; installation and file opening depend on the browser (Safari does not open files from the system).']),
   F('Rendimiento', 'Performance', 'Índice espacial, renderizado por lotes con caché de trazados', 'Spatial index, batched rendering with path cache', 'available'),
-  F('Rendimiento', 'Performance', 'Operaciones pesadas (DXF grandes, auditoría) en segundo plano con Web Workers', 'Heavy operations (large DXF, audit) in background Web Workers', 'planned'),
+  F('Rendimiento', 'Performance', 'Lectura y exportación DXF y análisis de salud en segundo plano (Web Worker)', 'DXF reading and export and health analysis in the background (Web Worker)', 'available', ['OPEN', 'EXPORTDXF', 'AUDIT', 'HEALTHREPORT'], ['Si el navegador no permite workers se ejecutan en el hilo principal con el mismo resultado.', 'If the browser disallows workers they run on the main thread with the same result.']),
 ];
 
 export const STATUS_LABEL: Record<FeatureStatus, { es: string; en: string; tone: string }> = {

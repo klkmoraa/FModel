@@ -2,7 +2,7 @@
 
 > Archivo generado con `node scripts/features-md.mjs` desde `src/app/features.ts`, la misma fuente que la pestaña «Estado de funciones» de la ayuda (F1). No lo edites a mano.
 
-**Disponible**: 36 · **Experimental**: 2 · **Planeado**: 3 · **No comprometido**: 1
+**Disponible**: 37 · **Experimental**: 3 · **Planeado**: 1 · **No comprometido**: 1
 
 - **Disponible**: funciona de extremo a extremo y tiene pruebas.
 - **Experimental**: funciona con limitaciones documentadas.
@@ -117,11 +117,11 @@
 | Paleta de comandos, alias y atajos configurables, repetir último, favoritos, ayuda contextual | Disponible | `OPTIONS` `HELP` |  |
 | Autoguardado, recuperación tras cierre y versiones locales | Disponible | `VERSIONS` `RECOVER` |  |
 | Español e inglés | Disponible | `OPTIONS` |  |
-| Uso sin conexión instalable (PWA) | Planeado |  |  |
+| Aplicación instalable con uso sin conexión (PWA) y apertura de .fmodel/.dxf desde el sistema | Experimental | `UPDATEAPP` | El service worker precarga toda la versión y está cubierto por pruebas; la instalación y la apertura de archivos dependen del navegador (Safari no abre archivos desde el sistema). |
 
 ## Rendimiento
 
 | Función | Estado | Comandos | Notas |
 |---|---|---|---|
 | Índice espacial, renderizado por lotes con caché de trazados | Disponible |  |  |
-| Operaciones pesadas (DXF grandes, auditoría) en segundo plano con Web Workers | Planeado |  |  |
+| Lectura y exportación DXF y análisis de salud en segundo plano (Web Worker) | Disponible | `OPEN` `EXPORTDXF` `AUDIT` `HEALTHREPORT` | Si el navegador no permite workers se ejecutan en el hilo principal con el mismo resultado. |

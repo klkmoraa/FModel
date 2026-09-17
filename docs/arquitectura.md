@@ -12,9 +12,9 @@ La dependencia entre módulos es estrictamente descendente y la verifica `pnpm c
 | 1 | `document`, `history` | registros inmutables en `Map`, transacciones con antes/después, historial agrupable, reactores al confirmar |
 | 2 | `model`, `spatial`, `constraints`, `layers`, `annotation` | comportamiento de cada tipo de entidad, índice espacial R-tree por espacio, resolvedor de restricciones, operaciones de capas, asociatividad de cotas |
 | 3 | `selection`, `snap`, `blocks`, `modify`, `audit`, `io`, `storage`, `xref`, `app` | designación, referencias a objetos y rastreo, bloques dinámicos, edición geométrica, auditoría y comparación, formatos (nativo, DXF), IndexedDB y archivos, referencias externas, localizador de servicios y catálogo de funciones |
-| 4 | `render`, `output` | dibujo Canvas por lotes, capa de ayudas, salida vectorial PDF/SVG |
+| 4 | `render`, `output`, `workers` | dibujo Canvas por lotes, capa de ayudas, salida vectorial PDF/SVG, operaciones pesadas en segundo plano |
 | 5 | `commands`, `editor` | registro y ejecución de comandos, estado interactivo del editor |
-| 6 | `ui`, `main` | componentes React, paneles, diálogos y arranque |
+| 6 | `ui`, `pwa`, `main` | componentes React, paneles, diálogos, service worker y arranque |
 
 ## Documento y transacciones
 
@@ -56,6 +56,11 @@ Las inserciones de bloque no duplican geometría: la lista de visualización con
 - **PDF/SVG** (`output/`): un sumidero vectorial común convierte arcos y elipses en Bézier cúbicas exactas bajo cualquier transformación afín, traduce grosores y patrones a milímetros y aplica recortes de viewport; backends SVG (unidades en mm) y PDF (pdf-lib, cargado solo al exportar). La vista previa del diálogo de trazado es el mismo SVG que se exporta.
 - **DXF** (`io/dxf/`): importador propio con informe de conversión y escritor R2010 auditado con ezdxf (`scripts/audit-dxf.py`); ver `docs/dxf-compatibilidad.md`.
 - **Referencias externas** (`xref/`): el contenido referenciado se copia en una definición `xref` (el dibujo se comparte sin archivos sueltos) y se actualiza al recargar desde el identificador de archivo recordado o la biblioteca local.
+
+## Segundo plano y uso sin conexión
+
+- `workers/heavyOps.ts` define operaciones sin estado compartido (exportar DXF, leer DXF, analizar la salud del dibujo) que reciben y devuelven datos serializables; `workers/client.ts` las ejecuta en un Web Worker y, si el navegador no lo permite, en el hilo principal con idéntico resultado.
+- `pwa/`: el service worker se genera en la compilación con la lista exacta de archivos de la versión (precarga completa, navegación sin conexión, caché primero para recursos) y las versiones nuevas esperan a que el usuario las aplique (`UPDATEAPP`), de modo que nunca se mezclan dos versiones con un dibujo abierto. El manifiesto declara la apertura de `.fmodel` y `.dxf` desde el sistema.
 
 ## Persistencia local
 

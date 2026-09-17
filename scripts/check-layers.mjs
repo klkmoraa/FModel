@@ -45,9 +45,11 @@ const LAYERS = {
   app: 3,
   render: 4,
   output: 4,
+  workers: 4,
   commands: 5,
   editor: 5,
   ui: 6,
+  pwa: 6,
   main: 6,
   styles: 6,
 };

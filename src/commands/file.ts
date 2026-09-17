@@ -5,6 +5,7 @@ import { downloadBlob, openFile, saveFile } from '../storage/fileAccess';
 import { K, L } from './helpers';
 import type { CommandApi, CommandDef } from './types';
 import { decodeDxfBytes, importDxfIntoDocument } from '../io/dxf/importDxf';
+import { runHeavy } from '../workers/client';
 
 const FMODEL_ACCEPT = { 'application/x-fmodel': ['.fmodel'], 'application/json': ['.json'] };
 
@@ -43,7 +44,9 @@ const NEW: CommandDef = {
 export async function openBytes(api: CommandApi, name: string, bytes: Uint8Array) {
   const lower = name.toLowerCase();
   if (lower.endsWith('.dxf')) {
-    const report = importDxfIntoDocument(api.editor.doc, decodeDxfBytes(bytes), { replace: true });
+    api.info(L('Leyendo DXF en segundo plano…', 'Reading DXF in the background…'));
+    const { data, report } = await runHeavy('readDxf', { text: decodeDxfBytes(bytes) });
+    api.editor.doc.replaceData(data);
     api.editor.fileName = fileBaseName(name);
     api.info(L(report.summary.es, report.summary.en));
     requestUi('conversion-report', { kind: 'import', name, report });
@@ -183,8 +186,9 @@ const EXPORTDXF: CommandDef = {
   label: L('Exportar DXF', 'Export DXF'),
   description: L('Guarda el dibujo como DXF R2010 (UTF-8) con capas, bloques, presentaciones y viewports; muestra qué se conservó, qué se convirtió y qué se omitió.', 'Saves the drawing as DXF R2010 (UTF-8) with layers, blocks, layouts and viewports; reports what was kept, converted or skipped.'),
   async run(api) {
-    const { exportDxf, exportSummary } = await import('../io/dxf/exportDxf');
-    const { text, report } = exportDxf(api.editor.doc, api.editor.ctx);
+    const { exportSummary } = await import('../io/dxf/exportDxf');
+    api.info(L('Generando DXF en segundo plano…', 'Generating DXF in the background…'));
+    const { text, report } = await runHeavy('exportDxf', { data: api.editor.doc.data });
     const name = `${api.editor.fileName || api.editor.doc.settings.title || 'dibujo'}.dxf`;
     const handle = await saveFile(new Blob([text], { type: 'application/dxf' }), name, { 'application/dxf': ['.dxf'] }, 'DXF');
     const summary = exportSummary(report);
@@ -193,4 +197,27 @@ const EXPORTDXF: CommandDef = {
   },
 };
 
-export const FILE_COMMANDS: CommandDef[] = [NEW, OPEN, QSAVE, SAVEAS, EXPORTJSON, VERSIONS, RECOVER, IMPORTDXF, EXPORTDXF];
+/** Archivos entregados por el sistema operativo (aplicación instalada: «Abrir con FModel»). */
+const launchQueue: { name: string; bytes: Uint8Array; handle?: unknown }[] = [];
+
+export function queueLaunchedFile(file: { name: string; bytes: Uint8Array; handle?: unknown }) {
+  launchQueue.push(file);
+}
+
+const OPENLAUNCHED: CommandDef = {
+  name: '_OPENLAUNCHED',
+  aliases: [],
+  category: 'file',
+  readOnly: true,
+  label: L('Abrir archivo recibido', 'Open received file'),
+  description: L('Abre el archivo con el que se lanzó la aplicación instalada.', 'Opens the file the installed app was launched with.'),
+  async run(api) {
+    const f = launchQueue.shift();
+    if (!f) return;
+    if (!(await confirmDiscard(api))) return;
+    await openBytes(api, f.name, f.bytes);
+    getServices().fileHandle = f.name.toLowerCase().endsWith('.fmodel') ? ((f.handle as never) ?? null) : null;
+  },
+};
+
+export const FILE_COMMANDS: CommandDef[] = [NEW, OPEN, QSAVE, SAVEAS, EXPORTJSON, VERSIONS, RECOVER, IMPORTDXF, EXPORTDXF, OPENLAUNCHED];
