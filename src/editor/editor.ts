@@ -334,6 +334,17 @@ export class Editor {
     else this.selection.add(filtered);
   }
 
+  /** Objeto designable más cercano a un punto (unidades del propietario). */
+  pickEntityAt(p: Vec2, types?: EntityType[]): Id | null {
+    const tol = this.prefs.pickboxPx * this.ownerPerPixel;
+    const hits = pickAt(this.ctx, this.index, this.inputOwner, p, tol, types ? { types } : undefined, this.visibility());
+    return hits[0]?.id ?? null;
+  }
+
+  addToRequestSelection(ids: Id[]) {
+    this.applySelection(ids, 'add');
+  }
+
   finishSelectionRequest() {
     const ids = this.requestIds;
     this.requestIds = [];

@@ -140,8 +140,17 @@ export class CommandRunner {
       const next = queue.shift()!;
       queueMicrotask(() => {
         if (typeof next === 'string') this.submitText(next);
-        else if (p.req.kind === 'selection') this.submitSelection([]);
-        else this.submitPoint(next);
+        else if (p.req.kind === 'selection') {
+          // un punto designa el objeto bajo él y la petición sigue abierta
+          const id = this.editor.pickEntityAt(next, p.req.types);
+          if (id) this.editor.addToRequestSelection([id]);
+          lastFed = null;
+          feed();
+        } else if (p.req.kind === 'entity') {
+          const id = this.editor.pickEntityAt(next, p.req.types);
+          if (id) this.submitEntity(id, next);
+          else this.cancel();
+        } else this.submitPoint(next);
       });
     };
     const off = this.subscribe(feed);
