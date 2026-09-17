@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { createDocument } from '../document/defaults';
-import type { ArcEntity, CircleEntity, Entity, Id, LineEntity, LwPolylineEntity, Vec2 } from '../document/types';
+import type { Vec2 } from '../geometry/vec';
+import type { ArcEntity, CircleEntity, Entity, Id, LineEntity, LwPolylineEntity } from '../document/types';
 import { Editor } from '../editor/editor';
 import { registerAllCommands } from './index';
 
