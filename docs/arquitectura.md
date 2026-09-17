@@ -49,6 +49,7 @@ Las inserciones de bloque no duplican geometría: la lista de visualización con
 - `render/traverse.ts` recorre entidades visibles del espacio, resuelve herencia PorCapa/PorBloque y la capa 0 dentro de bloques, sobrescrituras por viewport y estilo de trazado (color, monocromo, grises).
 - `render/canvasSink.ts` agrupa trazos consecutivos del mismo estilo en un único `Path2D` y cachea los trazados de cada lista de visualización.
 - La escena base solo se redibuja con cambios de documento o vista; cursor, referencias, pinzamientos, vista previa, comparación de revisiones y capa de autoría de bloques van en un canvas superpuesto.
+- `render/pdfGeometry.ts` extrae los trazos vectoriales de una página PDF (lista de operadores de pdf.js, con su pila de matrices) al cuadrado unidad del calco y los indexa en una rejilla. `EvalContext.pdfGeometry` publica ese índice; los tipos de entidad pueden ofrecer `snapPointsNear`/`curvesNear` para que el motor de referencias solo consulte la geometría cercana al cursor.
 
 ## Salida y formatos
 

@@ -1,12 +1,13 @@
-import { boxFromPoints } from '../../geometry/bbox';
+import type { BBox } from '../../geometry/bbox';
+import { boxFromPoints, transformBox } from '../../geometry/bbox';
 import type { Mat2D } from '../../geometry/matrix';
-import { applyToPoint, applyToVector, uniformScale } from '../../geometry/matrix';
-import { polylineSegments } from '../../geometry/polyline';
+import { applyToPoint, applyToVector, invert, uniformScale } from '../../geometry/matrix';
+import { pointInPolygon, polylineSegments } from '../../geometry/polyline';
 import type { Vec2 } from '../../geometry/vec';
 import { add, dist, dot, len, normalize, scale, sub } from '../../geometry/vec';
 import type { ImageEntity, PdfUnderlayEntity, ViewportEntity } from '../../document/types';
 import { PathBuilder } from '../graphics';
-import type { EntityKind, EvalContext, GripDef } from '../registry';
+import type { EntityKind, EvalContext, GripDef, SnapPointDef } from '../registry';
 import { registerKind } from '../registry';
 import { rotOf } from './common';
 
@@ -71,6 +72,25 @@ function underlayVectors(e: PdfUnderlayEntity, ctx: EvalContext) {
   return { u: { x: w * c, y: w * s }, v: { x: -h * s, y: h * c } };
 }
 
+/** Segmentos vectoriales de la página del calco que tocan una caja, en coordenadas de dibujo. */
+function underlaySegmentsNear(e: PdfUnderlayEntity, ctx: EvalContext, box: BBox): [Vec2, Vec2][] {
+  const index = ctx.pdfGeometry?.(e.assetId, e.page);
+  if (!index) return [];
+  const { u, v } = underlayVectors(e, ctx);
+  const m = imageMatrix(e.position, u, v);
+  const inv = invert(m);
+  const unitBox = transformBox(box, inv);
+  // con recorte activo solo se ofrecen segmentos con algún extremo dentro del contorno visible
+  const clip = e.clipEnabled && e.clip && e.clip.length > 2 ? e.clip : null;
+  const out: [Vec2, Vec2][] = [];
+  for (const [x1, y1, x2, y2] of index.query(unitBox)) {
+    if (clip && !(pointInPolygon({ x: x1, y: y1 }, clip) || pointInPolygon({ x: x2, y: y2 }, clip))) continue;
+    out.push([applyToPoint(m, { x: x1, y: y1 }), applyToPoint(m, { x: x2, y: y2 })]);
+    if (out.length >= 400) break;
+  }
+  return out;
+}
+
 export const pdfUnderlayKind: EntityKind<PdfUnderlayEntity> = {
   type: 'pdfunderlay',
   curves: (e, ctx) => {
@@ -105,6 +125,19 @@ export const pdfUnderlayKind: EntityKind<PdfUnderlayEntity> = {
     const { u, v } = underlayVectors(e, ctx);
     const m = imageMatrix(e.position, u, v);
     return clipWorld(m, e.clip, e.clipEnabled) ?? imageCorners(e.position, u, v);
+  },
+  snapPointsNear: (e, ctx, box) => {
+    const { u, v } = underlayVectors(e, ctx);
+    const pts: SnapPointDef[] = imageCorners(e.position, u, v).map((p) => ({ type: 'endpoint' as const, p }));
+    for (const [a, b] of underlaySegmentsNear(e, ctx, box)) {
+      pts.push({ type: 'endpoint', p: a }, { type: 'endpoint', p: b }, { type: 'midpoint', p: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } });
+    }
+    return pts;
+  },
+  curvesNear: (e, ctx, box) => {
+    const { u, v } = underlayVectors(e, ctx);
+    const frame = polylineSegments(imageCorners(e.position, u, v), true);
+    return [...frame, ...underlaySegmentsNear(e, ctx, box).map(([a, b]) => ({ kind: 'line' as const, a, b }))];
   },
   filledHit: () => true,
 };

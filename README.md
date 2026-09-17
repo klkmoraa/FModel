@@ -11,7 +11,7 @@ CAD 2D profesional en el navegador, de la familia FusionStructure. Dibujo técni
 - **Capas, estilos y anotación**: administrador de capas con estados y filtros, estilos de texto, cota, directriz, tabla y multilínea, cotas asociativas, campos y escala anotativa.
 - **Bloques dinámicos** con Editor de bloques: parámetros, acciones, estados de visibilidad, tablas de consulta, fórmulas, restricciones, prueba y vista previa en vivo.
 - **Presentaciones**: viewports rectangulares, poligonales y de objeto, capas por viewport, configuración de página, cajetín, **PDF vectorial**, publicación multipágina y **SVG**.
-- **Referencias externas**: dibujos (enlazar/superponer, con detección de ciclos), imágenes y calcos PDF con recorte y atenuación.
+- **Referencias externas**: dibujos (enlazar/superponer, con detección de ciclos), imágenes y calcos PDF con recorte, atenuación y referencias a objetos sobre los trazos vectoriales de la página.
 - **Intercambio**: formato nativo `.fmodel` versionado, **DXF** de entrada y salida con informe de conversión.
 - **Calidad**: auditoría con corrección, informe de salud del dibujo, limpieza de duplicados y elementos sin uso, comparación de revisiones.
 - **Productividad**: paleta de comandos, alias y atajos configurables, paletas de herramientas, autoguardado, recuperación y versiones.

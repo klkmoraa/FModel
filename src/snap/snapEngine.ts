@@ -173,8 +173,8 @@ export function findOsnapCandidates(q: SnapQuery): { candidates: SnapCandidate[]
     const e = q.ctx.doc.entity(id);
     if (!e || !entityVisible(q.ctx.doc, e, q.vis)) continue;
     const k = kindOf(e);
-    for (const s of k.snapPoints(e, q.ctx)) if (types.has(s.type)) push(s.p, s.type, id);
-    for (const cv of k.curves(e, q.ctx)) {
+    for (const s of k.snapPointsNear ? k.snapPointsNear(e, q.ctx, box) : k.snapPoints(e, q.ctx)) if (types.has(s.type)) push(s.p, s.type, id);
+    for (const cv of k.curvesNear ? k.curvesNear(e, q.ctx, box) : k.curves(e, q.ctx)) {
       if (distanceToCurve(cv, c) <= ap * 2) near.push({ c: cv, id });
     }
   }

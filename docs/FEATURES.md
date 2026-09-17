@@ -2,7 +2,7 @@
 
 > Archivo generado con `node scripts/features-md.mjs` desde `src/app/features.ts`, la misma fuente que la pestaña «Estado de funciones» de la ayuda (F1). No lo edites a mano.
 
-**Disponible**: 38 · **Experimental**: 2 · **Planeado**: 1 · **No comprometido**: 1
+**Disponible**: 39 · **Experimental**: 2 · **Planeado**: 0 · **No comprometido**: 1
 
 - **Disponible**: funciona de extremo a extremo y tiene pruebas.
 - **Experimental**: funciona con limitaciones documentadas.
@@ -101,7 +101,7 @@
 |---|---|---|---|
 | Dibujos referenciados (enlazar/superponer), recarga, descarga, apertura, unión, ruta, detección de ciclos | Disponible | `XATTACH` `XREFMANAGER` `XRELOAD` `XOPEN` `XBIND` `XREPATH` |  |
 | Imágenes y calcos PDF con recorte, opacidad, atenuación y bloqueo | Disponible | `IMAGEATTACH` `PDFATTACH` `IMAGECLIP` `IMAGEADJUST` |  |
-| Referencias a objetos sobre la geometría de calcos PDF | Planeado |  |  |
+| Referencias a objetos sobre la geometría de calcos PDF | Disponible |  | Se extraen los trazos vectoriales de la página (no el texto ni las imágenes rasterizadas); las curvas se aproximan con tramos rectos. |
 
 ## Calidad
 

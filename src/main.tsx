@@ -12,6 +12,7 @@ import { installDynamicBlocks } from './blocks/install';
 import { registerAllCommands } from './commands';
 import { createDocument } from './document/defaults';
 import { Editor } from './editor/editor';
+import { PdfGeometryCache } from './render/pdfGeometry';
 import { Persistence } from './storage/persistence';
 import { App } from './ui/App';
 import { consumeLaunchQueue, registerServiceWorker } from './pwa/register';
@@ -24,6 +25,12 @@ const doc = createDocument({ title: 'Sin título' });
 const editor = new Editor(doc);
 installDynamicBlocks(editor.ctx);
 installDimensionAssociativity(doc, editor.ctx);
+// geometría vectorial de calcos PDF para las referencias a objetos (se extrae en segundo plano)
+const pdfGeometry = new PdfGeometryCache(
+  () => editor.doc,
+  () => editor.emit('overlay'),
+);
+editor.ctx.pdfGeometry = (assetId, page) => pdfGeometry.get(assetId, page);
 
 const persistence = new Persistence(
   () => editor.doc,

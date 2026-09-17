@@ -94,6 +94,18 @@ export interface EvalContext {
   resolveFields(text: string, owner?: Entity): string;
   /** Profundidad de anidamiento de bloques para evitar recursión infinita. */
   depth: number;
+  /**
+   * Segmentos vectoriales de una página PDF en coordenadas del cuadrado unidad (0–1, Y arriba),
+   * con consulta por caja. null mientras se extraen o si el PDF no tiene geometría vectorial.
+   */
+  pdfGeometry?(assetId: Id, page: number): PdfSegmentIndex | null;
+}
+
+export interface PdfSegmentIndex {
+  /** número de segmentos */
+  count: number;
+  /** segmentos [x1, y1, x2, y2] que tocan la caja (coordenadas del cuadrado unidad) */
+  query(box: BBox): number[][];
 }
 
 export interface EntityKind<E extends Entity = Entity> {
@@ -112,6 +124,10 @@ export interface EntityKind<E extends Entity = Entity> {
   /** Relleno que captura clics interiores. */
   filledHit?(e: E, ctx: EvalContext): boolean;
   explode?(e: E, ctx: EvalContext): Entity[] | null;
+  /** Referencias a objetos solo cerca de una caja (objetos con mucha geometría, como calcos PDF). */
+  snapPointsNear?(e: E, ctx: EvalContext, box: BBox): SnapPointDef[];
+  /** Curvas solo cerca de una caja (referencias a objetos, cercano, intersección). */
+  curvesNear?(e: E, ctx: EvalContext, box: BBox): Curve[];
   length?(e: E, ctx: EvalContext): number | null;
   area?(e: E, ctx: EvalContext): number | null;
 }

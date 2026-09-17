@@ -7,7 +7,7 @@ import type { DocChangeEvent } from '../document/document';
 import { CadDocument } from '../document/document';
 import type { BlockRecord, DynamicInstanceState, Entity, Id } from '../document/types';
 import { resolveFieldsText } from './fields';
-import type { BlockCacheEntry, BlockEvaluation, EvalContext, GripDef, SnapPointDef, TextMeasurer } from './registry';
+import type { BlockCacheEntry, BlockEvaluation, EvalContext, GripDef, PdfSegmentIndex, SnapPointDef, TextMeasurer } from './registry';
 import { kindOf } from './registry';
 import { measureText } from './text';
 import { registerAllKinds } from './kinds';
@@ -27,6 +27,7 @@ export class ModelContext implements EvalContext {
   dynamicEvaluator?: DynamicEvaluator;
   dynamicGrips?: (e: Entity) => GripDef[];
   moveDynamicGrip?: (e: Entity, gripId: string, to: Vec2) => Entity | null;
+  pdfGeometry?: (assetId: Id, page: number) => PdfSegmentIndex | null;
   /** nombre de la presentación activa para campos */
   sheetName = 'Modelo';
   /** nombre de archivo para campos */
