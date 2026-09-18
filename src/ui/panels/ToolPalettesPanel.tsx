@@ -8,7 +8,7 @@ import { blockThumbnail } from '../../render/thumbnail';
 import { useEditorEvents } from '../hooks';
 import { CadIcon } from '../icons';
 import { tr } from '../controls';
-import { DND_MIME } from './BlocksPanel';
+import { DND_MIME } from '../dnd';
 
 export type PaletteItem =
   | { kind: 'block'; name: string; scale?: number; rotation?: number }

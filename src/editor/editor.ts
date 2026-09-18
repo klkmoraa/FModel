@@ -543,13 +543,14 @@ export class Editor {
     return null;
   }
 
-  resolveCursor(screen: Vec2): ResolvedPoint {
+  /** `force`: aplica referencias a objetos aunque ninguna orden pida un punto (arrastrar y soltar). */
+  resolveCursor(screen: Vec2, opts: { force?: boolean } = {}): ResolvedPoint {
     const owner = this.inputOwner;
     const cursor = this.screenToOwner(screen);
     const req = this.runner.pending?.req;
     const pointLike = req && (req.kind === 'point' || req.kind === 'distance' || req.kind === 'angle');
     const gripActive = !!this.gripContext;
-    if (!pointLike && !gripActive) {
+    if (!pointLike && !gripActive && !opts.force) {
       return { p: cursor, kind: 'free', guides: [], candidates: [], candidateIndex: 0, acquired: [] };
     }
     const base = this.pendingBase() ?? (gripActive ? this.gripContext!.base : null) ?? this.runner.lastPoint;
@@ -703,6 +704,22 @@ export class Editor {
     this.hover = { screen, world, resolved, entityId, grip, inside: true };
     this.updatePreview();
     this.emit('overlay');
+  }
+
+  /** Algo arrastrado desde un panel pasa sobre el lienzo: cursor con referencias a objetos. */
+  dragHover(screen: Vec2): Vec2 {
+    const resolved = this.resolveCursor(screen, { force: true });
+    this.hover = { ...this.hover, screen, world: this.screenToOwner(screen), resolved, entityId: null, grip: null, inside: true };
+    this.emit('overlay');
+    return resolved.p;
+  }
+
+  /** Punto (con referencias a objetos) donde se suelta lo arrastrado; limpia el cursor de arrastre. */
+  dropAt(screen: Vec2): Vec2 {
+    const p = this.resolveCursor(screen, { force: true }).p;
+    this.hover = { ...this.hover, resolved: null, inside: false };
+    this.emit('overlay');
+    return p;
   }
 
   pointerLeave() {

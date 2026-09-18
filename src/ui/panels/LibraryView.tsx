@@ -9,6 +9,7 @@ import { newId } from '../../document/ids';
 import { stretchablePackage } from '../../blocks/stretchable';
 import type { Editor } from '../../editor/editor';
 import { useMediaQuery } from '../hooks';
+import { DND_MIME } from '../dnd';
 import { tr } from '../controls';
 
 const ALL = '*all';
@@ -120,7 +121,7 @@ export function LibraryView({ editor, query }: { editor: Editor; query: string }
         )}
         <div className="libgrid">
           {shown.map((b) => (
-            <div key={b.id} className="libcard" title={`${b.name}\n${categoryPath(cats, b.categoryId)}${b.tags.length ? `\n#${b.tags.join(' #')}` : ''}`}>
+            <div key={b.id} className="libcard" draggable onDragStart={(e) => e.dataTransfer.setData(DND_MIME, JSON.stringify({ kind: 'library-block', id: b.id }))} title={`${b.name}\n${categoryPath(cats, b.categoryId)}${b.tags.length ? `\n#${b.tags.join(' #')}` : ''}`}>
               <button className="libcard__thumb" onClick={() => insert(b)} aria-label={tr(lang, `Insertar ${b.name}`, `Insert ${b.name}`)}>
                 {b.thumbnail ? <img src={b.thumbnail} width={64} height={64} alt="" draggable={false} /> : null}
                 {b.dynamic && <span className="libbadge libcard__badge">◆</span>}

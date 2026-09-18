@@ -6,6 +6,9 @@ import { renderScene } from '../render/sceneRenderer';
 import { drawTouchLoupe } from '../render/loupe';
 import type { RenderTheme } from '../render/theme';
 import { WheelClassifier } from './wheelInput';
+import { DND_MIME } from './dnd';
+import type { DropPayload } from './dropOnCanvas';
+import { dropOnCanvas } from './dropOnCanvas';
 
 interface Props {
   editor: Editor;
@@ -268,6 +271,32 @@ export function CanvasView({ editor, theme, onContextMenu }: Props) {
     const aux = (e: MouseEvent) => {
       if (e.button === 1 && e.detail === 2) editor.zoomExtents();
     };
+    // arrastrar y soltar desde los paneles de bloques, biblioteca y paletas
+    const carries = (e: DragEvent) => !!e.dataTransfer && [...e.dataTransfer.types].includes(DND_MIME);
+    const dragover = (e: DragEvent) => {
+      if (!carries(e)) return;
+      e.preventDefault();
+      e.dataTransfer!.dropEffect = 'copy';
+      editor.dragHover(local(e));
+    };
+    const dragleave = (e: DragEvent) => {
+      if (carries(e)) editor.pointerLeave();
+    };
+    const drop = (e: DragEvent) => {
+      if (!carries(e)) return;
+      e.preventDefault();
+      const at = editor.dropAt(local(e));
+      let item: DropPayload;
+      try {
+        item = JSON.parse(e.dataTransfer!.getData(DND_MIME)) as DropPayload;
+      } catch {
+        return;
+      }
+      void dropOnCanvas(editor, item, at);
+    };
+    host.addEventListener('dragover', dragover);
+    host.addEventListener('dragleave', dragleave);
+    host.addEventListener('drop', drop);
     host.addEventListener('pointerdown', down);
     host.addEventListener('pointermove', move);
     host.addEventListener('pointerup', up);
@@ -278,6 +307,9 @@ export function CanvasView({ editor, theme, onContextMenu }: Props) {
     host.addEventListener('dblclick', dbl);
     host.addEventListener('auxclick', aux);
     return () => {
+      host.removeEventListener('dragover', dragover);
+      host.removeEventListener('dragleave', dragleave);
+      host.removeEventListener('drop', drop);
       host.removeEventListener('pointerdown', down);
       host.removeEventListener('pointermove', move);
       host.removeEventListener('pointerup', up);

@@ -7,7 +7,7 @@ import { LibraryView } from './LibraryView';
 import { useEditorEvents, useMediaQuery } from '../hooks';
 import { tr } from '../controls';
 
-export const DND_MIME = 'application/x-fmodel-tool';
+import { DND_MIME } from '../dnd';
 
 export function BlocksPanel({ editor, onUi }: { editor: Editor; onUi: (ui: string, cmd?: string) => void }) {
   useEditorEvents(editor, ['doc']);
