@@ -2,10 +2,6 @@ import { requestUi } from '../app/services';
 import { createBlock, extractAttributes, insertBlock, isInsertableBlock, validateBlockName } from '../blocks/blockOps';
 import { resetDynamic, validateDynamicBlock } from '../blocks/dynamic';
 import { installDynamicSamples } from '../blocks/samples';
-import { makeLibraryBlock, packageBlock } from '../blocks/library';
-import { suggestCategory } from '../blocks/libraryCategories';
-import { commitLibrary, loadCategories } from '../blocks/libraryStore';
-import { blockThumbnail } from '../render/thumbnail';
 import type { AttdefEntity, InsertEntity } from '../document/types';
 import { TEXTSTYLE_STANDARD_ID } from '../document/defaults';
 import { add, K, L, make } from './helpers';
@@ -209,25 +205,6 @@ const RESETBLOCK: CommandDef = {
   },
 };
 
-const WBLOCK: CommandDef = {
-  name: 'WBLOCK',
-  aliases: ['W', 'BLOQUEDISCO'],
-  category: 'block',
-  readOnly: true,
-  label: L('Enviar bloque a biblioteca', 'Write block to library'),
-  description: L('Guarda un bloque (con dependencias) en la biblioteca compartida del navegador.', 'Saves a block (with dependencies) to the browser shared library.'),
-  async run(api) {
-    const name = await api.getString({ prompt: L('Nombre del bloque', 'Block name'), allowSpaces: true });
-    if (name.kind !== 'string') return;
-    const b = api.editor.doc.findByName('blocks', name.value);
-    if (!b) throw new CommandError(L(`No existe el bloque «${name.value}».`, `Block "${name.value}" not found.`));
-    const pkg = packageBlock(api.editor.doc, b.id);
-    const cats = await loadCategories();
-    await commitLibrary({ put: [makeLibraryBlock(pkg, { name: b.name, categoryId: suggestCategory(`${b.name} ${b.description}`, cats), tags: [], thumbnail: blockThumbnail(api.editor, b.id, 64) ?? undefined, source: { kind: 'fmodel', importedAt: Date.now() } })] });
-    api.info(L(`«${b.name}» guardado en la biblioteca compartida.`, `"${b.name}" saved to the shared library.`));
-  },
-};
-
 const BVALIDATE: CommandDef = {
   name: 'BVALIDATE',
   aliases: ['VALIDARBLOQUE'],
@@ -281,4 +258,4 @@ const ATTSYNC: CommandDef = {
   },
 };
 
-export const BLOCK_COMMANDS: CommandDef[] = [INSERT, BLOCK, ATTDEF, ATTEDIT, DATAEXTRACTION, DYNBLOCKSAMPLES, RESETBLOCK, WBLOCK, BVALIDATE, ATTSYNC];
+export const BLOCK_COMMANDS: CommandDef[] = [INSERT, BLOCK, ATTDEF, ATTEDIT, DATAEXTRACTION, DYNBLOCKSAMPLES, RESETBLOCK, BVALIDATE, ATTSYNC];

@@ -846,7 +846,7 @@ describe('sesión de importación a la biblioteca', () => {
     const s = await buildImportSession({ name: 'b.fmodellib', bytes: writeLibraryArchive({ categories: [], blocks: [] }) }, DEFAULT_CATEGORIES);
     expect(s.source.kind).toBe('fmodellib');
     expect(s.candidates).toEqual([]);
-    await expect(buildImportSession({ name: 'x.txt', bytes: new Uint8Array() }, DEFAULT_CATEGORIES)).rejects.toThrow(/formato/);
+    await expect(buildImportSession({ name: 'x.txt', bytes: new Uint8Array() }, DEFAULT_CATEGORIES)).rejects.toThrow(/Formato no admitido/);
   });
 });
 ```

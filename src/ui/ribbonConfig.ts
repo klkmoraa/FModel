@@ -80,7 +80,7 @@ export const RIBBON: RibbonTab[] = [
     id: 'insert',
     label: { es: 'Insertar', en: 'Insert' },
     groups: [
-      { label: { es: 'Bloque', en: 'Block' }, tools: [t('INSERT', 'insert', 'Insertar', 'Insert', 'lg'), t('BLOCK', 'block', 'Crear bloque', 'Create block', 'lg'), t('WBLOCK', 'export', 'Bloque a archivo', 'Write block'), t('ATTEDIT', 'attdef', 'Editar atributos', 'Edit attributes'), t('DATAEXTRACTION', 'table', 'Extraer atributos', 'Extract attributes')] },
+      { label: { es: 'Bloque', en: 'Block' }, tools: [t('INSERT', 'insert', 'Insertar', 'Insert', 'lg'), t('BLOCK', 'block', 'Crear bloque', 'Create block', 'lg'), t('WBLOCK', 'export', 'Bloque a biblioteca', 'Block to library'), t('LIBRARYIMPORT', 'insert', 'Importar a biblioteca', 'Import to library'), t('ATTEDIT', 'attdef', 'Editar atributos', 'Edit attributes'), t('DATAEXTRACTION', 'table', 'Extraer atributos', 'Extract attributes')] },
       { label: { es: 'Referencia', en: 'Reference' }, tools: [t('XATTACH', 'xref', 'Enlazar dibujo', 'Attach drawing', 'lg'), t('IMAGEATTACH', 'image', 'Imagen', 'Image', 'lg'), t('PDFATTACH', 'pdf', 'Calco PDF', 'PDF underlay', 'lg'), t('XREFMANAGER', 'xref', 'Referencias', 'References'), t('IMAGECLIP', 'trim', 'Recortar', 'Clip'), t('IMAGEADJUST', 'image', 'Ajustar', 'Adjust')] },
       { label: { es: 'Importar', en: 'Import' }, tools: [t('IMPORTDXF', 'import', 'DXF', 'DXF', 'lg'), t('OPEN', 'import', 'Abrir .fmodel', 'Open .fmodel')] },
     ],

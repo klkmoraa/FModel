@@ -15,6 +15,8 @@ import { LookupTableDialog } from './dialogs/LookupTableDialog';
 import { PageSetupDialog } from './dialogs/PageSetupDialog';
 import { PublishDialog } from './dialogs/PublishDialog';
 import { ReferencesDialog } from './dialogs/ReferencesDialog';
+import { LibraryImportDialog } from './dialogs/LibraryImportDialog';
+import type { LibraryImportSession } from '../blocks/libraryImport';
 import { tr } from './controls';
 
 export interface DialogState {
@@ -41,7 +43,7 @@ export function Dialog({ title, onClose, children, footer, wide, lang }: { title
   );
 }
 
-type DialogRenderer = (editor: Editor, onClose: () => void, onUi: (ui: string, cmd?: string) => void, state: DialogState) => ReactNode;
+type DialogRenderer = (editor: Editor, onClose: () => void, onUi: (ui: string, cmd?: string, payload?: unknown) => void, state: DialogState) => ReactNode;
 
 export const DIALOGS: Record<string, DialogRenderer> = {
   'drafting-settings': (e, close) => <DraftingSettings editor={e} onClose={close} />,
@@ -57,6 +59,7 @@ export const DIALOGS: Record<string, DialogRenderer> = {
   options: (e, close, _onUi, st) => <OptionsDialog editor={e} onClose={close} initialTab={st.cmd === 'ALIASEDIT' ? 'aliases' : st.cmd === 'SHORTCUTS' ? 'shortcuts' : undefined} />,
   styles: (e, close, _onUi, st) => <StylesDialog editor={e} onClose={close} initialTab={styleTabFor(st.cmd)} />,
   versions: (e, close, onUi) => <VersionsDialog editor={e} onClose={close} onUi={onUi} />,
+  'library-import': (e, close, onUi, st) => <LibraryImportDialog editor={e} session={st.payload as LibraryImportSession | undefined} onClose={close} onUi={onUi} />,
   'conversion-report': (e, close, _onUi, st) => <ConversionReportDialog editor={e} payload={st.payload as ConversionPayload | undefined} onClose={close} />,
 };
 
@@ -75,7 +78,7 @@ export function registerDialog(id: string, render: DialogRenderer) {
   DIALOGS[id] = render;
 }
 
-export function Dialogs({ editor, state, onClose, onUi }: { editor: Editor; state: DialogState | null; onClose: () => void; onUi: (ui: string, cmd?: string) => void }) {
+export function Dialogs({ editor, state, onClose, onUi }: { editor: Editor; state: DialogState | null; onClose: () => void; onUi: (ui: string, cmd?: string, payload?: unknown) => void }) {
   if (!state) return null;
   const render = DIALOGS[state.id];
   if (!render) return null;
