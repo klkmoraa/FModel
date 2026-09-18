@@ -2,7 +2,9 @@ import { requestUi } from '../app/services';
 import { createBlock, extractAttributes, insertBlock, isInsertableBlock, validateBlockName } from '../blocks/blockOps';
 import { resetDynamic, validateDynamicBlock } from '../blocks/dynamic';
 import { installDynamicSamples } from '../blocks/samples';
-import { saveToLibrary } from '../blocks/library';
+import { makeLibraryBlock, packageBlock } from '../blocks/library';
+import { suggestCategory } from '../blocks/libraryCategories';
+import { commitLibrary, loadCategories } from '../blocks/libraryStore';
 import { blockThumbnail } from '../render/thumbnail';
 import type { AttdefEntity, InsertEntity } from '../document/types';
 import { TEXTSTYLE_STANDARD_ID } from '../document/defaults';
@@ -219,7 +221,9 @@ const WBLOCK: CommandDef = {
     if (name.kind !== 'string') return;
     const b = api.editor.doc.findByName('blocks', name.value);
     if (!b) throw new CommandError(L(`No existe el bloque «${name.value}».`, `Block "${name.value}" not found.`));
-    saveToLibrary(api.editor.doc, b.id, blockThumbnail(api.editor, b.id, 64) ?? undefined);
+    const pkg = packageBlock(api.editor.doc, b.id);
+    const cats = await loadCategories();
+    await commitLibrary({ put: [makeLibraryBlock(pkg, { name: b.name, categoryId: suggestCategory(`${b.name} ${b.description}`, cats), tags: [], thumbnail: blockThumbnail(api.editor, b.id, 64) ?? undefined, source: { kind: 'fmodel', importedAt: Date.now() } })] });
     api.info(L(`«${b.name}» guardado en la biblioteca compartida.`, `"${b.name}" saved to the shared library.`));
   },
 };

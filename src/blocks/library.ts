@@ -4,18 +4,9 @@ import { newId } from '../document/ids';
 import type { BlockRecord, Entity, Id, LayerRecord, LinetypeRecord, TextStyleRecord } from '../document/types';
 
 /**
- * Biblioteca compartida de bloques (entre dibujos del mismo navegador). Cada paquete
+ * Paquetes de bloque de la biblioteca (entre dibujos del mismo navegador). Cada paquete
  * es autocontenido: definición, entidades, bloques anidados y capas/tipos de línea/estilos usados.
  */
-export interface LibraryBlock {
-  id: string;
-  name: string;
-  category?: string;
-  savedAt: number;
-  thumbnail?: string;
-  package: BlockPackage;
-}
-
 export interface BlockPackage {
   format: 'fmodel-block';
   version: 1;
@@ -27,28 +18,50 @@ export interface BlockPackage {
   textStyles: TextStyleRecord[];
 }
 
-const KEY = 'fmodel.cad.blocklibrary.v1';
+export type LibrarySourceKind = 'fmodel' | 'dxf' | 'dwg' | 'fmodellib';
 
-export function loadLibrary(): LibraryBlock[] {
-  try {
-    return JSON.parse(localStorage.getItem(KEY) ?? '[]') as LibraryBlock[];
-  } catch {
-    return [];
-  }
+export interface LibraryBlock {
+  id: string;
+  name: string;
+  categoryId: string;
+  tags: string[];
+  description?: string;
+  source?: { kind: LibrarySourceKind; file?: string; importedAt: number };
+  /** tiene parámetros dinámicos (insignia y filtro) */
+  dynamic: boolean;
+  savedAt: number;
+  thumbnail?: string;
+  package: BlockPackage;
 }
 
-function saveLibrary(items: LibraryBlock[]) {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(items));
-  } catch {
-    throw new Error('No hay espacio de almacenamiento local para la biblioteca. / Local storage full.');
-  }
+export function makeLibraryBlock(pkg: BlockPackage, meta: { name: string; categoryId: string; tags: string[]; description?: string; thumbnail?: string; source?: LibraryBlock['source']; id?: string }): LibraryBlock {
+  const root = pkg.blocks.find((b) => b.id === pkg.root);
+  return {
+    id: meta.id ?? newId('lib'),
+    name: meta.name,
+    categoryId: meta.categoryId,
+    tags: meta.tags,
+    description: meta.description ?? root?.description ?? '',
+    source: meta.source,
+    dynamic: !!root?.dynamic,
+    savedAt: Date.now(),
+    thumbnail: meta.thumbnail,
+    package: pkg,
+  };
 }
 
-export function removeFromLibrary(id: string): LibraryBlock[] {
-  const items = loadLibrary().filter((b) => b.id !== id);
-  saveLibrary(items);
-  return items;
+/**
+ * Trae un bloque de la biblioteca al dibujo y devuelve el nombre con el que insertarlo. Si ya se
+ * trajo esa misma versión, reutiliza la definición en vez de duplicarla.
+ */
+export function insertLibraryBlock(doc: CadDocument, item: LibraryBlock): string {
+  const existing = [...doc.data.blocks.values()].find((b) => b.libraryItem === item.id && b.librarySavedAt === item.savedAt);
+  if (existing) return existing.name;
+  const pkg = { ...item.package, blocks: item.package.blocks.map((b) => (b.id === item.package.root ? { ...b, name: item.name } : b)) };
+  const name = importBlockPackage(doc, pkg);
+  const b = doc.findByName('blocks', name)!;
+  doc.transact('BLOCK LIBRARY LINK', (tx) => tx.update('blocks', b.id, { libraryItem: item.id, librarySavedAt: item.savedAt }));
+  return name;
 }
 
 /** Empaqueta un bloque con sus dependencias. */
@@ -88,16 +101,6 @@ export function packageBlock(doc: CadDocument, blockId: Id): BlockPackage {
     linetypes: [...linetypes].map((id) => doc.data.linetypes.get(id)).filter(Boolean) as LinetypeRecord[],
     textStyles: [...styles].map((id) => doc.data.textStyles.get(id)).filter(Boolean) as TextStyleRecord[],
   };
-}
-
-export function saveToLibrary(doc: CadDocument, blockId: Id, thumbnail?: string): LibraryBlock {
-  const b = doc.data.blocks.get(blockId);
-  if (!b) throw new Error('Bloque inexistente.');
-  const items = loadLibrary().filter((x) => x.name.toLowerCase() !== b.name.toLowerCase());
-  const item: LibraryBlock = { id: newId('lib'), name: b.name, category: b.category, savedAt: Date.now(), thumbnail, package: packageBlock(doc, blockId) };
-  items.push(item);
-  saveLibrary(items);
-  return item;
 }
 
 /**
@@ -179,8 +182,4 @@ export function importBlockPackage(doc: CadDocument, pkg: BlockPackage): string 
     }
     return rootName;
   });
-}
-
-export function importLibraryBlock(doc: CadDocument, item: LibraryBlock): string {
-  return importBlockPackage(doc, item.package);
 }

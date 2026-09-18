@@ -1,9 +1,10 @@
 import { Pencil, Star, Trash2 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { blockUsage, isInsertableBlock } from '../../blocks/blockOps';
 import type { Editor } from '../../editor/editor';
 import { blockThumbnail } from '../../render/thumbnail';
-import { loadLibrary, removeFromLibrary, importLibraryBlock, type LibraryBlock } from '../../blocks/library';
+import { insertLibraryBlock, type LibraryBlock } from '../../blocks/library';
+import { commitLibrary, loadLibrary, onLibraryChanged } from '../../blocks/libraryStore';
 import { useEditorEvents, useMediaQuery } from '../hooks';
 import { tr } from '../controls';
 
@@ -17,7 +18,12 @@ export function BlocksPanel({ editor, onUi }: { editor: Editor; onUi: (ui: strin
   const dark = editor.prefs.theme === 'noche' || (editor.prefs.theme === 'system' && systemDark);
   const [tab, setTab] = useState<'current' | 'favorites' | 'library'>('current');
   const [q, setQ] = useState('');
-  const [lib, setLib] = useState<LibraryBlock[]>(() => loadLibrary());
+  const [lib, setLib] = useState<LibraryBlock[]>([]);
+  useEffect(() => {
+    const refresh = () => void loadLibrary().then(setLib);
+    refresh();
+    return onLibraryChanged(refresh);
+  }, []);
   const usage = useMemo(() => blockUsage(doc), [doc.version]); // eslint-disable-line react-hooks/exhaustive-deps
   const blocks = [...doc.data.blocks.values()]
     .filter(isInsertableBlock)
@@ -32,7 +38,7 @@ export function BlocksPanel({ editor, onUi }: { editor: Editor; onUi: (ui: strin
       <div className="panel__head">
         <div className="segmented" role="tablist" style={{ display: 'flex', gap: 2 }}>
           {(['current', 'favorites', 'library'] as const).map((t) => (
-            <button key={t} role="tab" aria-selected={tab === t} className={`btn btn--sm${tab === t ? ' btn--accent' : ''}`} onClick={() => (setTab(t), t === 'library' && setLib(loadLibrary()))}>
+            <button key={t} role="tab" aria-selected={tab === t} className={`btn btn--sm${tab === t ? ' btn--accent' : ''}`} onClick={() => setTab(t)}>
               {t === 'current' ? tr(lang, 'Dibujo', 'Drawing') : t === 'favorites' ? tr(lang, 'Favoritos', 'Favorites') : tr(lang, 'Biblioteca', 'Library')}
             </button>
           ))}
@@ -106,19 +112,18 @@ export function BlocksPanel({ editor, onUi }: { editor: Editor; onUi: (ui: strin
                   <strong>{b.name}</strong>
                   <br />
                   <small style={{ color: 'var(--ink-muted)' }}>
-                    {b.category ?? '—'} · {new Date(b.savedAt).toLocaleDateString()}
+                    {b.tags.join(', ') || '—'} · {new Date(b.savedAt).toLocaleDateString()}
                   </small>
                 </span>
                 <button
                   className="btn btn--sm"
                   onClick={() => {
-                    const name = importLibraryBlock(editor.doc, b);
-                    editor.runner.message('info', { es: `Bloque «${name}» importado de la biblioteca compartida.`, en: `Block "${name}" imported from the shared library.` });
+                    editor.command('INSERT', [insertLibraryBlock(editor.doc, b)]);
                   }}
                 >
                   {tr(lang, 'Importar', 'Import')}
                 </button>
-                <button className="icon-btn" onClick={() => setLib(removeFromLibrary(b.id))} aria-label={tr(lang, 'Quitar de la biblioteca', 'Remove from library')}>
+                <button className="icon-btn" onClick={() => void commitLibrary({ remove: [b.id] })} aria-label={tr(lang, 'Quitar de la biblioteca', 'Remove from library')}>
                   <Trash2 size={13} />
                 </button>
               </div>

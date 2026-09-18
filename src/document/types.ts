@@ -656,6 +656,9 @@ export interface BlockRecord {
   favorite?: boolean;
   library?: 'local' | 'shared';
   category?: string;
+  /** elemento de la biblioteca del que procede y su fecha de guardado */
+  libraryItem?: string;
+  librarySavedAt?: number;
   xref?: XrefInfo;
   dynamic?: DynamicBlockDefinition;
   /** Versión de la definición: cambia en cada redefinición (invalida cachés de instancias) */

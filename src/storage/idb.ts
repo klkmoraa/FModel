@@ -1,7 +1,7 @@
 /** Envoltorio mínimo de IndexedDB (sin dependencias). */
 const DB_NAME = 'fmodel-2dcad';
-const DB_VERSION = 1;
-export const STORES = ['drawings', 'versions', 'recovery', 'meta'] as const;
+const DB_VERSION = 2;
+export const STORES = ['drawings', 'versions', 'recovery', 'meta', 'library', 'libraryCategories'] as const;
 export type StoreName = (typeof STORES)[number];
 
 let dbPromise: Promise<IDBDatabase> | null = null;
@@ -41,3 +41,22 @@ export const idbPut = <T extends { id: string }>(store: StoreName, value: T) => 
 export const idbGet = <T>(store: StoreName, id: string) => tx<T | undefined>(store, 'readonly', (s) => s.get(id) as IDBRequest<T | undefined>);
 export const idbDelete = (store: StoreName, id: string) => tx(store, 'readwrite', (s) => s.delete(id));
 export const idbAll = <T>(store: StoreName) => tx<T[]>(store, 'readonly', (s) => s.getAll() as IDBRequest<T[]>);
+
+/** Varias escrituras en una sola transacción: o se guardan todas o ninguna. */
+export function idbWrite(stores: StoreName[], fn: (get: (s: StoreName) => IDBObjectStore) => void): Promise<void> {
+  return openDb().then(
+    (db) =>
+      new Promise<void>((resolve, reject) => {
+        const t = db.transaction(stores, 'readwrite');
+        t.oncomplete = () => resolve();
+        t.onerror = () => reject(t.error);
+        t.onabort = () => reject(t.error ?? new Error('Transacción cancelada'));
+        try {
+          fn((s) => t.objectStore(s));
+        } catch (err) {
+          t.abort();
+          reject(err);
+        }
+      }),
+  );
+}
