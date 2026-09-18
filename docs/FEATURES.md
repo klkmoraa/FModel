@@ -2,7 +2,7 @@
 
 > Archivo generado con `node scripts/features-md.mjs` desde `src/app/features.ts`, la misma fuente que la pestaña «Estado de funciones» de la ayuda (F1). No lo edites a mano.
 
-**Disponible**: 40 · **Experimental**: 4 · **Planeado**: 0 · **No comprometido**: 1
+**Disponible**: 42 · **Experimental**: 4 · **Planeado**: 0 · **No comprometido**: 1
 
 - **Disponible**: funciona de extremo a extremo y tiene pruebas.
 - **Experimental**: funciona con limitaciones documentadas.
@@ -63,6 +63,8 @@
 |---|---|---|---|
 | Definiciones, inserción con autoescala, atributos y extracción | Disponible | `BLOCK` `INSERT` `ATTDEF` `ATTEDIT` `DATAEXTRACTION` |  |
 | Biblioteca por categorías con etiquetas, importación desde DXF (bloques o dibujo entero) y bibliotecas compartibles .fmodellib | Disponible | `LIBRARYIMPORT` `LIBRARYEXPORT` `WBLOCK` |  |
+| Hacer estirable cualquier bloque: Ancho y Fondo para alargarlo, acortarlo, ensancharlo o estrecharlo sin deformar lo que no cruza el corte | Disponible | `BESTIRABLE` |  |
+| Biblioteca inicial: 100 bloques de LibreCAD (GPL-2.0) y 12 muebles paramétricos (clósets que añaden hojas, mesa que añade sillas, cama con anchos estándar…) | Disponible | `LIBRARYSTARTER` |  |
 | Bloques dinámicos: parámetros, acciones, estados de visibilidad, tablas de consulta, fórmulas y variables | Disponible | `BEDIT` `BPARAMETER` `BACTION` `BVSTATE` `BVARIABLE` |  |
 | Editor de bloques con prueba, edición en contexto, validación y vista previa en vivo | Disponible | `BEDIT` `BTESTBLOCK` `BCLOSE` |  |
 | Restricciones geométricas y dimensionales dentro de bloques, con glifos, cotas de restricción y conflictos en el lienzo | Disponible | `BCONSTRAINT` `BCPARAMETER` | Resolvedor numérico por mínimos cuadrados amortiguados: las restricciones incompatibles se marcan en conflicto en lugar de ignorarse. |

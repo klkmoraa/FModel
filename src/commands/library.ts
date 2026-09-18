@@ -1,5 +1,6 @@
 import { requestUi } from '../app/services';
 import { installDynamicBlocks } from '../blocks/install';
+import type { LibraryBlock } from '../blocks/library';
 import { makeLibraryBlock, packageBlock } from '../blocks/library';
 import { readLibraryArchive, writeLibraryArchive } from '../blocks/libraryArchive';
 import type { LibraryCategory } from '../blocks/libraryCategories';
@@ -7,6 +8,9 @@ import { descendantIds, suggestCategory } from '../blocks/libraryCategories';
 import type { LibraryImportSession } from '../blocks/libraryImport';
 import { candidatesFromArchive, candidatesFromDocument } from '../blocks/libraryImport';
 import { commitLibrary, loadCategories, loadLibrary } from '../blocks/libraryStore';
+import { furnitureLibrary } from '../blocks/furniture';
+import type { StarterManifest } from '../blocks/starterLibrary';
+import { missingStarterCategories, packageThumbnail, starterBlock } from '../blocks/starterLibrary';
 import { createDocument } from '../document/defaults';
 import type { Id } from '../document/types';
 import { decodeDxfBytes, importDxfFile, importDxfIntoDocument } from '../io/dxf/importDxf';
@@ -116,4 +120,50 @@ const WBLOCK: CommandDef = {
   },
 };
 
-export const LIBRARY_COMMANDS: CommandDef[] = [LIBRARYIMPORT, LIBRARYEXPORT, WBLOCK];
+const LIBRARYSTARTER: CommandDef = {
+  name: 'LIBRARYSTARTER',
+  aliases: ['BIBLIOTECAINICIAL'],
+  category: 'block',
+  readOnly: true,
+  label: L('Instalar biblioteca inicial', 'Install starter library'),
+  description: L('Añade a la biblioteca 100 bloques de LibreCAD (muebles, puertas, vegetación, instalaciones; GPL-2.0) y 12 muebles paramétricos de FModel. Los muebles quedan estirables. No duplica lo que ya esté.', 'Adds 100 LibreCAD blocks (furniture, doors, vegetation, services; GPL-2.0) and 12 FModel parametric furniture pieces to the library. Furniture is stretchable. Does not duplicate existing items.'),
+  icon: 'insert',
+  async run(api) {
+    const base = `${import.meta.env.BASE_URL}library/librecad/`;
+    const res = await fetch(`${base}index.json`);
+    if (!res.ok) throw new CommandError(L('No se pudo descargar el índice de la biblioteca inicial.', 'Could not download the starter library index.'));
+    const manifest = (await res.json()) as StarterManifest;
+    const existing = new Set((await loadLibrary()).map((b) => b.name.toLowerCase()));
+    const cats = await loadCategories();
+    const put = furnitureLibrary()
+      .filter((b) => !existing.has(b.name.toLowerCase()))
+      .map((b): LibraryBlock => ({ ...b, thumbnail: packageThumbnail(b.package, defaultThumb) }));
+    const failed: string[] = [];
+    const todo = manifest.items.filter((i) => !existing.has(i.name.toLowerCase()));
+    for (const [n, item] of todo.entries()) {
+      if (n % 25 === 0) api.info(L(`Instalando bloques ${n + 1}–${Math.min(n + 25, todo.length)} de ${todo.length}…`, `Installing blocks ${n + 1}–${Math.min(n + 25, todo.length)} of ${todo.length}…`));
+      try {
+        const r = await fetch(`${base}${item.file}`);
+        if (!r.ok) throw new Error(String(r.status));
+        put.push(starterBlock(decodeDxfBytes(new Uint8Array(await r.arrayBuffer())), item, defaultThumb));
+      } catch {
+        failed.push(item.name);
+      }
+    }
+    if (!put.length) {
+      api.info(L('La biblioteca inicial ya estaba instalada.', 'The starter library was already installed.'));
+      return;
+    }
+    // nunca dos bloques con el mismo nombre (la biblioteca los trata como únicos)
+    const seen = new Set<string>();
+    const unique = put.filter((b) => !seen.has(b.name.toLowerCase()) && seen.add(b.name.toLowerCase()));
+    put.length = 0;
+    put.push(...unique);
+    await commitLibrary({ put, categories: missingStarterCategories(cats, [...manifest.items, { category: 'cat-mob-salon' }]) });
+    api.info(L(`${put.length} bloques añadidos a la biblioteca (LibreCAD, GPL-2.0, y muebles paramétricos de FModel).`, `${put.length} blocks added to the library (LibreCAD, GPL-2.0, and FModel parametric furniture).`));
+    if (failed.length) api.warn(L(`No se pudieron instalar: ${failed.join(', ')}.`, `Could not install: ${failed.join(', ')}.`));
+    requestUi('panel:blocks');
+  },
+};
+
+export const LIBRARY_COMMANDS: CommandDef[] = [LIBRARYIMPORT, LIBRARYEXPORT, LIBRARYSTARTER, WBLOCK];

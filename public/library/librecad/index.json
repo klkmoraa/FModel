@@ -1,0 +1,706 @@
+{
+ "source": "LibreCAD parts library (librecad/support/library/plan)",
+ "license": "GPL-2.0",
+ "items": [
+  {
+   "file": "architect/Bathroom-basin-V.dxf",
+   "name": "Lavabo",
+   "category": "cat-mob-bano",
+   "units": "mm",
+   "stretchable": false
+  },
+  {
+   "file": "architect/Bathroom-bath-E.dxf",
+   "name": "Bañera",
+   "category": "cat-mob-bano",
+   "units": "mm",
+   "stretchable": true
+  },
+  {
+   "file": "architect/Bathroom-bath-V.dxf",
+   "name": "Bañera 2",
+   "category": "cat-mob-bano",
+   "units": "mm",
+   "stretchable": true
+  },
+  {
+   "file": "architect/Bathroom-sink-E.dxf",
+   "name": "Lavamanos",
+   "category": "cat-mob-bano",
+   "units": "mm",
+   "stretchable": false
+  },
+  {
+   "file": "architect/Bathroom-toilet-E.dxf",
+   "name": "Inodoro",
+   "category": "cat-mob-bano",
+   "units": "mm",
+   "stretchable": false
+  },
+  {
+   "file": "architect/Bathroom-toilet-V.dxf",
+   "name": "Inodoro 2",
+   "category": "cat-mob-bano",
+   "units": "mm",
+   "stretchable": false
+  },
+  {
+   "file": "architect/Bed-double-E.dxf",
+   "name": "Cama doble",
+   "category": "cat-mob-dormitorio",
+   "units": "mm",
+   "stretchable": true
+  },
+  {
+   "file": "architect/Bed-single-V.dxf",
+   "name": "Cama individual",
+   "category": "cat-mob-dormitorio",
+   "units": "mm",
+   "stretchable": true
+  },
+  {
+   "file": "architect/Breakfast-bar-E.dxf",
+   "name": "Barra de desayuno",
+   "category": "cat-mob-cocina",
+   "units": "mm",
+   "stretchable": true
+  },
+  {
+   "file": "architect/Chair-lounger-E.dxf",
+   "name": "Tumbona",
+   "category": "cat-mob-salon",
+   "units": "mm",
+   "stretchable": true
+  },
+  {
+   "file": "architect/Chair-round-V.dxf",
+   "name": "Silla redonda",
+   "category": "cat-mob-salon",
+   "units": "mm",
+   "stretchable": false
+  },
+  {
+   "file": "architect/Chair-roundback-E.dxf",
+   "name": "Silla",
+   "category": "cat-mob-salon",
+   "units": "mm",
+   "stretchable": false
+  },
+  {
+   "file": "architect/Chair-sofa-E.dxf",
+   "name": "Sofá",
+   "category": "cat-mob-salon",
+   "units": "mm",
+   "stretchable": true
+  },
+  {
+   "file": "architect/Chair-sofa-V.dxf",
+   "name": "Sofá 2",
+   "category": "cat-mob-salon",
+   "units": "mm",
+   "stretchable": true
+  },
+  {
+   "file": "architect/Kitchen-cooker-V.dxf",
+   "name": "Cocina de fogones",
+   "category": "cat-mob-cocina",
+   "units": "mm",
+   "stretchable": true
+  },
+  {
+   "file": "architect/Kitchen-fridge-V.dxf",
+   "name": "Frigorífico",
+   "category": "cat-mob-cocina",
+   "units": "mm",
+   "stretchable": true
+  },
+  {
+   "file": "architect/Kitchen-sink-E.dxf",
+   "name": "Fregadero",
+   "category": "cat-mob-cocina",
+   "units": "mm",
+   "stretchable": true
+  },
+  {
+   "file": "architect/Kitchen-sink-V.dxf",
+   "name": "Fregadero 2",
+   "category": "cat-mob-cocina",
+   "units": "mm",
+   "stretchable": true
+  },
+  {
+   "file": "architect/Kitchen-worktop-V.dxf",
+   "name": "Encimera",
+   "category": "cat-mob-cocina",
+   "units": "mm",
+   "stretchable": true
+  },
+  {
+   "file": "architect/Table-bed-E.dxf",
+   "name": "Mesita de noche",
+   "category": "cat-mob-dormitorio",
+   "units": "mm",
+   "stretchable": true
+  },
+  {
+   "file": "architect/Table-bed-V.dxf",
+   "name": "Mesita de noche 2",
+   "category": "cat-mob-dormitorio",
+   "units": "mm",
+   "stretchable": true
+  },
+  {
+   "file": "architect/Table-coffee-E.dxf",
+   "name": "Mesa de centro",
+   "category": "cat-mob-salon",
+   "units": "mm",
+   "stretchable": true
+  },
+  {
+   "file": "architect/Table-coffee-V.dxf",
+   "name": "Mesa de centro 2",
+   "category": "cat-mob-salon",
+   "units": "mm",
+   "stretchable": true
+  },
+  {
+   "file": "architect/Table-dining-E.dxf",
+   "name": "Mesa de comedor",
+   "category": "cat-mob-salon",
+   "units": "mm",
+   "stretchable": true
+  },
+  {
+   "file": "architect/Table-drawers-V.dxf",
+   "name": "Cajonera",
+   "category": "cat-mob-oficina",
+   "units": "mm",
+   "stretchable": true
+  },
+  {
+   "file": "architect/Table-dresser-E.dxf",
+   "name": "Tocador",
+   "category": "cat-mob-dormitorio",
+   "units": "mm",
+   "stretchable": true
+  },
+  {
+   "file": "architect/Table-round-V.dxf",
+   "name": "Mesa redonda",
+   "category": "cat-mob-salon",
+   "units": "mm",
+   "stretchable": false
+  },
+  {
+   "file": "architect/Television-E.dxf",
+   "name": "Televisor",
+   "category": "cat-mob-salon",
+   "units": "mm",
+   "stretchable": true
+  },
+  {
+   "file": "architect/Wardrobe-E.dxf",
+   "name": "Armario ropero",
+   "category": "cat-mob-dormitorio",
+   "units": "mm",
+   "stretchable": true
+  },
+  {
+   "file": "doors/d1.dxf",
+   "name": "Puerta 1",
+   "category": "cat-arq-puertas",
+   "units": "cm",
+   "stretchable": false
+  },
+  {
+   "file": "doors/d2.dxf",
+   "name": "Puerta 2",
+   "category": "cat-arq-puertas",
+   "units": "cm",
+   "stretchable": false
+  },
+  {
+   "file": "doors/d3.dxf",
+   "name": "Puerta 3",
+   "category": "cat-arq-puertas",
+   "units": "cm",
+   "stretchable": false
+  },
+  {
+   "file": "doors/d4.dxf",
+   "name": "Puerta 4",
+   "category": "cat-arq-puertas",
+   "units": "cm",
+   "stretchable": false
+  },
+  {
+   "file": "vegetation/v1.dxf",
+   "name": "Vegetación 1",
+   "category": "cat-urbanismo",
+   "units": "m",
+   "stretchable": false
+  },
+  {
+   "file": "vegetation/v2.dxf",
+   "name": "Vegetación 2",
+   "category": "cat-urbanismo",
+   "units": "m",
+   "stretchable": false
+  },
+  {
+   "file": "vegetation/v3.dxf",
+   "name": "Vegetación 3",
+   "category": "cat-urbanismo",
+   "units": "m",
+   "stretchable": false
+  },
+  {
+   "file": "vegetation/v4.dxf",
+   "name": "Vegetación 4",
+   "category": "cat-urbanismo",
+   "units": "m",
+   "stretchable": false
+  },
+  {
+   "file": "vegetation/v5.dxf",
+   "name": "Vegetación 5",
+   "category": "cat-urbanismo",
+   "units": "m",
+   "stretchable": false
+  },
+  {
+   "file": "vegetation/v6.dxf",
+   "name": "Vegetación 6",
+   "category": "cat-urbanismo",
+   "units": "m",
+   "stretchable": false
+  },
+  {
+   "file": "vegetation/v7.dxf",
+   "name": "Vegetación 7",
+   "category": "cat-urbanismo",
+   "units": "m",
+   "stretchable": false
+  },
+  {
+   "file": "vegetation/v8.dxf",
+   "name": "Vegetación 8",
+   "category": "cat-urbanismo",
+   "units": "m",
+   "stretchable": false
+  },
+  {
+   "file": "vegetation/v9.dxf",
+   "name": "Vegetación 9",
+   "category": "cat-urbanismo",
+   "units": "m",
+   "stretchable": false
+  },
+  {
+   "file": "vegetation/v10.dxf",
+   "name": "Vegetación 10",
+   "category": "cat-urbanismo",
+   "units": "m",
+   "stretchable": false
+  },
+  {
+   "file": "vegetation/v12.dxf",
+   "name": "Vegetación 12",
+   "category": "cat-urbanismo",
+   "units": "m",
+   "stretchable": false
+  },
+  {
+   "file": "vegetation/v13.dxf",
+   "name": "Vegetación 13",
+   "category": "cat-urbanismo",
+   "units": "m",
+   "stretchable": false
+  },
+  {
+   "file": "vegetation/v14.dxf",
+   "name": "Vegetación 14",
+   "category": "cat-urbanismo",
+   "units": "m",
+   "stretchable": false
+  },
+  {
+   "file": "vegetation/v15.dxf",
+   "name": "Vegetación 15",
+   "category": "cat-urbanismo",
+   "units": "m",
+   "stretchable": false
+  },
+  {
+   "file": "vegetation/v17.dxf",
+   "name": "Vegetación 17",
+   "category": "cat-urbanismo",
+   "units": "m",
+   "stretchable": false
+  },
+  {
+   "file": "vegetation/v18.dxf",
+   "name": "Vegetación 18",
+   "category": "cat-urbanismo",
+   "units": "m",
+   "stretchable": false
+  },
+  {
+   "file": "vegetation/v19.dxf",
+   "name": "Vegetación 19",
+   "category": "cat-urbanismo",
+   "units": "m",
+   "stretchable": false
+  },
+  {
+   "file": "vegetation/v20.dxf",
+   "name": "Vegetación 20",
+   "category": "cat-urbanismo",
+   "units": "m",
+   "stretchable": false
+  },
+  {
+   "file": "vegetation/v21.dxf",
+   "name": "Vegetación 21",
+   "category": "cat-urbanismo",
+   "units": "m",
+   "stretchable": false
+  },
+  {
+   "file": "vegetation/v22.dxf",
+   "name": "Vegetación 22",
+   "category": "cat-urbanismo",
+   "units": "m",
+   "stretchable": false
+  },
+  {
+   "file": "vegetation/v23.dxf",
+   "name": "Vegetación 23",
+   "category": "cat-urbanismo",
+   "units": "m",
+   "stretchable": false
+  },
+  {
+   "file": "vegetation/v24.dxf",
+   "name": "Vegetación 24",
+   "category": "cat-urbanismo",
+   "units": "m",
+   "stretchable": false
+  },
+  {
+   "file": "vegetation/v25.dxf",
+   "name": "Vegetación 25",
+   "category": "cat-urbanismo",
+   "units": "m",
+   "stretchable": false
+  },
+  {
+   "file": "vegetation/v26.dxf",
+   "name": "Vegetación 26",
+   "category": "cat-urbanismo",
+   "units": "m",
+   "stretchable": false
+  },
+  {
+   "file": "vegetation/v27.dxf",
+   "name": "Vegetación 27",
+   "category": "cat-urbanismo",
+   "units": "m",
+   "stretchable": false
+  },
+  {
+   "file": "vegetation/v28.dxf",
+   "name": "Vegetación 28",
+   "category": "cat-urbanismo",
+   "units": "m",
+   "stretchable": false
+  },
+  {
+   "file": "vegetation/v29.dxf",
+   "name": "Vegetación 29",
+   "category": "cat-urbanismo",
+   "units": "m",
+   "stretchable": false
+  },
+  {
+   "file": "vegetation/v30.dxf",
+   "name": "Vegetación 30",
+   "category": "cat-urbanismo",
+   "units": "m",
+   "stretchable": false
+  },
+  {
+   "file": "vegetation/v32.dxf",
+   "name": "Vegetación 32",
+   "category": "cat-urbanismo",
+   "units": "m",
+   "stretchable": false
+  },
+  {
+   "file": "vegetation/v33.dxf",
+   "name": "Vegetación 33",
+   "category": "cat-urbanismo",
+   "units": "m",
+   "stretchable": false
+  },
+  {
+   "file": "vegetation/v34.dxf",
+   "name": "Vegetación 34",
+   "category": "cat-urbanismo",
+   "units": "m",
+   "stretchable": false
+  },
+  {
+   "file": "vegetation/v36.dxf",
+   "name": "Vegetación 36",
+   "category": "cat-urbanismo",
+   "units": "m",
+   "stretchable": false
+  },
+  {
+   "file": "vegetation/v37.dxf",
+   "name": "Vegetación 37",
+   "category": "cat-urbanismo",
+   "units": "m",
+   "stretchable": false
+  },
+  {
+   "file": "air_water/aw5.dxf",
+   "name": "Símbolo aire y agua aw5",
+   "category": "cat-ins",
+   "units": "unitless",
+   "stretchable": false
+  },
+  {
+   "file": "air_water/aw6.dxf",
+   "name": "Símbolo aire y agua aw6",
+   "category": "cat-ins",
+   "units": "unitless",
+   "stretchable": false
+  },
+  {
+   "file": "air_water/aw7.dxf",
+   "name": "Símbolo aire y agua aw7",
+   "category": "cat-ins",
+   "units": "unitless",
+   "stretchable": false
+  },
+  {
+   "file": "air_water/aw8.dxf",
+   "name": "Símbolo aire y agua aw8",
+   "category": "cat-ins",
+   "units": "unitless",
+   "stretchable": false
+  },
+  {
+   "file": "air_water/aw9.dxf",
+   "name": "Símbolo aire y agua aw9",
+   "category": "cat-ins",
+   "units": "unitless",
+   "stretchable": false
+  },
+  {
+   "file": "air_water/aw10.dxf",
+   "name": "Símbolo aire y agua aw10",
+   "category": "cat-ins",
+   "units": "unitless",
+   "stretchable": false
+  },
+  {
+   "file": "air_water/aw11.dxf",
+   "name": "Símbolo aire y agua aw11",
+   "category": "cat-ins",
+   "units": "unitless",
+   "stretchable": false
+  },
+  {
+   "file": "air_water/aw12.dxf",
+   "name": "Símbolo aire y agua aw12",
+   "category": "cat-ins",
+   "units": "unitless",
+   "stretchable": false
+  },
+  {
+   "file": "air_water/aw13.dxf",
+   "name": "Símbolo aire y agua aw13",
+   "category": "cat-ins",
+   "units": "unitless",
+   "stretchable": false
+  },
+  {
+   "file": "air_water/aw14.dxf",
+   "name": "Símbolo aire y agua aw14",
+   "category": "cat-ins",
+   "units": "unitless",
+   "stretchable": false
+  },
+  {
+   "file": "air_water/aw15.dxf",
+   "name": "Símbolo aire y agua aw15",
+   "category": "cat-ins",
+   "units": "unitless",
+   "stretchable": false
+  },
+  {
+   "file": "air_water/aw16.dxf",
+   "name": "Símbolo aire y agua aw16",
+   "category": "cat-ins",
+   "units": "unitless",
+   "stretchable": false
+  },
+  {
+   "file": "air_water/aw17.dxf",
+   "name": "Símbolo aire y agua aw17",
+   "category": "cat-ins",
+   "units": "unitless",
+   "stretchable": false
+  },
+  {
+   "file": "air_water/aw18.dxf",
+   "name": "Símbolo aire y agua aw18",
+   "category": "cat-ins",
+   "units": "unitless",
+   "stretchable": false
+  },
+  {
+   "file": "air_water/aw19.dxf",
+   "name": "Símbolo aire y agua aw19",
+   "category": "cat-ins",
+   "units": "unitless",
+   "stretchable": false
+  },
+  {
+   "file": "air_water/aw20.dxf",
+   "name": "Símbolo aire y agua aw20",
+   "category": "cat-ins",
+   "units": "unitless",
+   "stretchable": false
+  },
+  {
+   "file": "air_water/aw21.dxf",
+   "name": "Símbolo aire y agua aw21",
+   "category": "cat-ins",
+   "units": "unitless",
+   "stretchable": false
+  },
+  {
+   "file": "air_water/aw22.dxf",
+   "name": "Símbolo aire y agua aw22",
+   "category": "cat-ins",
+   "units": "unitless",
+   "stretchable": false
+  },
+  {
+   "file": "air_water/aw23.dxf",
+   "name": "Símbolo aire y agua aw23",
+   "category": "cat-ins",
+   "units": "unitless",
+   "stretchable": false
+  },
+  {
+   "file": "air_water/aw24.dxf",
+   "name": "Símbolo aire y agua aw24",
+   "category": "cat-ins",
+   "units": "unitless",
+   "stretchable": false
+  },
+  {
+   "file": "air_water/aw25.dxf",
+   "name": "Símbolo aire y agua aw25",
+   "category": "cat-ins",
+   "units": "unitless",
+   "stretchable": false
+  },
+  {
+   "file": "air_water/aw26.dxf",
+   "name": "Símbolo aire y agua aw26",
+   "category": "cat-ins",
+   "units": "unitless",
+   "stretchable": false
+  },
+  {
+   "file": "air_water/aw27.dxf",
+   "name": "Símbolo aire y agua aw27",
+   "category": "cat-ins",
+   "units": "unitless",
+   "stretchable": false
+  },
+  {
+   "file": "air_water/aw28.dxf",
+   "name": "Símbolo aire y agua aw28",
+   "category": "cat-ins",
+   "units": "unitless",
+   "stretchable": false
+  },
+  {
+   "file": "air_water/aw29.dxf",
+   "name": "Símbolo aire y agua aw29",
+   "category": "cat-ins",
+   "units": "unitless",
+   "stretchable": false
+  },
+  {
+   "file": "air_water/wt1.dxf",
+   "name": "Símbolo agua wt1",
+   "category": "cat-ins",
+   "units": "unitless",
+   "stretchable": false
+  },
+  {
+   "file": "air_water/wt2.dxf",
+   "name": "Símbolo agua wt2",
+   "category": "cat-ins",
+   "units": "unitless",
+   "stretchable": false
+  },
+  {
+   "file": "air_water/wt3.dxf",
+   "name": "Símbolo agua wt3",
+   "category": "cat-ins",
+   "units": "unitless",
+   "stretchable": false
+  },
+  {
+   "file": "air_water/wt4.dxf",
+   "name": "Símbolo agua wt4",
+   "category": "cat-ins",
+   "units": "unitless",
+   "stretchable": false
+  },
+  {
+   "file": "air_water/wt5.dxf",
+   "name": "Símbolo agua wt5",
+   "category": "cat-ins",
+   "units": "unitless",
+   "stretchable": false
+  },
+  {
+   "file": "air_water/wt6.dxf",
+   "name": "Símbolo agua wt6",
+   "category": "cat-ins",
+   "units": "unitless",
+   "stretchable": false
+  },
+  {
+   "file": "air_water/wt7.dxf",
+   "name": "Símbolo agua wt7",
+   "category": "cat-ins",
+   "units": "unitless",
+   "stretchable": false
+  },
+  {
+   "file": "air_water/wt8.dxf",
+   "name": "Símbolo agua wt8",
+   "category": "cat-ins",
+   "units": "unitless",
+   "stretchable": false
+  },
+  {
+   "file": "air_water/wt9.dxf",
+   "name": "Símbolo agua wt9",
+   "category": "cat-ins",
+   "units": "unitless",
+   "stretchable": false
+  }
+ ]
+}

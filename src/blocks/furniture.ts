@@ -127,7 +127,7 @@ export function furnitureLibrary(): LibraryBlock[] {
       depthSet: inc(50, 700, 1200),
     }),
     build({
-      name: 'Sofá',
+      name: 'Sofá paramétrico',
       category: 'cat-mob-salon',
       description: 'Respaldo, brazos y cojines; se alarga sin deformar los brazos.',
       parts: [rect(0, 0, 2000, 900), rect(0, 700, 2000, 900), rect(0, 0, 200, 700), rect(1800, 0, 2000, 700), line({ x: 1000, y: 50 }, { x: 1000, y: 700 })],
@@ -151,7 +151,7 @@ export function furnitureLibrary(): LibraryBlock[] {
       depthSet: inc(10, 300, 450),
     }),
     build({
-      name: 'Encimera',
+      name: 'Encimera paramétrica',
       category: 'cat-mob-cocina',
       description: 'Encimera con canto frontal.',
       parts: [rect(0, 0, 2400, 600), line({ x: 0, y: 40 }, { x: 2400, y: 40 })],
@@ -159,7 +159,7 @@ export function furnitureLibrary(): LibraryBlock[] {
       depthSet: inc(10, 400, 900),
     }),
     build({
-      name: 'Tocador',
+      name: 'Tocador paramétrico',
       category: 'cat-mob-dormitorio',
       description: 'Tocador con espejo al fondo.',
       parts: [rect(0, 0, 1200, 500), line({ x: 100, y: 470 }, { x: 1100, y: 470 })],
@@ -167,7 +167,7 @@ export function furnitureLibrary(): LibraryBlock[] {
       depthSet: inc(10, 350, 600),
     }),
     build({
-      name: 'Mesita de noche',
+      name: 'Mesita de noche paramétrica',
       category: 'cat-mob-dormitorio',
       description: 'Con tirador; se ensancha sin deformarlo.',
       parts: [rect(0, 0, 500, 400), circle({ x: 250, y: 60 }, 15)],

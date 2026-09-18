@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { createDocument } from '../document/defaults';
 import type { Entity, InsertEntity } from '../document/types';
@@ -25,6 +26,12 @@ const width = (ents: Entity[], ctx: ReturnType<typeof createContext>, filter: (e
 };
 
 describe('muebles paramétricos', () => {
+  it('no comparten nombre con la biblioteca de LibreCAD', () => {
+    const manifest = JSON.parse(readFileSync(new URL('../../public/library/librecad/index.json', import.meta.url), 'utf8')) as { items: { name: string }[] };
+    const names = [...manifest.items.map((i) => i.name), ...furnitureLibrary().map((b) => b.name)].map((n) => n.toLowerCase());
+    expect(new Set(names).size).toBe(names.length);
+  });
+
   it('los doce se evalúan sin avisos en su tamaño por defecto', () => {
     const items = furnitureLibrary();
     expect(items).toHaveLength(12);
@@ -67,7 +74,7 @@ describe('muebles paramétricos', () => {
   });
 
   it('el sofá se alarga sin deformar los brazos', () => {
-    const { ev, ctx } = load('Sofá');
+    const { ev, ctx } = load('Sofá paramétrico');
     const arms = ev({ Ancho: 3000 }).entities.filter((e): e is Entity => e.type === 'lwpolyline' && width([e], ctx) === 200);
     expect(arms).toHaveLength(2);
     void ({} as InsertEntity);

@@ -1,4 +1,4 @@
-import { Download, FolderPlus, MoveHorizontal, Pencil, Trash2, Upload } from 'lucide-react';
+import { Download, FolderPlus, Library, MoveHorizontal, Pencil, Trash2, Upload } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { LibraryBlock } from '../../blocks/library';
 import { insertLibraryBlock } from '../../blocks/library';
@@ -75,6 +75,9 @@ export function LibraryView({ editor, query }: { editor: Editor; query: string }
         <button className="btn btn--sm" onClick={() => editor.command('LIBRARYEXPORT', current === ALL ? [] : [current])} disabled={!shown.length} title={tr(lang, 'Exportar a .fmodellib', 'Export to .fmodellib')}>
           <Download size={13} /> {current === ALL ? tr(lang, 'Exportar', 'Export') : tr(lang, 'Exportar categoría', 'Export category')}
         </button>
+        <button className="btn btn--sm" onClick={() => editor.command('LIBRARYSTARTER')} title={tr(lang, '100 bloques de LibreCAD y 12 muebles paramétricos', '100 LibreCAD blocks and 12 parametric furniture pieces')}>
+          <Library size={13} /> {tr(lang, 'Biblioteca inicial', 'Starter library')}
+        </button>
         <button className={`btn btn--sm${manage ? ' btn--accent' : ''}`} onClick={() => setManage((m) => !m)}>
           <FolderPlus size={13} /> {tr(lang, 'Categorías', 'Categories')}
         </button>
@@ -143,7 +146,7 @@ export function LibraryView({ editor, query }: { editor: Editor; query: string }
             <div className="empty">
               {items.length
                 ? tr(lang, 'Ningún bloque coincide con el filtro.', 'No block matches the filter.')
-                : tr(lang, 'La biblioteca está vacía. Importa un DXF o un .fmodellib, o envía un bloque del dibujo con WBLOCK.', 'The library is empty. Import a DXF or .fmodellib, or send a drawing block with WBLOCK.')}
+                : tr(lang, 'La biblioteca está vacía. Instala la biblioteca inicial (muebles estirables, puertas, vegetación…), importa un DXF, DWG o .fmodellib, o envía un bloque del dibujo con WBLOCK.', 'The library is empty. Install the starter library (stretchable furniture, doors, vegetation…), import a DXF, DWG or .fmodellib, or send a drawing block with WBLOCK.')}
             </div>
           )}
         </div>

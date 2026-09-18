@@ -43,20 +43,19 @@ export function starterBlock(text: string, item: StarterItem, thumb?: ThumbFn): 
   if (!id) throw new Error(`«${item.file}» no tiene geometría.`);
   let pkg = packageBlock(doc, id);
   if (item.stretchable) pkg = stretchablePackage(pkg);
-  const rootBlock = pkg.blocks.find((b) => b.id === pkg.root)!;
-  let thumbnail: string | undefined;
-  if (thumb) {
-    // la miniatura se dibuja con la definición final (estirable o no)
-    const view = createDocument();
-    const vctx = createContext(view);
-    installDynamicBlocks(vctx);
-    view.transact('THUMB', (tx) => {
-      for (const b of pkg.blocks) tx.add('blocks', b);
-      for (const e of pkg.entities) tx.addEntity(e as never);
-    });
-    thumbnail = thumb(view, vctx, rootBlock.id);
-  }
-  return makeLibraryBlock(pkg, { name: item.name, categoryId: item.category, tags: ['LibreCAD'], thumbnail, source: { kind: 'dxf', file: `LibreCAD/${item.file}`, importedAt: Date.now() } });
+  return makeLibraryBlock(pkg, { name: item.name, categoryId: item.category, tags: ['LibreCAD'], thumbnail: thumb ? packageThumbnail(pkg, thumb) : undefined, source: { kind: 'dxf', file: `LibreCAD/${item.file}`, importedAt: Date.now() } });
+}
+
+/** Miniatura de un paquete con su definición final (estirable o no), dibujada en un documento aparte. */
+export function packageThumbnail(pkg: LibraryBlock['package'], thumb: ThumbFn): string | undefined {
+  const view = createDocument();
+  const ctx = createContext(view);
+  installDynamicBlocks(ctx);
+  view.transact('THUMB', (tx) => {
+    for (const b of pkg.blocks) tx.add('blocks', b);
+    for (const e of pkg.entities) tx.addEntity(e as never);
+  });
+  return thumb(view, ctx, pkg.root);
 }
 
 /** Categorías que la biblioteca inicial necesita y aún no existen (p. ej. en bibliotecas antiguas). */
