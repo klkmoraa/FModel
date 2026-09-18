@@ -1,10 +1,9 @@
-import { Pencil, Star, Trash2 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { BookmarkPlus, Pencil, Star, Trash2 } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { blockUsage, isInsertableBlock } from '../../blocks/blockOps';
 import type { Editor } from '../../editor/editor';
 import { blockThumbnail } from '../../render/thumbnail';
-import { insertLibraryBlock, type LibraryBlock } from '../../blocks/library';
-import { commitLibrary, loadLibrary, onLibraryChanged } from '../../blocks/libraryStore';
+import { LibraryView } from './LibraryView';
 import { useEditorEvents, useMediaQuery } from '../hooks';
 import { tr } from '../controls';
 
@@ -18,12 +17,6 @@ export function BlocksPanel({ editor, onUi }: { editor: Editor; onUi: (ui: strin
   const dark = editor.prefs.theme === 'noche' || (editor.prefs.theme === 'system' && systemDark);
   const [tab, setTab] = useState<'current' | 'favorites' | 'library'>('current');
   const [q, setQ] = useState('');
-  const [lib, setLib] = useState<LibraryBlock[]>([]);
-  useEffect(() => {
-    const refresh = () => void loadLibrary().then(setLib);
-    refresh();
-    return onLibraryChanged(refresh);
-  }, []);
   const usage = useMemo(() => blockUsage(doc), [doc.version]); // eslint-disable-line react-hooks/exhaustive-deps
   const blocks = [...doc.data.blocks.values()]
     .filter(isInsertableBlock)
@@ -80,6 +73,9 @@ export function BlocksPanel({ editor, onUi }: { editor: Editor; onUi: (ui: strin
                   <button className="icon-btn" style={{ width: 22, height: 22, color: b.favorite ? 'var(--fs-signal-attention)' : undefined }} onClick={() => doc.transact('BLOCK FAVORITE', (tx) => tx.update('blocks', b.id, { favorite: !b.favorite }))} title={tr(lang, 'Favorito', 'Favorite')}>
                     <Star size={12} />
                   </button>
+                  <button className="icon-btn" style={{ width: 22, height: 22 }} onClick={() => editor.command('WBLOCK', [b.name])} title={tr(lang, 'Enviar a la biblioteca', 'Send to library')}>
+                    <BookmarkPlus size={12} />
+                  </button>
                   <button className="icon-btn" style={{ width: 22, height: 22 }} onClick={() => editor.command('BEDIT', [b.name])} title={tr(lang, 'Editar definición', 'Edit definition')}>
                     <Pencil size={12} />
                   </button>
@@ -102,34 +98,7 @@ export function BlocksPanel({ editor, onUi }: { editor: Editor; onUi: (ui: strin
           {!blocks.length && <div className="empty">{tab === 'favorites' ? tr(lang, 'Marca bloques con ★ para verlos aquí.', 'Star blocks to see them here.') : tr(lang, 'Todavía no hay bloques. Crea uno con BLOCK o inserta los ejemplos dinámicos.', 'No blocks yet. Create one with BLOCK or insert the dynamic samples.')}</div>}
         </div>
       ) : (
-        <div className="list">
-          {lib
-            .filter((b) => !q || b.name.toLowerCase().includes(q.toLowerCase()))
-            .map((b) => (
-              <div className="list-row" key={b.id}>
-                {b.thumbnail && <img src={b.thumbnail} width={32} height={32} alt="" />}
-                <span style={{ flex: 1 }}>
-                  <strong>{b.name}</strong>
-                  <br />
-                  <small style={{ color: 'var(--ink-muted)' }}>
-                    {b.tags.join(', ') || '—'} · {new Date(b.savedAt).toLocaleDateString()}
-                  </small>
-                </span>
-                <button
-                  className="btn btn--sm"
-                  onClick={() => {
-                    editor.command('INSERT', [insertLibraryBlock(editor.doc, b)]);
-                  }}
-                >
-                  {tr(lang, 'Importar', 'Import')}
-                </button>
-                <button className="icon-btn" onClick={() => void commitLibrary({ remove: [b.id] })} aria-label={tr(lang, 'Quitar de la biblioteca', 'Remove from library')}>
-                  <Trash2 size={13} />
-                </button>
-              </div>
-            ))}
-          {!lib.length && <div className="empty">{tr(lang, 'La biblioteca compartida está vacía. Usa WBLOCK o «Enviar a biblioteca» desde el editor de bloques.', 'The shared library is empty. Use WBLOCK or “Send to library” from the block editor.')}</div>}
-        </div>
+        <LibraryView editor={editor} query={q} />
       )}
     </div>
   );

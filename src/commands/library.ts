@@ -46,7 +46,7 @@ const LIBRARYIMPORT: CommandDef = {
   label: L('Importar a la biblioteca', 'Import to library'),
   description: L('Añade a la biblioteca los bloques de un DXF (o el dibujo entero como bloque) o de un archivo .fmodellib, con categoría y etiquetas.', 'Adds the blocks of a DXF (or the whole drawing as a block) or of a .fmodellib file to the library, with category and tags.'),
   icon: 'insert',
-  async run(api) {
+  async run() {
     const f = await openFile({ 'application/octet-stream': ['.dxf', '.fmodellib'] }, 'DXF / FModel library');
     if (!f) return;
     const session = await buildImportSession(f, await loadCategories());

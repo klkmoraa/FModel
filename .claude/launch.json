@@ -4,12 +4,29 @@
     {
       "name": "fmodel-dev",
       "runtimeExecutable": "/Users/crismora/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node",
-      "runtimeArgs": ["node_modules/vite/bin/vite.js", "--port", "5178", "--strictPort", "--host", "127.0.0.1"],
+      "runtimeArgs": [
+        "node_modules/vite/bin/vite.js",
+        "--port",
+        "5178",
+        "--strictPort",
+        "--host",
+        "127.0.0.1"
+      ],
       "port": 5178
     },
     {
       "name": "fmodel-attach",
       "url": "http://localhost:5179"
+    },
+    {
+      "name": "fmodel-dev-b",
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": [
+        "-c",
+        "exec /Users/crismora/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node node_modules/vite/bin/vite.js --port ${PORT:-5190} --strictPort --host 127.0.0.1"
+      ],
+      "port": 5190,
+      "autoPort": true
     }
   ]
 }

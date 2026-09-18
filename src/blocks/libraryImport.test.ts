@@ -9,7 +9,7 @@ import { installDynamicBlocks } from './install';
 import { makeLibraryBlock, packageBlock } from './library';
 import { DEFAULT_CATEGORIES } from './libraryCategories';
 import type { LibraryImportSession } from './libraryImport';
-import { candidatesFromArchive, candidatesFromDocument, modelSpaceToBlock, planLibraryWrite } from './libraryImport';
+import { candidatesFromArchive, candidatesFromDocument, planLibraryWrite } from './libraryImport';
 import { installDynamicSamples } from './samples';
 
 describe('candidatos de importación a la biblioteca', () => {
