@@ -91,7 +91,7 @@
 | Función | Estado | Comandos | Notas |
 |---|---|---|---|
 | Formato nativo versionado .fmodel y JSON de depuración | Disponible | `QSAVE` `SAVEAS` `OPEN` `EXPORTJSON` |  |
-| Importación y exportación DXF con informe de conversión | Disponible | `IMPORTDXF` `EXPORTDXF` | Detalle en docs/dxf-compatibilidad.md. |
+| Importación y exportación DXF con informe de conversión | Disponible | `IMPORTDXF` `EXPORTDXF` | Detalle en docs/dxf-compatibilidad.md. Los bloques dinámicos de FModel sobreviven a la ida y vuelta. |
 | CSV/JSON de atributos y tablas | Disponible | `DATAEXTRACTION` |  |
 | DWG | No comprometido |  | No hay una solución legal y fiable para una aplicación web; no se simula. |
 

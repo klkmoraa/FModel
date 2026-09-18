@@ -50,7 +50,7 @@ Para intercambiar con DWG, convierte a DXF con la herramienta de tu programa CAD
 
 | FModel | Resultado en DXF | Motivo |
 |---|---|---|
-| Bloque dinámico (cada estado usado) | bloque estático `Nombre_Vn` | DXF no representa parámetros, acciones ni restricciones de FModel |
+| Bloque dinámico (cada estado usado) | bloque estático `Nombre_Vn` para otros programas, más datos propios FModel (XRECORD en `FMODEL_DYNAMIC_BLOCKS` y XDATA `FMODEL` en cada `INSERT`) | DXF no tiene parámetros ni acciones; al reimportar en FModel vuelven parámetros, acciones, restricciones y estados |
 | Matriz asociativa | objetos individuales | sin equivalente asociativo portable |
 | Multilínea | líneas y arcos | los estilos `MLINE` no se conservan |
 | Tabla | líneas y textos | `ACAD_TABLE` no se genera |
@@ -86,6 +86,8 @@ escalada y girada, sombreado y sólido; el archivo se regenera con
 ### Se conserva
 
 `LINE`, `POINT`, `CIRCLE`, `ARC`, `ELLIPSE`, `LWPOLYLINE`, `POLYLINE` 2D, `SPLINE`, `TEXT`, `MTEXT`, `INSERT` con `ATTRIB`, `ATTDEF`, `HATCH` (patrón, sólido, islas), `XLINE`, `RAY`, `DIMENSION` (lineal, alineada, angular, radio, diámetro, coordenada), `LEADER`, `VIEWPORT` de presentación, `LAYOUT`, capas, tipos de línea, estilos de texto y de cota (incluidas flechas `DIMBLK`), bloques y unidades (`$INSUNITS`).
+
+**Bloques dinámicos exportados por FModel:** se reconstruyen la definición (parámetros, acciones, restricciones, tablas de consulta, variables) y el estado de cada instancia; las variantes `Nombre_Vn` usadas solo por esas instancias no se importan. Si los datos propios están dañados o son de una versión posterior, se importan las variantes estáticas y el informe lo avisa. Prueba: `src/io/dxf/dynamicRoundTrip.test.ts`.
 
 ### Se transforma
 
