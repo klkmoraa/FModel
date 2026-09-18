@@ -32,6 +32,7 @@ import { explodeItems } from '../../model/kinds/annotation';
 import { insertAttributes, variantKey } from '../../model/kinds/insert';
 import { smoothedCurves } from '../../model/kinds/polylines';
 import { kindOf } from '../../model/registry';
+import { encodeDefinition, FMODEL_APPID, FMODEL_DYN_DICT, instanceXdata, xrecordBody } from './dynamicData';
 import { dxfName, HandleSeed, TagBuffer } from './tags';
 
 /** Informe de exportación con la misma estructura conceptual que el de importación. */
@@ -657,7 +658,7 @@ export function exportDxf(doc: CadDocument, ctx: ModelContext): { text: string; 
         for (const be of ev.entities) writeEntity(bo, be);
       }
       name = vname;
-      transformed('Bloque dinámico', 'Cada estado usado de un bloque dinámico se exporta como bloque estático con su geometría evaluada (los parámetros y acciones no existen en DXF).');
+      transformed('Bloque dinámico', 'Cada estado usado se exporta como bloque estático para otros programas; FModel conserva parámetros, acciones y estados al reimportar.');
     }
     const handle = head(o, 'INSERT', e);
     setHandle(e, handle);
@@ -675,6 +676,11 @@ export function exportDxf(doc: CadDocument, ctx: ModelContext): { text: string; 
       b.tag(71, e.grid.rows);
       b.tag(44, e.grid.columnSpacing);
       b.tag(45, e.grid.rowSpacing);
+    }
+    if (def.dynamic) {
+      const xd = instanceXdata(userBlockNames.get(def.id)!, e.dynamic);
+      if (xd.reduce((n, [, v]) => n + v.length, 0) > 12000) report.warnings.push(`Instancia de «${def.name}» con estado demasiado grande: se exporta solo como variante estática.`);
+      else for (const [c, v] of xd) b.tag(c, c === 1070 ? Number(v) : v);
     }
     ok('INSERT');
     if (!attrs.length) return;
@@ -827,6 +833,11 @@ export function exportDxf(doc: CadDocument, ctx: ModelContext): { text: string; 
     const oc: OwnerCtx = { br: ub.br, paper: false, buf: ub.buf };
     for (const e of doc.entitiesOf(def.id)) writeEntity(oc, e);
   }
+  // definiciones dinámicas propias de FModel (XRECORD con IDs de entidad → handles)
+  const dynRecords = [...data.blocks.values()]
+    .filter((d) => d.dynamic)
+    .map((d) => ({ name: userBlockNames.get(d.id)!, handle: H.next(), json: encodeDefinition(d.dynamic!, (id) => entityHandles.get(id)) }));
+  const fmDict = dynRecords.length ? H.next() : '';
   report.blocks = data.blocks.size + variantBlocks.size;
   report.layouts = layouts.length;
 
@@ -1058,7 +1069,7 @@ export function exportDxf(doc: CadDocument, ctx: ModelContext): { text: string; 
   table('VIEW', 0, () => {});
   table('UCS', 0, () => {});
 
-  const appids = ['ACAD', 'AcCmTransparency', 'AcAecLayerStandard'];
+  const appids = ['ACAD', 'AcCmTransparency', 'AcAecLayerStandard', FMODEL_APPID];
   table('APPID', appids.length, () => {
     for (const a of appids) record('APPID', H.next(), T.APPID, 'AcDbRegAppTableRecord', a);
   });
@@ -1224,6 +1235,7 @@ export function exportDxf(doc: CadDocument, ctx: ModelContext): { text: string; 
     rootEntries.push(['ACAD_IMAGE_DICT', OBJ.imageDict], ['ACAD_IMAGE_VARS', OBJ.imageVars]);
   }
   if (wipeouts) rootEntries.push(['ACAD_WIPEOUT_VARS', OBJ.wipeoutVars]);
+  if (fmDict) rootEntries.push([FMODEL_DYN_DICT, fmDict]);
   dict(OBJ.root, '0', rootEntries);
   dict(
     OBJ.group,
@@ -1236,6 +1248,16 @@ export function exportDxf(doc: CadDocument, ctx: ModelContext): { text: string; 
   dict(OBJ.layout, OBJ.root, layoutEntries);
   dict(OBJ.mlinestyleDict, OBJ.root, [['Standard', OBJ.mlineStandard]]);
   dict(OBJ.plotSettings, OBJ.root, []);
+  if (fmDict) {
+    dict(fmDict, OBJ.root, dynRecords.map((r): [string, string] => [r.name, r.handle]));
+    for (const r of dynRecords) {
+      t(0, 'XRECORD');
+      t(5, r.handle);
+      t(330, fmDict);
+      t(100, 'AcDbXrecord');
+      for (const [c, v] of xrecordBody(r.name, r.json)) t(c, c === 280 || c === 90 ? Number(v) : v);
+    }
+  }
   t(0, 'ACDBDICTIONARYWDFLT');
   t(5, OBJ.plotStyleName);
   t(330, OBJ.root);
