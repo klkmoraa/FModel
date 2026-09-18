@@ -71,3 +71,11 @@ Las inserciones de bloque no duplican geometría: la lista de visualización con
 ## Pruebas
 
 Vitest cubre geometría, contornos, modelo, edición, asociatividad, autoría de bloques e historial, salida vectorial, DXF (estructura e ida y vuelta), referencias externas, auditoría y comparación, y el cableado de la interfaz (cada comando citado en la cinta, los atajos y la matriz de funciones existe; no hay alias duplicados).
+
+## Biblioteca de bloques
+
+- **Almacenamiento** (`blocks/libraryStore.ts` sobre `storage/idb.ts`, versión 2): almacenes `library` (un bloque empaquetado por registro, con categoría, etiquetas, origen y miniatura) y `libraryCategories` (dos niveles). Cada cambio es una sola transacción. La primera vez se siembran las categorías iniciales y se migra la biblioteca antigua de `localStorage`, cuya clave solo se borra tras escribir con éxito.
+- **Categorías** (`blocks/libraryCategories.ts`): base editable con «Sin clasificar» fija; la sugerencia por palabras clave (ES/EN, sin acentos) solo propone. Borrar una categoría manda sus bloques a «Sin clasificar».
+- **Importar**: `LIBRARYIMPORT` lee el archivo en un documento temporal (el dibujo abierto no cambia) y crea una *sesión* con los bloques con nombre y el espacio modelo entero como bloque (`blocks/libraryImport.ts`); el diálogo `library-import` permite elegir, renombrar, clasificar, etiquetar y resolver nombres repetidos. `WBLOCK` usa el mismo diálogo.
+- **Compartir**: `.fmodellib` (`blocks/libraryArchive.ts`) es un ZIP con `manifest.json` (formato y versión) y un JSON por bloque; al importar, las categorías se fusionan por ruta de nombre.
+- **Insertar**: `insertLibraryBlock` trae la definición al dibujo y la reutiliza mientras el bloque de la biblioteca no cambie.
