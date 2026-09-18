@@ -74,6 +74,8 @@ export function stretchableDefinition(block: BlockRecord, entities: Entity[], ct
   const w = ext.maxX - ext.minX;
   const h = ext.maxY - ext.minY;
   const margin = Math.max(w, h) * 0.05;
+  // el lado exterior del marco llega lejos: arrastra también lo que el bloque tenga más allá del borde
+  const far = Math.max(w, h);
   const selection = entities.map((e) => e.id);
   const parameters: LinearParam[] = [];
   const actions: StretchAction[] = [];
@@ -85,12 +87,12 @@ export function stretchableDefinition(block: BlockRecord, entities: Entity[], ct
   if (w > 1e-9) {
     const cx = cutPosition(boxes, ext.minX, ext.maxX, 'x');
     const [y0, y1] = [ext.minY - margin, ext.maxY + margin];
-    add('Ancho', { x: ext.minX, y: ext.minY - margin }, { x: ext.maxX, y: ext.minY - margin }, w, [{ x: cx, y: y0 }, { x: ext.maxX + margin, y: y0 }, { x: ext.maxX + margin, y: y1 }, { x: cx, y: y1 }]);
+    add('Ancho', { x: ext.minX, y: ext.minY - margin }, { x: ext.maxX, y: ext.minY - margin }, w, [{ x: cx, y: y0 - far }, { x: ext.maxX + far, y: y0 - far }, { x: ext.maxX + far, y: y1 + far }, { x: cx, y: y1 + far }]);
   }
   if (h > 1e-9) {
     const cy = cutPosition(boxes, ext.minY, ext.maxY, 'y');
     const [x0, x1] = [ext.minX - margin, ext.maxX + margin];
-    add(opts.heightName ?? 'Fondo', { x: ext.minX - margin, y: ext.minY }, { x: ext.minX - margin, y: ext.maxY }, h, [{ x: x0, y: cy }, { x: x1, y: cy }, { x: x1, y: ext.maxY + margin }, { x: x0, y: ext.maxY + margin }]);
+    add(opts.heightName ?? 'Fondo', { x: ext.minX - margin, y: ext.minY }, { x: ext.minX - margin, y: ext.maxY }, h, [{ x: x0 - far, y: cy }, { x: x1 + far, y: cy }, { x: x1 + far, y: ext.maxY + far }, { x: x0 - far, y: ext.maxY + far }]);
   }
   return { parameters, actions, constraints: [], lookups: [], variables: [], propertyOrder: parameters.map((p) => p.id) };
 }
