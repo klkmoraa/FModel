@@ -2,13 +2,13 @@
 
 ## DAT-001 — Distinguir guardado, descarga y cancelación
 
-- [>] **Estado:** En curso
-- **Responsable:** Codex · **Inicio:** 2026-09-18
+- [x] **Estado:** Cerrada
+- **Responsable:** Codex · **Inicio:** 2026-09-18 · **Cierre:** 2026-09-18
 - **Prioridad:** P1 — riesgo de pérdida de trabajo
 - **Depende de:** —
 - **Bloquea:** DAT-004, TST-001
 
-**Evidencia:** `src/storage/fileAccess.ts:46-68` devuelve `Handle | null`; `null` representa tanto una descarga fallback completada como la cancelación del selector. `src/commands/file.ts:91-105` limpia `doc.dirty` y anuncia éxito aun cuando `showSaveFilePicker` fue cancelado.
+**Evidencia:** `src/storage/fileAccess.ts` devuelve un resultado discriminado (`saved-to-handle`, `download-started` o `cancelled`); los comandos de archivo conservan el estado sucio y no anuncian éxito cuando se cancela.
 
 **Archivos previstos:**
 
@@ -19,20 +19,22 @@
 
 **Implementación:**
 
-- [ ] Definir un resultado discriminado: `saved-to-handle`, `download-started` o `cancelled`.
-- [ ] Hacer que todos los consumidores traten `cancelled` como salida sin efectos ni mensaje de éxito.
-- [ ] Limpiar `doc.dirty`, crear versión local y marcar salida limpia solo después de `saved-to-handle` o `download-started`.
-- [ ] Conservar el handle anterior si Guardar como se cancela.
-- [ ] Probar selector aceptado, selector cancelado, escritura sobre handle existente y fallback de descarga.
+- [x] Definir un resultado discriminado: `saved-to-handle`, `download-started` o `cancelled`.
+- [x] Hacer que todos los consumidores traten `cancelled` como salida sin efectos ni mensaje de éxito.
+- [x] Limpiar `doc.dirty`, crear versión local y marcar salida limpia solo después de `saved-to-handle` o `download-started`.
+- [x] Conservar el handle anterior si Guardar como se cancela.
+- [x] Probar selector aceptado, selector cancelado, escritura sobre handle existente y fallback de descarga.
 
 **Criterios de aceptación:**
 
-- [ ] Cancelar QSAVE/SAVEAS mantiene `doc.dirty === true`.
-- [ ] Cancelar no crea una versión “Guardado manual” ni muestra “Guardado”.
-- [ ] Safari/Firefox siguen contabilizando el fallback de descarga como éxito.
-- [ ] Fallar al escribir propaga un error visible y conserva el estado sucio.
+- [x] Cancelar QSAVE/SAVEAS mantiene `doc.dirty === true`.
+- [x] Cancelar no crea una versión “Guardado manual” ni muestra “Guardado”.
+- [x] Safari/Firefox siguen contabilizando el fallback de descarga como éxito.
+- [x] Fallar al escribir propaga un error visible y conserva el estado sucio.
 
-**Verificación:** `pnpm vitest run src/storage/fileAccess.test.ts src/commands/commands.test.ts && pnpm verify`
+**Cierre:** 2026-09-18 · commit/PR `9bba64f`
+
+**Verificación:** `pnpm vitest run src/storage/fileAccess.test.ts src/commands/file.test.ts src/io/native.test.ts src/blocks/libraryArchive.test.ts` (33 pruebas focalizadas) y `pnpm lint && pnpm verify` (49 archivos, 377 pruebas, build correcto; lint sin errores, con avisos preexistentes).
 
 ---
 
@@ -75,13 +77,13 @@
 
 ## DAT-003 — Validar archivos y aplicar límites de recursos
 
-- [>] **Estado:** En curso
-- **Responsable:** Codex · **Inicio:** 2026-09-18
+- [x] **Estado:** Cerrada
+- **Responsable:** Codex · **Inicio:** 2026-09-18 · **Cierre:** 2026-09-18
 - **Prioridad:** P1 — robustez y denegación de servicio local
 - **Depende de:** —
 - **Bloquea:** DAT-002, BLK-001, WRK-001
 
-**Evidencia:** `src/io/native.ts:62-100` comprueba formato/versión/ID de registros, pero no valida `collections`, `documentId`, discriminantes, números finitos ni referencias. `readPackage()` y `readLibraryArchive()` usan `unzipSync` sin límites. No existen topes de bytes, entradas, expansión, entidades o assets.
+**Evidencia:** `src/io/limits.ts` centraliza límites de bytes comprimidos/expandidos, entradas ZIP, entidades, bloques, assets y puntos; `src/io/native.ts`, `src/blocks/libraryArchive.ts` y los comandos validan entradas antes de extraer, migrar o reemplazar el documento.
 
 **Archivos previstos:**
 
@@ -91,20 +93,22 @@
 
 **Implementación:**
 
-- [ ] Definir límites explícitos y documentados para tamaño comprimido, tamaño expandido, número de entradas, entidades, bloques, puntos y assets.
-- [ ] Validar la envoltura antes de migrar y cada registro crítico antes de construir `Map`.
-- [ ] Rechazar `NaN`, `Infinity`, IDs vacíos/duplicados y referencias obligatorias imposibles.
-- [ ] Convertir fallos a errores bilingües que indiquen formato dañado, incompatible o demasiado grande.
-- [ ] Añadir corpus de archivos truncados, ZIP con expansión excesiva simulada y JSON con tipos incorrectos.
+- [x] Definir límites explícitos y documentados para tamaño comprimido, tamaño expandido, número de entradas, entidades, bloques, puntos y assets.
+- [x] Validar la envoltura antes de migrar y cada registro crítico antes de construir `Map`.
+- [x] Rechazar `NaN`, `Infinity`, IDs vacíos/duplicados y referencias obligatorias imposibles.
+- [x] Convertir fallos a errores bilingües que indiquen formato dañado, incompatible o demasiado grande.
+- [x] Añadir corpus de archivos truncados, ZIP con expansión excesiva simulada y JSON con tipos incorrectos.
 
 **Criterios de aceptación:**
 
-- [ ] Ninguna entrada no confiable alcanza render/geometría sin validación básica.
-- [ ] El rechazo ocurre antes de sustituir o mutar el documento abierto.
-- [ ] Los límites permiten archivos legítimos grandes y están centralizados, no dispersos.
-- [ ] Las pruebas miden que el rechazo sea acotado en tiempo/memoria.
+- [x] Ninguna entrada no confiable alcanza render/geometría sin validación básica.
+- [x] El rechazo ocurre antes de sustituir o mutar el documento abierto.
+- [x] Los límites permiten archivos legítimos grandes y están centralizados, no dispersos.
+- [x] Las pruebas miden que el rechazo sea acotado en tiempo/memoria.
 
-**Verificación:** `pnpm vitest run src/io/native.test.ts src/blocks/libraryArchive.test.ts && pnpm verify`
+**Cierre:** 2026-09-18 · commit/PR `9bba64f`
+
+**Verificación:** `pnpm vitest run src/storage/fileAccess.test.ts src/commands/file.test.ts src/io/native.test.ts src/blocks/libraryArchive.test.ts` (33 pruebas focalizadas, incluidos ZIP truncado, expansión declarada y tipos incorrectos) y `pnpm lint && pnpm verify` (49 archivos, 377 pruebas, build correcto; lint sin errores, con avisos preexistentes).
 
 ---
 

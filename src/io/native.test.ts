@@ -137,6 +137,24 @@ describe('formato nativo', () => {
     expect(() => readPackage(zipSync(entries))).toThrow(/demasiado grande|too large/i);
   });
 
+  it('rechaza ZIP truncado y expansión declarada excesiva antes de extraerlos', () => {
+    expect(() => readPackage(new Uint8Array([0x50, 0x4b, 0x03]))).toThrow();
+
+    const bytes = zipSync({ 'document.json': strToU8('{}') });
+    const centralDirectory = bytes.findIndex((_, i) => bytes[i] === 0x50 && bytes[i + 1] === 0x4b && bytes[i + 2] === 0x01 && bytes[i + 3] === 0x02);
+    expect(centralDirectory).toBeGreaterThanOrEqual(0);
+    new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).setUint32(centralDirectory + 24, INPUT_LIMITS.maxExpandedBytes + 1, true);
+
+    expect(() => readPackage(bytes)).toThrow(/demasiado grande|too large/i);
+  });
+
+  it('rechaza JSON con tipos de colecciones incorrectos', () => {
+    const { data, id } = sample();
+    const file = toNativeFile(data, id);
+
+    expect(() => fromNativeFile({ ...file, collections: { ...file.collections, entities: 'no es una lista' } })).toThrow(NativeFormatError);
+  });
+
   it('rechaza entidades con más puntos que el límite', () => {
     const { data, id } = sample();
     const file = toNativeFile(data, id);

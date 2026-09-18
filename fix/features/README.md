@@ -25,9 +25,9 @@
 | Orden | ID | Prioridad | Tarea | Estado | Depende de | Documento |
 |---:|---|:---:|---|:---:|---|---|
 | 1 | REL-001 | P0 | Resolver distribución y licencia del lector DWG | Abierta | — | [Distribución](./07-distribucion-documentacion.md#rel-001--resolver-la-distribución-del-lector-dwg-gpl-30) |
-| 2 | DAT-001 | P1 | No declarar guardado cuando se cancela el selector | En curso | — | [Integridad](./01-integridad-archivos.md#dat-001--distinguir-guardado-descarga-y-cancelación) |
+| 2 | DAT-001 | P1 | No declarar guardado cuando se cancela el selector | Cerrada | — | [Integridad](./01-integridad-archivos.md#dat-001--distinguir-guardado-descarga-y-cancelación) |
 | 3 | DAT-002 | P1 | Portapapeles portable con dependencias | Abierta | DAT-003 | [Integridad](./01-integridad-archivos.md#dat-002--hacer-portable-el-portapapeles-entre-dibujos) |
-| 4 | DAT-003 | P1 | Validar formatos y limitar recursos no confiables | En curso | — | [Integridad](./01-integridad-archivos.md#dat-003--validar-archivos-y-aplicar-límites-de-recursos) |
+| 4 | DAT-003 | P1 | Validar formatos y limitar recursos no confiables | Cerrada | — | [Integridad](./01-integridad-archivos.md#dat-003--validar-archivos-y-aplicar-límites-de-recursos) |
 | 5 | REL-002 | P1 | Impedir despliegues sin verificación completa | Abierta | REL-001 | [Distribución](./07-distribucion-documentacion.md#rel-002--hacer-que-el-despliegue-dependa-de-la-verificación) |
 | 6 | PWA-001 | P1 | Versionar la caché por contenido real | Abierta | — | [Rendimiento/PWA](./05-rendimiento-pwa.md#pwa-001--versionar-la-caché-por-contenido-real) |
 | 7 | TST-001 | P1 | Automatizar recorridos críticos en navegador | Abierta | DAT-001, DAT-002, DAT-003 | [Calidad](./06-calidad-arquitectura-pruebas.md#tst-001--cubrir-recorridos-críticos-en-un-navegador-real) |
