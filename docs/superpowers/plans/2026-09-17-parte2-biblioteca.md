@@ -142,7 +142,7 @@ const KEYWORDS: [string, RegExp][] = [
   ['cat-mob-bano', /\bbano|bath|\bwc\b|inodoro|toilet|lavabo|lavamanos|ducha|shower|banera|\btina\b|urinal|bidet/],
   ['cat-mob-cocina', /cocin|kitchen|nevera|fridge|frigor|horno|\boven|fregadero|estufa|stove/],
   ['cat-mob-dormitorio', /\bcama|\bbed\b|dormitorio|bedroom|armario|wardrobe|closet|ropero/],
-  ['cat-mob-oficina', /escritorio|\bdesk|silla|chair|oficina|office|archivador|sillon|\bmesa|table\b/],
+  ['cat-mob-oficina', /escritorio|\bdesk|silla|chair|oficina|office|archivador|sillon|\bmesa|\btable\b/],
   ['cat-est-perfiles', /perfil|profile|\b(ipe|hea|heb|upn|ipn)\b|\bviga|\bbeam|column|pilar/],
   ['cat-est-anclajes', /anclaj|anchor|placa base|base plate|perno|\bbolt|tornillo/],
   ['cat-ins-electricas', /enchuf|\btoma|socket|outlet|interruptor|switch|lumin|light|lampar|electr|cuadro electrico/],
