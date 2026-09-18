@@ -69,7 +69,12 @@ self.addEventListener('fetch', (event) => {
           }
           return res;
         })
-        .catch(() => caches.open(CACHE).then((cache) => cache.match(new URL('index.html', self.registration.scope).href))),
+        .catch(() =>
+          caches.open(CACHE).then((cache) =>
+            cache.match(new URL('index.html', self.registration.scope).href)
+              .then((cached) => cached || cache.match(new URL('./', self.registration.scope).href))
+          )
+        ),
     );
     return;
   }

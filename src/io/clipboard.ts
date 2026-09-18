@@ -199,8 +199,15 @@ export function validateClipboardPackage(raw: unknown): ClipboardPackage | Legac
     });
   }
 
-  assertFiniteValues(raw);
-  assertPointLimits(raw);
+  try {
+    assertFiniteValues(raw);
+    assertPointLimits(raw);
+  } catch (err) {
+    throw new ClipboardError({
+      es: err instanceof Error ? err.message : 'El paquete contiene valores numéricos o límites no permitidos.',
+      en: err instanceof Error ? err.message : 'The package contains invalid numerical values or disallowed limits.',
+    });
+  }
 
   if (!Array.isArray(obj.entities)) {
     throw new ClipboardError({
@@ -256,29 +263,116 @@ export function parseClipboardPackage(text: string): ClipboardPackage | LegacyCl
   return validateClipboardPackage(parsed);
 }
 
-/** Comprueba si una definición de bloque existente es geométricamente equivalente a una empaquetada. */
+function cleanEntityForComparison(e: Entity, blockIdMap?: Map<Id, Id>): Record<string, unknown> {
+  const copy: Record<string, unknown> = { ...e };
+  delete copy.id;
+  delete copy.owner;
+  delete copy.order;
+  if (blockIdMap) {
+    if (copy.type === 'insert' && typeof copy.blockId === 'string' && blockIdMap.has(copy.blockId as Id)) {
+      copy.blockId = blockIdMap.get(copy.blockId as Id);
+    }
+    if (copy.type === 'array' && typeof copy.sourceBlockId === 'string' && blockIdMap.has(copy.sourceBlockId as Id)) {
+      copy.sourceBlockId = blockIdMap.get(copy.sourceBlockId as Id);
+    }
+  }
+  return copy;
+}
+
+function canonicalJson(val: unknown): string {
+  if (val === null || typeof val !== 'object') {
+    return JSON.stringify(val);
+  }
+  if (Array.isArray(val)) {
+    return `[${val.map(canonicalJson).join(',')}]`;
+  }
+  const keys = Object.keys(val as Record<string, unknown>).sort();
+  const pairs = keys.map((k) => `${JSON.stringify(k)}:${canonicalJson((val as Record<string, unknown>)[k])}`);
+  return `{${pairs.join(',')}}`;
+}
+
+function entitiesMatch(
+  existingEntities: Entity[],
+  pkgEntities: Entity[],
+  blockIdMap?: Map<Id, Id>,
+): boolean {
+  if (existingEntities.length !== pkgEntities.length) return false;
+  const serialize = (e: Entity, map?: Map<Id, Id>) => {
+    const cleaned = cleanEntityForComparison(e, map);
+    return canonicalJson(cleaned);
+  };
+  const existingSerialized = existingEntities.map((e) => serialize(e)).sort();
+  const pkgSerialized = pkgEntities.map((e) => serialize(e, blockIdMap)).sort();
+
+  for (let i = 0; i < existingSerialized.length; i++) {
+    if (existingSerialized[i] !== pkgSerialized[i]) return false;
+  }
+  return true;
+}
+
+/** Comprueba si una definición de bloque existente es geométricamente y paramétricamente equivalente a una empaquetada. */
 function isBlockEquivalent(
   doc: CadDocument,
   existingBlockId: Id,
   pkgBlock: BlockRecord,
   pkgBlockEntities: Entity[],
+  blockIdMap?: Map<Id, Id>,
 ): boolean {
   const existing = doc.data.blocks.get(existingBlockId);
   if (!existing) return false;
   if (existing.kind !== pkgBlock.kind) return false;
   if (existing.basePoint.x !== pkgBlock.basePoint.x || existing.basePoint.y !== pkgBlock.basePoint.y) return false;
+  if (existing.units !== pkgBlock.units) return false;
+  if (Boolean(existing.annotative) !== Boolean(pkgBlock.annotative)) return false;
+  if (Boolean(existing.scaleUniformly) !== Boolean(pkgBlock.scaleUniformly)) return false;
+  if (Boolean(existing.explodable) !== Boolean(pkgBlock.explodable)) return false;
+  if (Boolean(existing.dynamic) !== Boolean(pkgBlock.dynamic)) return false;
 
   const existingEntities = doc.entitiesOf(existingBlockId);
   const pkgEntities = pkgBlockEntities.filter((e) => e.owner === pkgBlock.id);
-  if (existingEntities.length !== pkgEntities.length) return false;
+  return entitiesMatch(existingEntities, pkgEntities, blockIdMap);
+}
 
-  // Comparar tipos de entidades
-  const existingTypes = existingEntities.map((e) => e.type).sort();
-  const pkgTypes = pkgEntities.map((e) => e.type).sort();
-  for (let i = 0; i < existingTypes.length; i++) {
-    if (existingTypes[i] !== pkgTypes[i]) return false;
+/** Ordena bloques de forma topológica para que las dependencias anidadas se procesen antes de los bloques contenedores. */
+function sortBlocksTopologically(blocks: BlockRecord[], blockEntities: Entity[]): BlockRecord[] {
+  const deps = new Map<Id, Set<Id>>();
+  for (const b of blocks) {
+    deps.set(b.id, new Set());
   }
-  return true;
+  for (const e of blockEntities) {
+    const parent = deps.get(e.owner);
+    if (!parent) continue;
+    if (e.type === 'insert' && deps.has(e.blockId)) {
+      parent.add(e.blockId);
+    } else if (e.type === 'array' && deps.has(e.sourceBlockId)) {
+      parent.add(e.sourceBlockId);
+    }
+  }
+
+  const result: BlockRecord[] = [];
+  const visited = new Set<Id>();
+  const visiting = new Set<Id>();
+
+  const visit = (b: BlockRecord) => {
+    if (visited.has(b.id)) return;
+    if (visiting.has(b.id)) return;
+    visiting.add(b.id);
+    const bDeps = deps.get(b.id);
+    if (bDeps) {
+      for (const depId of bDeps) {
+        const depBlock = blocks.find((x) => x.id === depId);
+        if (depBlock) visit(depBlock);
+      }
+    }
+    visiting.delete(b.id);
+    visited.add(b.id);
+    result.push(b);
+  };
+
+  for (const b of blocks) {
+    visit(b);
+  }
+  return result;
 }
 
 /**
@@ -445,9 +539,15 @@ export function pasteClipboardPackage(
 
     // 9. Definiciones de bloque
     const allPkgBlockEntities = pkg.blockEntities ?? [];
-    for (const b of pkg.blocks ?? []) {
+    const orderedBlocks = sortBlocksTopologically(pkg.blocks ?? [], allPkgBlockEntities);
+    const blockEntityMap = new Map<Id, Id>();
+    for (const be of allPkgBlockEntities) {
+      blockEntityMap.set(be.id, newId());
+    }
+
+    for (const b of orderedBlocks) {
       const existing = doc.findByName('blocks', b.name);
-      if (existing && isBlockEquivalent(doc, existing.id, b, allPkgBlockEntities)) {
+      if (existing && isBlockEquivalent(doc, existing.id, b, allPkgBlockEntities, mapBlock)) {
         // Bloque equivalente ya existente: reutilizar
         mapBlock.set(b.id, existing.id);
         reusedBlocks.add(b.id);
@@ -460,18 +560,18 @@ export function pasteClipboardPackage(
         }
         const id = newId('blk');
         mapBlock.set(b.id, id);
-        tx.add('blocks', { ...structuredClone(b), id, name, revision: 1 });
+
+        let dynamicDef = b.dynamic;
+        if (dynamicDef) {
+          const json = JSON.stringify(dynamicDef).replace(/"([^"]+)"/g, (m, s: string) => (blockEntityMap.has(s as Id) ? `"${blockEntityMap.get(s as Id)}"` : m));
+          dynamicDef = JSON.parse(json);
+        }
+
+        tx.add('blocks', { ...structuredClone(b), id, name, dynamic: dynamicDef, revision: 1 });
       }
     }
 
     // 10. Entidades internas de los bloques (sólo para bloques nuevos no reutilizados)
-    const blockEntityMap = new Map<Id, Id>();
-    for (const be of allPkgBlockEntities) {
-      if (!reusedBlocks.has(be.owner)) {
-        blockEntityMap.set(be.id, newId());
-      }
-    }
-
     for (const be of allPkgBlockEntities) {
       if (reusedBlocks.has(be.owner)) continue;
 
@@ -566,6 +666,9 @@ export function pasteClipboardPackage(
         }
       } else if (clone.type === 'array') {
         clone.sourceBlockId = mapBlock.get(clone.sourceBlockId) ?? clone.sourceBlockId;
+        if (!doc.data.blocks.has(clone.sourceBlockId)) {
+          warnings.push(`Bloque fuente de matriz no encontrado: ${clone.sourceBlockId}`);
+        }
       } else if (clone.type === 'image' || clone.type === 'pdfunderlay') {
         clone.assetId = mapAsset.get(clone.assetId) ?? clone.assetId;
         if (!doc.data.assets.has(clone.assetId)) {

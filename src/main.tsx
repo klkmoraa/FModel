@@ -21,6 +21,7 @@ import { setPendingUpdate } from './commands/utility';
 import { readPackage, writePackage } from './io/native';
 import { createClipboardPackage, parseClipboardPackage, pasteClipboardPackage } from './io/clipboard';
 import { importDxfIntoDocument } from './io/dxf/importDxf';
+import { exportSvg } from './output/plot';
 
 registerAllCommands();
 
@@ -65,6 +66,7 @@ consumeLaunchQueue((file) => {
   doc,
   persistence,
   createDocument,
+  setPendingUpdate,
   io: {
     writePackage,
     readPackage,
@@ -77,7 +79,6 @@ consumeLaunchQueue((file) => {
       return exportDxf(editor.doc, editor.ctx);
     },
     exportSvg: async (spaceId: string) => {
-      const { exportSvg } = await import('./output/plot');
       return exportSvg({ doc: editor.doc, ctx: editor.ctx, index: editor.index }, spaceId);
     },
   },

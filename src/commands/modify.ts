@@ -1166,16 +1166,17 @@ const PASTECLIP: CommandDef = {
   label: L('Pegar', 'Paste'),
   description: L('Pega objetos del portapapeles en un punto de inserción.', 'Pastes clipboard objects at an insertion point.'),
   async run(api) {
-    let pkg: ClipboardPackage | LegacyClipboardPackage | null = clipboard;
-    if (!pkg) {
-      try {
-        const txt = await navigator.clipboard?.readText();
-        if (txt) {
-          pkg = parseClipboardPackage(txt);
-        }
-      } catch {
-        /* sin contenido compatible */
+    let pkg: ClipboardPackage | LegacyClipboardPackage | null = null;
+    try {
+      const txt = await navigator.clipboard?.readText();
+      if (txt) {
+        pkg = parseClipboardPackage(txt);
       }
+    } catch {
+      /* sin contenido compatible o permiso denegado en el navegador */
+    }
+    if (!pkg) {
+      pkg = clipboard;
     }
     if (!pkg) throw new CommandError(L('El portapapeles no contiene objetos de FModel.', 'The clipboard has no FModel objects.'));
     const d = pkg;

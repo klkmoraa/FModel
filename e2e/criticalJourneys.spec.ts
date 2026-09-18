@@ -124,11 +124,14 @@ test.describe('Recorridos críticos E2E en navegador real (TST-001)', () => {
     await page.goto('/?surface=workspace');
     await page.waitForFunction(() => !!(window as any).fmodel?.editor);
 
+    const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+
     // Crear entidades con bloque, estilo de texto e imagen
-    const pkgJson = await page.evaluate(async () => {
+    const pkgJson = await page.evaluate(async (pngData) => {
       const { editor, doc, io } = (window as any).fmodel;
 
       doc.transact('CREA_OBJETOS', (tx: any) => {
+        // 1. Estilo de texto y entidad texto
         tx.add('textStyles', {
           id: 'ts_e2e',
           name: 'EstiloE2E',
@@ -160,27 +163,131 @@ test.describe('Recorridos críticos E2E en navegador real (TST-001)', () => {
           halign: 'left',
           valign: 'baseline',
         });
+
+        // 2. Definición de bloque y entidad de inserción
+        tx.add('blocks', {
+          id: 'blk_e2e',
+          name: 'BloqueE2E',
+          kind: 'normal',
+          basePoint: { x: 0, y: 0 },
+          description: 'Bloque de prueba E2E',
+          units: 'unitless',
+          explodable: true,
+          scaleUniformly: true,
+          annotative: false,
+          revision: 1,
+        });
+        tx.addEntity({
+          id: 'e2e_inner_l1',
+          type: 'line',
+          owner: 'blk_e2e',
+          layer: '0',
+          color: 'ByLayer',
+          linetype: 'ByLayer',
+          linetypeScale: 1,
+          lineweight: -1,
+          transparency: 0,
+          visible: true,
+          order: 1,
+          start: { x: 0, y: 0 },
+          end: { x: 10, y: 10 },
+        });
+        tx.addEntity({
+          id: 'ins_e2e',
+          type: 'insert',
+          owner: '*model',
+          layer: '0',
+          color: 'ByLayer',
+          linetype: 'ByLayer',
+          linetypeScale: 1,
+          lineweight: -1,
+          transparency: 0,
+          visible: true,
+          order: 2,
+          blockId: 'blk_e2e',
+          position: { x: 30, y: 30 },
+          scale: { x: 1, y: 1 },
+          rotation: 0,
+          attributes: [],
+        });
+
+        // 3. Recurso binario (asset) y entidad imagen
+        tx.add('assets', {
+          id: 'ast_e2e',
+          name: 'logo_e2e.png',
+          mime: 'image/png',
+          size: 70,
+          dataUrl: pngData,
+        });
+        tx.addEntity({
+          id: 'img_e2e',
+          type: 'image',
+          owner: '*model',
+          layer: '0',
+          color: 'ByLayer',
+          linetype: 'ByLayer',
+          linetypeScale: 1,
+          lineweight: -1,
+          transparency: 0,
+          visible: true,
+          order: 3,
+          assetId: 'ast_e2e',
+          position: { x: 5, y: 5 },
+          u: { x: 20, y: 0 },
+          v: { x: 0, y: 20 },
+          clipEnabled: false,
+          opacity: 1,
+          fade: 0,
+          brightness: 50,
+          contrast: 50,
+        });
       });
 
-      const pkg = io.createClipboardPackage(doc, ['txt_e2e'], editor.ctx);
+      const pkg = io.createClipboardPackage(doc, ['txt_e2e', 'ins_e2e', 'img_e2e'], editor.ctx);
       return JSON.stringify(pkg);
-    });
+    }, PNG);
 
     expect(pkgJson).toContain('fmodel-clip');
     expect(pkgJson).toContain('EstiloE2E');
+    expect(pkgJson).toContain('BloqueE2E');
+    expect(pkgJson).toContain('ast_e2e');
 
-    // Pegar en un segundo dibujo limpio
-    const pasteOk = await page.evaluate(async (json) => {
+    // Pegar en un segundo dibujo limpio, guardar el resultado y reabrirlo
+    const roundtripResult = await page.evaluate(async (json) => {
       const { createDocument, io } = (window as any).fmodel;
       const dstDoc = createDocument({ title: 'Segundo dibujo' });
       const pkg = io.parseClipboardPackage(json);
-      const res = io.pasteClipboardPackage(dstDoc, pkg, '*model', { x: 50, y: 50 });
-      const hasStyle = dstDoc.data.textStyles.size > 1;
-      const hasEnt = res.insertedIds.length === 1;
-      return hasStyle && hasEnt;
+      const pasteRes = io.pasteClipboardPackage(dstDoc, pkg, '*model', { x: 50, y: 50 });
+
+      // Guardar el documento de destino a paquete nativo
+      const bytes = io.writePackage(dstDoc.data, dstDoc.id);
+
+      // Reabrir en un tercer documento limpio
+      const reopenedDoc = createDocument({ title: 'Reabierto' });
+      const readRes = io.readPackage(bytes);
+      reopenedDoc.replaceData(readRes.data, readRes.documentId);
+
+      // Comprobar que en el documento reabierto están el bloque, el recurso, el estilo y las 3 entidades
+      const hasBlock = [...reopenedDoc.data.blocks.values()].some((b: any) => b.name === 'BloqueE2E');
+      const hasAsset = [...reopenedDoc.data.assets.values()].some((a: any) => a.dataUrl?.startsWith('data:image/png'));
+      const hasStyle = [...reopenedDoc.data.textStyles.values()].some((s: any) => s.name === 'EstiloE2E');
+      const entitiesCount = reopenedDoc.data.entities.size;
+
+      return {
+        insertedCount: pasteRes.insertedIds.length,
+        hasBlock,
+        hasAsset,
+        hasStyle,
+        entitiesCount,
+      };
     }, pkgJson);
 
-    expect(pasteOk).toBe(true);
+    expect(roundtripResult.insertedCount).toBe(3);
+    expect(roundtripResult.hasBlock).toBe(true);
+    expect(roundtripResult.hasAsset).toBe(true);
+    expect(roundtripResult.hasStyle).toBe(true);
+    // Debe contener las 3 entidades en espacio modelo + 1 entidad interna del bloque
+    expect(roundtripResult.entitiesCount).toBe(4);
   });
 
   test('4. Importar/exportar DXF y mostrar informe', async ({ page }) => {
@@ -319,22 +426,38 @@ test.describe('Recorridos críticos E2E en navegador real (TST-001)', () => {
     expect(await page.evaluate(() => (window as any).fmodel.doc.data.entities.has('e2e_sw_l1'))).toBe(true);
     expect(await page.evaluate(() => (window as any).fmodel.doc.dirty)).toBe(true);
 
-    // Simular el registro de actualización de service worker llamando al callback registrado
-    const messageNotified = await page.evaluate(() => {
-      const { editor } = (window as any).fmodel;
-      let lastMsg = '';
-      editor.runner.message = (_kind: string, msg: any) => {
-        lastMsg = typeof msg === 'string' ? msg : (msg?.es ?? '');
+    // Simular que el service worker descargó una actualización y registró el callback
+    const updateResult = await page.evaluate(async () => {
+      const { editor, persistence, setPendingUpdate } = (window as any).fmodel;
+      let applied = false;
+      let warnMessage = '';
+      editor.runner.message = (kind: string, msg: any) => {
+        if (kind === 'warning' || kind === 'warn') {
+          warnMessage = typeof msg === 'string' ? msg : (msg?.es ?? '');
+        }
       };
-      // Invocar aviso de actualización de PWA
-      editor.runner.message('info', {
-        es: 'Hay una versión nueva de FModel lista. Guarda tu trabajo y escribe ACTUALIZAR para aplicarla.',
-        en: 'A new FModel version is ready. Save your work and type UPDATEAPP to apply it.',
+
+      setPendingUpdate(() => {
+        applied = true;
       });
-      return lastMsg;
+
+      // Ejecutar UPDATEAPP mientras el dibujo está dirty
+      await editor.command('UPDATEAPP');
+      await new Promise((r) => setTimeout(r, 50));
+
+      const recovery = await persistence.pendingRecovery();
+      return {
+        applied,
+        warnMessage,
+        hasRecovery: recovery !== null && recovery.name !== '',
+      };
     });
 
-    expect(messageNotified).toContain('Hay una versión nueva de FModel lista');
+    // UPDATEAPP ejecutó el callback de actualización y protegió el autoguardado
+    expect(updateResult.applied).toBe(true);
+    expect(updateResult.warnMessage).toContain('cambios sin guardar');
+    expect(updateResult.hasRecovery).toBe(true);
+
     // El dibujo abierto sigue intacto con sus cambios
     expect(await page.evaluate(() => (window as any).fmodel.doc.data.entities.has('e2e_sw_l1'))).toBe(true);
     expect(await page.evaluate(() => (window as any).fmodel.doc.dirty)).toBe(true);

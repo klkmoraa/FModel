@@ -12,6 +12,7 @@ import type {
 } from '../document/types';
 import { MODEL_SPACE_ID } from '../document/types';
 import {
+  ClipboardError,
   createClipboardPackage,
   parseClipboardPackage,
   pasteClipboardPackage,
@@ -402,5 +403,165 @@ describe('portapapeles portable (DAT-002)', () => {
 
     // El dibujo destino sigue intacto
     expect(dstDoc.data.entities.size).toBe(entitiesCountBefore);
+  });
+
+  it('resuelve colisión de nombres creando sufijo cuando la definición no es equivalente geométricamente', () => {
+    const dstDoc = createDocument({ title: 'Destino con silla pequeña' });
+    const srcDoc = createDocument({ title: 'Origen con silla grande' });
+
+    // En dstDoc creamos bloque "Silla" con línea pequeña (0,0) -> (10,10)
+    dstDoc.transact('CREA_SILLA_CHICA', (tx) => {
+      tx.add('blocks', {
+        id: 'blk_silla_chica',
+        name: 'Silla',
+        kind: 'normal',
+        basePoint: { x: 0, y: 0 },
+        description: 'Silla chica',
+        units: 'unitless',
+        explodable: true,
+        scaleUniformly: true,
+        annotative: false,
+        revision: 1,
+      });
+      tx.addEntity<LineEntity>({
+        ...entityDefaults(dstDoc),
+        id: 'l_chica',
+        type: 'line',
+        owner: 'blk_silla_chica',
+        start: { x: 0, y: 0 },
+        end: { x: 10, y: 10 },
+      });
+    });
+
+    // En srcDoc creamos bloque "Silla" con línea grande (0,0) -> (500,500)
+    srcDoc.transact('CREA_SILLA_GRANDE', (tx) => {
+      tx.add('blocks', {
+        id: 'blk_silla_grande',
+        name: 'Silla',
+        kind: 'normal',
+        basePoint: { x: 0, y: 0 },
+        description: 'Silla grande',
+        units: 'unitless',
+        explodable: true,
+        scaleUniformly: true,
+        annotative: false,
+        revision: 1,
+      });
+      tx.addEntity<LineEntity>({
+        ...entityDefaults(srcDoc),
+        id: 'l_grande',
+        type: 'line',
+        owner: 'blk_silla_grande',
+        start: { x: 0, y: 0 },
+        end: { x: 500, y: 500 },
+      });
+      tx.addEntity<InsertEntity>({
+        ...entityDefaults(srcDoc),
+        id: 'ins_silla_grande',
+        type: 'insert',
+        blockId: 'blk_silla_grande',
+        position: { x: 0, y: 0 },
+        scale: { x: 1, y: 1 },
+        rotation: 0,
+        attributes: [],
+      });
+    });
+
+    const pkg = createClipboardPackage(srcDoc, ['ins_silla_grande']);
+    const res = pasteClipboardPackage(dstDoc, pkg, MODEL_SPACE_ID, { x: 20, y: 20 });
+    expect(res.insertedIds.length).toBe(1);
+
+    // Debe conservar el bloque original intacto con su línea pequeña
+    const originalBlock = dstDoc.findByName('blocks', 'Silla')!;
+    expect(originalBlock.id).toBe('blk_silla_chica');
+    const chicaEntities = dstDoc.entitiesOf('blk_silla_chica') as LineEntity[];
+    expect(chicaEntities[0].end).toEqual({ x: 10, y: 10 });
+
+    // Debe haber creado un nuevo bloque con sufijo 'Silla (2)' para la geometría grande
+    const newBlock = dstDoc.findByName('blocks', 'Silla (2)')!;
+    expect(newBlock).toBeDefined();
+    const grandeEntities = dstDoc.entitiesOf(newBlock.id) as LineEntity[];
+    expect(grandeEntities[0].end).toEqual({ x: 500, y: 500 });
+
+    // La entidad insert pegada debe apuntar a 'Silla (2)'
+    const pastedInsert = dstDoc.entity(res.insertedIds[0]) as InsertEntity;
+    expect(pastedInsert.blockId).toBe(newBlock.id);
+  });
+
+  it('copia bloque dinámico y remapea identificadores internos de entidades en dynamic', () => {
+    const srcDoc = createDocument({ title: 'Origen dinámico' });
+    const dstDoc = createDocument({ title: 'Destino' });
+
+    srcDoc.transact('CREA_DINAMICO', (tx) => {
+      tx.add('blocks', {
+        id: 'blk_dyn',
+        name: 'PuertaDinamica',
+        kind: 'normal',
+        basePoint: { x: 0, y: 0 },
+        description: 'Puerta con apertura dinámica',
+        units: 'unitless',
+        explodable: true,
+        scaleUniformly: true,
+        annotative: false,
+        revision: 1,
+        dynamic: {
+          parameters: [
+            { id: 'p_ancho', name: 'Ancho', type: 'linear', basePoint: { x: 0, y: 0 }, endPoint: { x: 90, y: 0 } } as any,
+          ],
+          actions: [
+            { id: 'act_stretch', type: 'stretch', name: 'Estirar', paramId: 'p_ancho', selection: ['l_hoja'] } as any,
+          ],
+          constraints: [],
+          lookups: [],
+          variables: [],
+          propertyOrder: [],
+        },
+      });
+      tx.addEntity<LineEntity>({
+        ...entityDefaults(srcDoc),
+        id: 'l_hoja',
+        type: 'line',
+        owner: 'blk_dyn',
+        start: { x: 0, y: 0 },
+        end: { x: 90, y: 0 },
+      });
+      tx.addEntity<InsertEntity>({
+        ...entityDefaults(srcDoc),
+        id: 'ins_dyn',
+        type: 'insert',
+        blockId: 'blk_dyn',
+        position: { x: 0, y: 0 },
+        scale: { x: 1, y: 1 },
+        rotation: 0,
+        attributes: [],
+      });
+    });
+
+    const pkg = createClipboardPackage(srcDoc, ['ins_dyn']);
+    const res = pasteClipboardPackage(dstDoc, pkg, MODEL_SPACE_ID, { x: 0, y: 0 });
+    const pastedInsert = dstDoc.entity(res.insertedIds[0]) as InsertEntity;
+    const pastedBlock = dstDoc.data.blocks.get(pastedInsert.blockId)!;
+    const pastedEntities = dstDoc.entitiesOf(pastedBlock.id);
+
+    // El dynamic debe apuntar al ID de la nueva entidad interna del bloque, no a 'l_hoja'
+    expect(pastedBlock.dynamic?.actions[0].selection[0]).toBe(pastedEntities[0].id);
+    expect(pastedBlock.dynamic?.actions[0].selection[0]).not.toBe('l_hoja');
+  });
+
+  it('arremete ClipboardError ante valores numéricos no finitos', () => {
+    const invalidPackage = {
+      format: 'fmodel-clip',
+      version: 2,
+      base: { x: 0, y: 0 },
+      entities: [
+        {
+          id: 'bad',
+          type: 'line',
+          start: { x: Infinity, y: 0 },
+          end: { x: 1, y: 1 },
+        },
+      ],
+    };
+    expect(() => validateClipboardPackage(invalidPackage)).toThrowError(ClipboardError);
   });
 });

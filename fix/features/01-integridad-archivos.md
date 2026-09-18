@@ -74,7 +74,7 @@
 
 **Cierre:** 2026-09-18
 
-**Verificación:** `pnpm vitest run src/io/clipboard.test.ts` (8 pruebas focalizadas) y `pnpm lint && pnpm verify` (50 archivos, 385 pruebas, capas correctas, typecheck estricto y build limpio).
+**Verificación:** `pnpm vitest run src/io/clipboard.test.ts` (11 pruebas focalizadas, incluyendo resolución de colisiones geométricas disímiles, remapeo de entidades dinámicas y rechazo de no finitos) y `pnpm lint && pnpm verify` (50 archivos, 391 pruebas, capas correctas, typecheck estricto y build limpio sin avisos).
 
 ---
 

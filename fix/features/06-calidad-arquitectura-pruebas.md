@@ -34,7 +34,7 @@
 - [x] Capturas/trazas se conservan solo al fallar.
 - [x] Los recorridos P1 forman parte de la puerta de despliegue.
 
-**Verificación:** `pnpm test:e2e && pnpm lint && pnpm verify` (8 pruebas en navegador real pasan en 3.2s).
+**Verificación:** `pnpm test:e2e && pnpm lint && pnpm verify` (8 pruebas en navegador real pasan en 3.6s, cubriendo roundtrip completo de bloque, imagen con asset y texto, además de protección de dibujo sucio ante UPDATEAPP y soporte de WebKit para CI).
 
 ---
 

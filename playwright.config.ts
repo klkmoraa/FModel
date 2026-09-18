@@ -20,6 +20,14 @@ export default defineConfig({
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
     },
+    ...(process.env.PLAYWRIGHT_WEBKIT
+      ? [
+          {
+            name: 'webkit',
+            use: { ...devices['Desktop Safari'] },
+          },
+        ]
+      : []),
   ],
   webServer: {
     command: 'pnpm preview --port 4173',

@@ -43,7 +43,17 @@ jobs:
         run: pnpm exec vite build
 
       - name: Instalar navegadores Playwright
-        run: pnpm exec playwright install --with-deps chromium
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            pnpm exec playwright install --with-deps chromium webkit
+          else
+            pnpm exec playwright install --with-deps chromium
+          fi
 
       - name: Pruebas E2E en navegador real
-        run: pnpm test:e2e
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            PLAYWRIGHT_WEBKIT=1 pnpm test:e2e
+          else
+            pnpm test:e2e
+          fi

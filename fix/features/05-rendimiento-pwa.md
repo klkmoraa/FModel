@@ -31,7 +31,7 @@
 
 **Cierre:** 2026-09-18
 
-**Verificación:** `pnpm vitest run src/pwa/serviceWorker.test.ts` (6 pruebas focalizadas) y `pnpm lint && pnpm verify` (50 archivos, 388 pruebas, capas correctas, typecheck estricto y build limpio con service worker emitido).
+**Verificación:** `pnpm vitest run src/pwa/serviceWorker.test.ts` (6 pruebas focalizadas) y `pnpm lint && pnpm verify` (50 archivos, 391 pruebas, capas correctas, typecheck estricto y build limpio con service worker emitido sin avisos).
 
 ---
 
