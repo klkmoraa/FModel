@@ -36,6 +36,7 @@ button {
   background: none;
   border: 0;
   padding: 0;
+  -webkit-tap-highlight-color: transparent;
 }
 
 :focus-visible {
@@ -56,9 +57,12 @@ button {
 
 .app {
   display: grid;
+  /* una sola columna acotada: ninguna barra ancha puede estirar el armazón ni sacar el lienzo de la pantalla */
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: var(--fm-topbar-h) auto minmax(0, 1fr) auto var(--fm-status-h);
   height: 100dvh;
   width: 100vw;
+  overflow: hidden;
   background: var(--paper);
 }
 
@@ -72,7 +76,7 @@ button {
 .app > .workspace {
   grid-row: 3;
 }
-.app > .mobile-tools {
+.app > .mbar {
   grid-row: 4;
 }
 .app > .statusbar {
@@ -426,6 +430,8 @@ kbd {
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
+  /* la pulsación larga es el menú contextual del CAD, no el de iOS */
+  -webkit-touch-callout: none;
 }
 .canvas-host canvas {
   position: absolute;
@@ -1080,14 +1086,297 @@ table.grid tr.is-active td {
   display: none;
 }
 
+/* --------------------------------------------------------------- barra táctil (móvil) */
+
+.mbar {
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 6px calc(4px + env(safe-area-inset-bottom));
+  background: var(--surface);
+  border-top: 1px solid var(--line-soft);
+  box-shadow: var(--shadow-sheet);
+}
+.mbar__ctx {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 38px;
+}
+.mbar__handle {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 34px;
+  border-radius: 8px;
+  color: var(--ink-muted);
+  flex-shrink: 0;
+}
+.mbar__prompt {
+  flex: 1;
+  min-width: 0;
+  font: 500 12.5px/1.25 var(--fs-font-data);
+  color: var(--ink-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mbar__prompt b {
+  color: var(--ink);
+  font-weight: 650;
+}
+.mbar__prompt--coords {
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+.mbar__act {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--surface-sunken);
+  color: var(--ink);
+  flex-shrink: 0;
+}
+.mbar__act:active {
+  transform: var(--press);
+}
+.mbar__act--go {
+  background: var(--fm-accent);
+  color: var(--fm-accent-ink);
+}
+.mbar__act--stop {
+  color: var(--fm-danger);
+}
+.mbar__chips {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 1px;
+  -webkit-overflow-scrolling: touch;
+}
+.mbar__chips::-webkit-scrollbar {
+  display: none;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  padding: 0 11px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line-soft);
+  background: var(--surface);
+  color: var(--ink-secondary);
+  font: 600 11px/1 var(--fs-font-data);
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.chip.is-on {
+  border-color: transparent;
+  background: var(--fm-accent-soft);
+  color: var(--fm-accent);
+  box-shadow: inset 0 0 0 1px var(--fm-accent-line);
+}
+.chip--kw {
+  border-color: var(--line);
+  color: var(--ink);
+  text-transform: none;
+  letter-spacing: 0;
+  font-family: var(--fs-font-ui);
+  font-size: 12px;
+}
+.chip--icon {
+  padding: 0 9px;
+  color: var(--ink-muted);
+}
+.chip__sep {
+  width: 1px;
+  height: 18px;
+  background: var(--line);
+  flex-shrink: 0;
+  margin: 0 2px;
+}
+.mbar__tools {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  min-width: 0;
+}
+.mbar__tools-scroll {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.mbar__tools-scroll::-webkit-scrollbar {
+  display: none;
+}
+.mbar__tools .tool-lg {
+  width: 62px;
+  min-height: 58px;
+  flex-shrink: 0;
+}
+.mbar__tools .tool-lg span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tool-lg--more {
+  color: var(--fm-accent);
+  border-left: 1px solid var(--line-soft);
+  border-radius: 0 10px 10px 0;
+}
+.mbar--collapsed .mbar__chips,
+.mbar--collapsed .mbar__tools {
+  display: none;
+}
+
+/* hoja con todas las herramientas */
+.tool-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  padding-top: env(safe-area-inset-top);
+}
+.tool-sheet__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.tool-sheet__head .input {
+  flex: 1;
+  height: 38px;
+}
+.tool-sheet__tabs {
+  display: flex;
+  gap: 5px;
+  padding: 8px 12px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-bottom: 1px solid var(--line-soft);
+}
+.tool-sheet__tabs::-webkit-scrollbar {
+  display: none;
+}
+.tool-sheet__body {
+  flex: 1;
+  overflow: auto;
+  padding: 10px 12px calc(20px + env(safe-area-inset-bottom));
+  -webkit-overflow-scrolling: touch;
+}
+.tool-sheet__body section {
+  margin-bottom: 14px;
+}
+.tool-sheet__body h3 {
+  margin: 0 0 6px;
+}
+.tool-sheet__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 4px;
+}
+.tool-sheet__item {
+  position: relative;
+}
+.tool-sheet__item .tool-lg {
+  width: 100%;
+  min-height: 66px;
+  border: 1px solid var(--line-soft);
+}
+.tool-sheet__fav {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  color: var(--ink-faint);
+}
+.tool-sheet__fav.is-on {
+  color: var(--fm-accent);
+}
+.tool-sheet__fav.is-on svg {
+  fill: currentColor;
+}
+.tool-sheet__empty {
+  color: var(--ink-muted);
+  font-size: 12.5px;
+}
+
+/* zoom flotante sobre el lienzo */
+.touch-hud {
+  position: absolute;
+  right: 10px;
+  bottom: 12px;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.hud-btn {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--surface) 90%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: var(--shadow-float);
+  color: var(--ink-secondary);
+}
+.hud-btn:active {
+  transform: var(--press);
+  color: var(--fm-accent);
+}
+
+/* objetivos mayores en cualquier pantalla táctil, no solo en el teléfono */
+@media (pointer: coarse) {
+  .icon-btn {
+    width: 40px;
+    height: 40px;
+  }
+  .dock__tab,
+  .space-tab {
+    min-height: 34px;
+  }
+  .kw-chip {
+    height: 30px;
+    padding: 0 12px;
+  }
+  .cmdline__log:hover {
+    max-height: 82px;
+  }
+}
+
 @media (max-width: 820px) {
   :root {
-    --fm-topbar-h: 50px;
+    --fm-topbar-h: calc(50px + env(safe-area-inset-top));
     --fm-status-h: 0px;
   }
   .app {
     grid-template-rows: var(--fm-topbar-h) 0 minmax(0, 1fr) auto 0;
   }
+  .topbar {
+    gap: 2px;
+    padding: env(safe-area-inset-top) 6px 0;
+  }
+  .topbar__lang,
   .ribbon,
   .doc-tabs,
   .search-trigger span,
@@ -1097,7 +1386,7 @@ table.grid tr.is-active td {
   }
   .search-trigger {
     min-width: 0;
-    width: 36px;
+    width: 40px;
     padding: 0;
     justify-content: center;
   }
@@ -1113,50 +1402,131 @@ table.grid tr.is-active td {
     left: 0;
     right: 0;
     bottom: 0;
-    height: 62dvh;
+    height: 70dvh;
     z-index: 40;
     width: 100% !important;
+    padding-bottom: env(safe-area-inset-bottom);
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
     box-shadow: var(--shadow-sheet);
     border: 0;
   }
+  /* asidero: deja claro que es una hoja y no un panel acoplado */
+  .dock.is-sheet::before {
+    content: '';
+    width: 38px;
+    height: 4px;
+    margin: 8px auto 2px;
+    border-radius: 2px;
+    background: var(--line);
+    flex-shrink: 0;
+  }
+  .dock.is-sheet .dock__body {
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+  }
   .statusbar {
     display: none;
   }
-  .mobile-tools {
+  .mbar {
     display: flex;
-    gap: 4px;
-    padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
-    background: var(--surface);
-    border-top: 1px solid var(--line-soft);
-    overflow-x: auto;
-    scrollbar-width: none;
   }
-  .mobile-tools .tool-lg {
-    width: 58px;
-    flex-shrink: 0;
-  }
+  /* la línea de comandos flota sobre el lienzo, encima de la barra táctil */
   .cmdline {
     bottom: 8px;
+    width: calc(100% - 16px);
   }
   .cmdline__log {
-    max-height: 64px;
+    max-height: 56px;
+    font-size: 11.5px;
   }
-  .cmdline__prompt {
-    max-width: 40%;
+  .cmdline__bar {
+    min-height: 44px;
+  }
+  .cmdline__prompt,
+  .cmdline__kw {
+    display: none;
+  }
+  .cmdline__input {
+    height: 36px;
+    font-size: 16px; /* menos de 16px hace que Safari acerque la página al enfocar */
   }
   .canvas-host {
     cursor: default;
   }
-  .coords-mobile {
-    position: absolute;
+  .stage__canvas--nocmd .cmdline {
+    display: none;
+  }
+  .stage__canvas--nocmd .touch-hud {
+    bottom: 12px;
+  }
+  .touch-hud {
+    bottom: 64px;
+  }
+  .quickprops {
     top: 8px;
     left: 8px;
-    z-index: 4;
-    padding: 4px 8px;
-    border-radius: 8px;
-    background: color-mix(in srgb, var(--surface) 85%, transparent);
-    font: 500 11px var(--fs-font-data);
+    width: min(260px, calc(100% - 16px));
+  }
+  /* diálogos: a pantalla casi completa y con sitio para el teclado */
+  .veil {
+    padding: 0;
+    align-items: end;
+  }
+  .dialog,
+  .dialog--wide {
+    width: 100%;
+    max-height: 92dvh;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .dialog__foot {
+    padding-bottom: 14px;
+  }
+  .palette {
+    margin-top: 6vh;
+  }
+  .space-tabs {
+    padding: 2px 8px;
+  }
+}
+
+/* teléfono en horizontal: la barra táctil se aprieta para no comerse el lienzo */
+@media (max-width: 920px) and (max-height: 520px) {
+  .mbar {
+    gap: 2px;
+    padding: 2px 6px calc(2px + env(safe-area-inset-bottom));
+  }
+  .mbar__ctx {
+    min-height: 34px;
+  }
+  .mbar__act,
+  .mbar__handle {
+    height: 32px;
+  }
+  .chip {
+    height: 26px;
+  }
+  .mbar__tools .tool-lg {
+    min-height: 40px;
+    width: 54px;
+    font-size: 10px;
+    gap: 1px;
+    padding: 3px 2px 2px;
+  }
+  .mbar__tools .tool-lg svg {
+    width: 17px;
+    height: 17px;
+  }
+  .touch-hud {
+    flex-direction: row;
+    bottom: 10px;
+  }
+  .hud-btn {
+    width: 38px;
+    height: 38px;
+  }
+  .dock.is-sheet {
+    height: 86dvh;
   }
 }
 

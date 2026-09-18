@@ -2,7 +2,7 @@ import { Plus, RotateCcw, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { allCommands, findCommand } from '../../commands/registry';
 import type { Editor } from '../../editor/editor';
-import type { CanvasBg, ThemePref } from '../../editor/preferences';
+import type { CanvasBg, ThemePref, WheelMode } from '../../editor/preferences';
 import { DEFAULT_PREFERENCES, DEFAULT_SHORTCUTS } from '../../editor/preferences';
 import { Dialog } from '../Dialogs';
 import { NumberField, Toggle, tr } from '../controls';
@@ -126,6 +126,14 @@ export function OptionsDialog({ editor, onClose, initialTab }: { editor: Editor;
               <option value="paper">{tr(lang, 'Papel', 'Paper')}</option>
               <option value="charcoal">{tr(lang, 'Carbón', 'Charcoal')}</option>
               <option value="black">{tr(lang, 'Negro', 'Black')}</option>
+            </select>
+          </div>
+          <div className="field">
+            <label>{tr(lang, 'Rueda del ratón / dos dedos', 'Mouse wheel / two fingers')}</label>
+            <select className="select" value={p.wheelMode} onChange={(e) => editor.setPrefs({ wheelMode: e.target.value as WheelMode })}>
+              <option value="auto">{tr(lang, 'Automático (rueda = zoom, panel táctil = encuadre)', 'Automatic (wheel = zoom, trackpad = pan)')}</option>
+              <option value="zoom">{tr(lang, 'Siempre zoom', 'Always zoom')}</option>
+              <option value="pan">{tr(lang, 'Siempre encuadre (Ctrl para el zoom)', 'Always pan (Ctrl to zoom)')}</option>
             </select>
           </div>
           <div className="field">

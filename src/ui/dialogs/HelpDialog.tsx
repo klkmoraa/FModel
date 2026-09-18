@@ -140,6 +140,8 @@ export function HelpDialog({ editor, onClose }: { editor: Editor; onClose: () =>
                 ['Mayús + clic', tr(lang, 'Quita de la selección', 'Removes from selection')],
                 [tr(lang, 'Arrastre hacia la derecha / izquierda', 'Drag right / left'), tr(lang, 'Ventana (objetos completos) / captura (objetos tocados)', 'Window (whole objects) / crossing (touched objects)')],
                 [tr(lang, 'Rueda / botón central', 'Wheel / middle button'), tr(lang, 'Zoom en el cursor / encuadre; doble clic central = extensión', 'Zoom at cursor / pan; middle double-click = extents')],
+                [tr(lang, 'Dos dedos en el panel táctil', 'Two fingers on a trackpad'), tr(lang, 'Encuadre; el pellizco hace zoom. Se puede fijar en Opciones › Visualización', 'Pan; pinch zooms. It can be fixed in Options › Display')],
+                [tr(lang, 'Un dedo / dos dedos (pantalla táctil)', 'One finger / two fingers (touchscreen)'), tr(lang, 'Sitúa el punto con lupa o encuadra; pulsación larga = clic derecho; doble pulsación = doble clic', 'Places the point with a magnifier or pans; long press = right-click; double tap = double-click')],
                 [tr(lang, 'Clic derecho', 'Right-click'), tr(lang, 'Intro (termina la designación o repite)', 'Enter (ends selection or repeats)')],
                 [tr(lang, 'Doble clic en presentación', 'Double-click in layout'), tr(lang, 'Entra o sale de un viewport', 'Enters or leaves a viewport')],
                 ['@x,y · @d<a · x,y', tr(lang, 'Coordenadas relativas, polares y absolutas', 'Relative, polar and absolute coordinates')],

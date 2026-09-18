@@ -4,11 +4,14 @@ import { DEFAULT_SNAP_SETTINGS } from '../snap/snapEngine';
 
 export type ThemePref = 'system' | 'dia' | 'noche';
 export type CanvasBg = 'auto' | 'paper' | 'charcoal' | 'black';
+/** Qué hace la rueda / el desplazamiento de dos dedos: deducirlo, hacer zoom siempre o encuadrar siempre. */
+export type WheelMode = 'auto' | 'zoom' | 'pan';
 
 export interface Preferences {
   lang: Lang;
   theme: ThemePref;
   canvasBackground: CanvasBg;
+  wheelMode: WheelMode;
   snap: SnapSettings;
   grid: { on: boolean; spacing: number; majorEvery: number; adaptive: boolean };
   dynamicInput: { on: boolean; relative: boolean; showTooltips: boolean };
@@ -63,6 +66,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   lang: typeof navigator !== 'undefined' && navigator.language?.toLowerCase().startsWith('en') ? 'en' : 'es',
   theme: 'system',
   canvasBackground: 'auto',
+  wheelMode: 'auto',
   snap: DEFAULT_SNAP_SETTINGS,
   grid: { on: true, spacing: 10, majorEvery: 5, adaptive: true },
   dynamicInput: { on: true, relative: true, showTooltips: true },

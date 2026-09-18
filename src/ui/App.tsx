@@ -3,7 +3,7 @@ import { QuickProperties } from './QuickProperties';
 import { Onboarding } from './Onboarding';
 import { comboOf } from './keys';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { findCommand } from '../commands/registry';
+
 import type { Editor } from '../editor/editor';
 import { themeFor } from '../render/theme';
 import { CanvasView } from './CanvasView';
@@ -19,6 +19,7 @@ import { SpaceTabs } from './SpaceTabs';
 import { StatusBar } from './StatusBar';
 import { Docks } from './Docks';
 import { Dialogs, type DialogState } from './Dialogs';
+import { MobileBar, TouchHud } from './MobileBar';
 
 export function App({ editor }: { editor: Editor }) {
   useEditorEvents(editor, ['prefs', 'command', 'space']);
@@ -30,6 +31,8 @@ export function App({ editor }: { editor: Editor }) {
   const [clean, setClean] = useState(false);
   const [dialog, setDialog] = useState<DialogState | null>(null);
   const [mobileSheet, setMobileSheet] = useState<string | null>(null);
+  // en el teléfono la línea de comandos solo ocupa lienzo cuando hace falta: con comando en marcha o al pedirla
+  const [cmdOpen, setCmdOpen] = useState(false);
   const cmdRef = useRef<CommandLineHandle>(null);
   const dynRef = useRef<DynamicInputHandle>(null);
   const isMobile = useMediaQuery('(max-width: 820px)');
@@ -126,8 +129,6 @@ export function App({ editor }: { editor: Editor }) {
     }
   };
 
-  const mobileTools = ['LINE', 'PLINE', 'CIRCLE', 'ARC', 'RECTANG', 'MOVE', 'COPY', 'TRIM', 'OFFSET', 'ERASE', 'DIMLINEAR', 'MTEXT', 'HATCH', 'U', 'REDO'];
-
   return (
     <div className={`app${clean ? ' app--clean' : ''}`} data-busy={editor.runner.busy || undefined}>
       <header className="topbar">
@@ -159,7 +160,7 @@ export function App({ editor }: { editor: Editor }) {
         <button className="icon-btn" onClick={() => editor.setPrefs({ theme: dark ? 'dia' : 'noche' })} title={lang === 'es' ? 'Día / noche' : 'Day / night'}>
           {dark ? <Sun size={17} /> : <Moon size={17} />}
         </button>
-        <button className="icon-btn" onClick={() => editor.setPrefs({ lang: lang === 'es' ? 'en' : 'es' })} title={lang === 'es' ? 'Cambiar a inglés' : 'Switch to Spanish'} style={{ font: '600 11px var(--fs-font-data)' }}>
+        <button className="icon-btn topbar__lang" onClick={() => editor.setPrefs({ lang: lang === 'es' ? 'en' : 'es' })} title={lang === 'es' ? 'Cambiar a inglés' : 'Switch to Spanish'} style={{ font: '600 11px var(--fs-font-data)' }}>
           {lang.toUpperCase()}
         </button>
         <button className="icon-btn" onClick={() => openUi('file-menu')} title={lang === 'es' ? 'Archivo' : 'File'}>
@@ -170,37 +171,27 @@ export function App({ editor }: { editor: Editor }) {
       <main className="workspace">
         <Docks editor={editor} side="left" mobileSheet={mobileSheet} onCloseSheet={() => setMobileSheet(null)} onUi={openUi} />
         <section className="stage">
-          <div className="stage__canvas">
+          <div className={`stage__canvas${isMobile && !cmdOpen && !editor.runner.busy ? ' stage__canvas--nocmd' : ''}`}>
             <CanvasView editor={editor} theme={theme} />
             <DynamicInput ref={dynRef} editor={editor} />
-            <CommandLine ref={cmdRef} editor={editor} />
+            <CommandLine ref={cmdRef} editor={editor} onDismiss={isMobile ? () => setCmdOpen(false) : undefined} />
             <CyclingList editor={editor} />
             <QuickProperties editor={editor} onMore={() => openUi('panel:properties')} />
+            {isMobile && <TouchHud editor={editor} />}
           </div>
           <SpaceTabs editor={editor} onUi={openUi} />
         </section>
         <Docks editor={editor} side="right" mobileSheet={mobileSheet} onCloseSheet={() => setMobileSheet(null)} onUi={openUi} />
       </main>
       {isMobile ? (
-        <nav className="mobile-tools" aria-label={lang === 'es' ? 'Herramientas' : 'Tools'}>
-          {mobileTools.map((c) => {
-            const def = findCommand(c);
-            return (
-              <button key={c} className="tool-lg" onClick={() => runCommand(c)}>
-                <CadIcon name={def?.icon ?? 'properties'} size={20} />
-                <span>{def?.label[lang] ?? c}</span>
-              </button>
-            );
-          })}
-          <button className="tool-lg" onClick={() => setMobileSheet('layers')}>
-            <CadIcon name="layers" size={20} />
-            <span>{lang === 'es' ? 'Capas' : 'Layers'}</span>
-          </button>
-          <button className="tool-lg" onClick={() => setMobileSheet('properties')}>
-            <CadIcon name="properties" size={20} />
-            <span>{lang === 'es' ? 'Propiedades' : 'Properties'}</span>
-          </button>
-        </nav>
+        <MobileBar
+          editor={editor}
+          onUi={openUi}
+          onKeyboard={() => {
+            setCmdOpen(true);
+            requestAnimationFrame(() => cmdRef.current?.focus());
+          }}
+        />
       ) : (
         <StatusBar editor={editor} onOpenSettings={() => openUi('drafting-settings')} fullscreen={clean} onFullscreen={toggleFullscreen} />
       )}

@@ -868,6 +868,17 @@ export class Editor {
     this.pointerMove(screen);
   }
 
+  /** Encuadre en píxeles de pantalla (rueda, panel táctil o dos dedos), respetando el viewport activo. */
+  panView(dx: number, dy: number) {
+    if (dx === 0 && dy === 0) return;
+    const vp = this.navigableViewport;
+    if (vp) this.panViewportPixels(vp, dx, dy);
+    else {
+      this.view.panPixels(dx, dy);
+      this.emit('view');
+    }
+  }
+
   pinch(center: Vec2, factor: number, pan: Vec2) {
     const vp = this.navigableViewport;
     if (vp) {

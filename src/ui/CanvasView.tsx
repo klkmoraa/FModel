@@ -5,6 +5,7 @@ import { renderOverlay } from '../render/overlayRenderer';
 import { renderScene } from '../render/sceneRenderer';
 import { drawTouchLoupe } from '../render/loupe';
 import type { RenderTheme } from '../render/theme';
+import { WheelClassifier } from './wheelInput';
 
 interface Props {
   editor: Editor;
@@ -16,10 +17,20 @@ interface TouchState {
   pointers: Map<number, { x: number; y: number }>;
   lastCenter: { x: number; y: number } | null;
   lastDist: number;
+  /** separación al empezar el gesto de dos dedos: hasta superar el margen solo se encuadra */
+  startDist: number;
+  zooming: boolean;
   tapStart: { x: number; y: number; t: number } | null;
+  lastTap: { x: number; y: number; t: number } | null;
   moved: boolean;
   longPress: number;
 }
+
+/** Margen del pellizco: dos dedos que se mueven juntos encuadran sin alterar el zoom. */
+const PINCH_DEADZONE_PX = 14;
+/** Ventana y radio de la doble pulsación (equivale al doble clic). */
+const DOUBLE_TAP_MS = 320;
+const DOUBLE_TAP_PX = 28;
 
 export function CanvasView({ editor, theme, onContextMenu }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
@@ -119,7 +130,8 @@ export function CanvasView({ editor, theme, onContextMenu }: Props) {
   // entrada
   useEffect(() => {
     const host = hostRef.current!;
-    const touch: TouchState = { pointers: new Map(), lastCenter: null, lastDist: 0, tapStart: null, moved: false, longPress: 0 };
+    const touch: TouchState = { pointers: new Map(), lastCenter: null, lastDist: 0, startDist: 0, zooming: false, tapStart: null, lastTap: null, moved: false, longPress: 0 };
+    const wheels = new WheelClassifier();
     const local = (e: PointerEvent | WheelEvent | MouseEvent) => {
       const r = host.getBoundingClientRect();
       return { x: e.clientX - r.left, y: e.clientY - r.top };
@@ -157,6 +169,8 @@ export function CanvasView({ editor, theme, onContextMenu }: Props) {
           const pts = [...touch.pointers.values()];
           touch.lastCenter = { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 };
           touch.lastDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+          touch.startDist = touch.lastDist;
+          touch.zooming = false;
         }
         return;
       }
@@ -172,7 +186,13 @@ export function CanvasView({ editor, theme, onContextMenu }: Props) {
           const pts = [...touch.pointers.values()];
           const c = { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 };
           const d = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
-          if (touch.lastCenter && touch.lastDist > 0) editor.pinch(c, d / touch.lastDist, { x: c.x - touch.lastCenter.x, y: c.y - touch.lastCenter.y });
+          // dos dedos que se desplazan juntos encuadran: el zoom no entra hasta separarlos de veras
+          if (!touch.zooming && Math.abs(d - touch.startDist) > PINCH_DEADZONE_PX) touch.zooming = true;
+          if (touch.lastCenter && touch.lastDist > 0) {
+            const pan = { x: c.x - touch.lastCenter.x, y: c.y - touch.lastCenter.y };
+            if (touch.zooming) editor.pinch(c, d / touch.lastDist, pan);
+            else editor.panView(pan.x, pan.y);
+          }
           touch.lastCenter = c;
           touch.lastDist = d;
           return;
@@ -208,6 +228,12 @@ export function CanvasView({ editor, theme, onContextMenu }: Props) {
           editor.pointerMove(p);
           editor.pointerDown(p, 0);
           editor.pointerUp(p, 0);
+          const now = Date.now();
+          const prev = touch.lastTap;
+          if (!touch.moved && prev && now - prev.t < DOUBLE_TAP_MS && Math.hypot(p.x - prev.x, p.y - prev.y) < DOUBLE_TAP_PX) {
+            touch.lastTap = null;
+            editor.doubleClick(p); // doble pulsación = doble clic (editar texto, bloques, polilíneas)
+          } else touch.lastTap = touch.moved ? null : { ...p, t: now };
         }
         touch.tapStart = null;
         if (editor.touchPoint) {
@@ -221,11 +247,11 @@ export function CanvasView({ editor, theme, onContextMenu }: Props) {
     const wheel = (e: WheelEvent) => {
       e.preventDefault();
       const p = local(e);
-      if (e.ctrlKey && Math.abs(e.deltaY) < 50) editor.wheel(p, e.deltaY * 8);
-      else if (!e.ctrlKey && e.deltaMode === 0 && Math.abs(e.deltaX) > 0 && Math.abs(e.deltaY) < 40 && !Number.isInteger(e.deltaY)) {
-        editor.view.panPixels(-e.deltaX, -e.deltaY);
-        editor.emit('view');
-      } else editor.wheel(p, e.deltaMode === 1 ? e.deltaY * 30 : e.deltaY);
+      const action = wheels.classify(e, editor.prefs.wheelMode);
+      if (action.kind === 'pan') {
+        editor.panView(action.dx, action.dy);
+        editor.pointerMove(p, { shift: e.shiftKey });
+      } else editor.wheel(p, action.delta);
     };
     const leave = () => editor.pointerLeave();
     const ctx = (e: MouseEvent) => {

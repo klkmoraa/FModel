@@ -13,11 +13,11 @@
 
 | Función | Estado | Comandos | Notas |
 |---|---|---|---|
-| Zoom, encuadre, extensión, zoom a selección y vistas guardadas | Disponible | `ZOOM` `PAN` `VIEW` |  |
+| Zoom, encuadre, extensión, zoom a selección y vistas guardadas | Disponible | `ZOOM` `PAN` `VIEW` | La rueda del ratón hace zoom y dos dedos en el panel táctil encuadran: el dispositivo se deduce del propio evento y se puede fijar a mano en Opciones › Visualización. |
 | Rejilla, coordenadas, cruz CAD y previsualización | Disponible | `GRIDTOGGLE` `DSETTINGS` |  |
 | Selección por ventana, captura, polígono, borde, tipo y capa; ciclo de selección | Disponible | `QSELECT` `SELECTSIMILAR` |  |
 | Aislar, ocultar, bloquear y pantalla limpia; paneles acoplables | Disponible | `ISOLATEOBJECTS` `HIDEOBJECTS` `CLEANSCREENON` |  |
-| Uso táctil: encuadre, pellizco, pulsación larga, lupa al situar puntos y paneles en hoja móvil | Experimental |  | El dedo sitúa el punto con lupa y apertura de referencia ampliada; probado con eventos de puntero, no en dispositivos reales. En teléfono el dibujo detallado es limitado por el tamaño de pantalla. |
+| Uso táctil: encuadre, pellizco, pulsación larga, doble pulsación, lupa al situar puntos y barra táctil con Intro, Esc y opciones del comando | Experimental |  | El dedo sitúa el punto con lupa y apertura de referencia ampliada; dos dedos encuadran y solo hacen zoom al separarse de veras. La barra inferior reúne Intro, Esc, las opciones del comando, los modos de precisión y todas las herramientas. Probado con eventos de puntero, no en dispositivos reales; en teléfono el dibujo detallado sigue limitado por el tamaño de pantalla. |
 
 ## Precisión
 

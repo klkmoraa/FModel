@@ -8,12 +8,13 @@ export interface CommandLineHandle {
   hasFocus(): boolean;
 }
 
-export const CommandLine = forwardRef<CommandLineHandle, { editor: Editor }>(function CommandLine({ editor }, ref) {
+export const CommandLine = forwardRef<CommandLineHandle, { editor: Editor; onDismiss?: () => void }>(function CommandLine({ editor, onDismiss }, ref) {
   useEditorEvents(editor, ['command', 'prefs']);
   const [text, setText] = useState('');
   const [active, setActive] = useState(0);
   const [histIdx, setHistIdx] = useState(-1);
-  const [showLog, setShowLog] = useState(true);
+  // en el teléfono el historial tapa el lienzo y la barra táctil ya muestra la petición en curso
+  const [showLog, setShowLog] = useState(() => typeof matchMedia === 'undefined' || !matchMedia('(max-width: 820px)').matches);
   const inputRef = useRef<HTMLInputElement>(null);
   const logRef = useRef<HTMLDivElement>(null);
   const lang = editor.lang;
@@ -72,6 +73,7 @@ export const CommandLine = forwardRef<CommandLineHandle, { editor: Editor }>(fun
       if (text) setText('');
       else editor.key('Escape');
       inputRef.current?.blur();
+      onDismiss?.();
       return;
     }
     if (e.key === 'Tab') {
@@ -168,6 +170,7 @@ export const CommandLine = forwardRef<CommandLineHandle, { editor: Editor }>(fun
               value={text}
               onChange={(e) => setText(e.target.value)}
               onKeyDown={onKey}
+              onBlur={() => onDismiss?.()}
               placeholder={pending ? '' : lang === 'es' ? 'Escribe un comando (L, C, TR…) o pulsa Ctrl+K' : 'Type a command (L, C, TR…) or press Ctrl+K'}
               aria-label={lang === 'es' ? 'Línea de comandos' : 'Command line'}
               autoComplete="off"
