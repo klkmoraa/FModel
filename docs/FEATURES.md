@@ -2,7 +2,7 @@
 
 > Archivo generado con `node scripts/features-md.mjs` desde `src/app/features.ts`, la misma fuente que la pestaña «Estado de funciones» de la ayuda (F1). No lo edites a mano.
 
-**Disponible**: 40 · **Experimental**: 2 · **Planeado**: 0 · **No comprometido**: 1
+**Disponible**: 40 · **Experimental**: 3 · **Planeado**: 0 · **No comprometido**: 1
 
 - **Disponible**: funciona de extremo a extremo y tiene pruebas.
 - **Experimental**: funciona con limitaciones documentadas.
@@ -94,7 +94,8 @@
 | Formato nativo versionado .fmodel y JSON de depuración | Disponible | `QSAVE` `SAVEAS` `OPEN` `EXPORTJSON` |  |
 | Importación y exportación DXF con informe de conversión | Disponible | `IMPORTDXF` `EXPORTDXF` | Detalle en docs/dxf-compatibilidad.md. Los bloques dinámicos de FModel sobreviven a la ida y vuelta. |
 | CSV/JSON de atributos y tablas | Disponible | `DATAEXTRACTION` |  |
-| DWG | No comprometido |  | No hay una solución legal y fiable para una aplicación web; no se simula. |
+| Lectura DWG con LibreDWG (abrir e importar a la biblioteca) | Experimental | `OPEN` `LIBRARYIMPORT` | Probada con DWG de AutoCAD 2000 y 2018 frente a su DXF equivalente. El lector (WebAssembly, ~10 MB) se descarga al primer uso. LibreDWG es GPL-3.0: uso privado; publicar FModel obligaría a revisar la licencia. |
+| Escritura DWG | No comprometido |  | LibreDWG no escribe DWG de forma fiable y no se simula: exporta DXF. |
 
 ## Referencias
 

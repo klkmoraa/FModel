@@ -139,11 +139,7 @@ importación de un DXF con bloques y de uno solo con espacio modelo (el fixture 
   `import()` dinámico **solo** al abrir un DWG y se ejecuta en el Web Worker existente
   (`workers/heavyOps.ts`), con el mismo respaldo en hilo principal. El service worker lo precarga
   bajo demanda, no en la instalación inicial.
-- **Un solo importador:** se extrae de `importDxfIntoDocument` una función
-  `importDxfFile(doc, dxf: DxfFile, …)` que trabaja sobre la estructura intermedia del analizador.
-  Un adaptador `io/dwg/dwgToDxfFile.ts` traduce la `DwgDatabase` de LibreDWG a esa misma
-  estructura (tablas, bloques, entidades y sus grupos). Así DWG hereda todas las conversiones y el
-  informe del DXF sin duplicarlas.
+- **Un solo importador:** se extrae de `importDxfIntoDocument` la función `importDxfFile(doc, dxf: DxfFile, …)`. El DWG se convierte a DXF con el conversor nativo de LibreDWG (`dwg_write_dxf`), que conserva todos los tipos que LibreDWG sabe leer (incluidos los objetos de bloques dinámicos), y se corrigen con `convert()` del mismo DWG los defectos medidos de ese DXF: estado de capas y bloque de las tablas. *(Revisado durante la implementación: un adaptador propio `DwgDatabase → DxfFile` perdía tipos que la conversión tipada de LibreDWG no expone, como las cotas de longitud de arco.)*
 - Entradas: `OPEN` acepta `.dwg`; `LIBRARYIMPORT` acepta `.dwg`; el manifiesto de la PWA registra
   la extensión.
 - Lo que el adaptador no traduzca se cuenta en el informe como «no admitido en DWG». Los datos
@@ -151,9 +147,9 @@ importación de un DXF con bloques y de uno solo con espacio modelo (el fixture 
   informe recomienda convertir a DXF para conservarlos (ver parte 4).
 - Estado en `FEATURES.md`: **Experimental**, con la nota de licencia y de versiones probadas.
 
-**Pruebas:** fixtures DWG generados con LibreDWG (`dxf2dwg`) desde el fixture DXF de ezdxf, y al
-menos un DWG real de una descarga, comparando conteos y extensión con la importación de su DXF
-equivalente; archivo corrupto → error explicado, sin cuelgues.
+**Pruebas:** tres DWG reales de AutoCAD 2000/2018 (datos de prueba de LibreDWG) comparados con su
+DXF equivalente escrito por AutoCAD (objetos por tipo, capas, bloques, extensión); archivo que no
+es DWG o truncado → error explicado, sin cuelgues.
 
 ### Licencia
 

@@ -9,7 +9,8 @@ import { candidatesFromArchive, candidatesFromDocument } from '../blocks/library
 import { commitLibrary, loadCategories, loadLibrary } from '../blocks/libraryStore';
 import { createDocument } from '../document/defaults';
 import type { Id } from '../document/types';
-import { decodeDxfBytes, importDxfIntoDocument } from '../io/dxf/importDxf';
+import { decodeDxfBytes, importDxfFile, importDxfIntoDocument } from '../io/dxf/importDxf';
+import { runHeavy } from '../workers/client';
 import { createContext } from '../model/context';
 import { blockThumbnailOf } from '../render/thumbnail';
 import { openFile, saveFile } from '../storage/fileAccess';
@@ -20,7 +21,7 @@ import { CommandError } from './types';
 type ThumbFn = (doc: ReturnType<typeof createDocument>, ctx: ReturnType<typeof createContext>, id: Id) => string | undefined;
 const defaultThumb: ThumbFn = (doc, ctx, id) => blockThumbnailOf(doc, ctx, id, 64) ?? undefined;
 
-/** Lee un archivo (.dxf o .fmodellib) en un documento temporal y prepara los candidatos. No toca el dibujo abierto. */
+/** Lee un archivo (.dxf, .dwg o .fmodellib) en un documento temporal y prepara los candidatos. No toca el dibujo abierto. */
 export async function buildImportSession(file: { name: string; bytes: Uint8Array }, cats: LibraryCategory[], thumb: ThumbFn = defaultThumb): Promise<LibraryImportSession> {
   const ext = file.name.toLowerCase().split('.').pop();
   if (ext === 'fmodellib') {
@@ -35,7 +36,15 @@ export async function buildImportSession(file: { name: string; bytes: Uint8Array
     const candidates = candidatesFromDocument(doc, ctx, cats, { file: file.name, thumb: (id) => thumb(doc, ctx, id) });
     return { mode: 'import', source: { kind: 'dxf', file: file.name }, candidates, categories: cats, report };
   }
-  throw new Error(`Formato no admitido: .${ext ?? '?'} (usa .dxf o .fmodellib). / Unsupported format.`);
+  if (ext === 'dwg') {
+    const doc = createDocument({ title: file.name });
+    const ctx = createContext(doc);
+    installDynamicBlocks(ctx);
+    const report = importDxfFile(doc, await runHeavy('parseDwg', { bytes: file.bytes }), { format: 'DWG' });
+    const candidates = candidatesFromDocument(doc, ctx, cats, { file: file.name, thumb: (id) => thumb(doc, ctx, id) });
+    return { mode: 'import', source: { kind: 'dwg', file: file.name }, candidates, categories: cats, report };
+  }
+  throw new Error(`Formato no admitido: .${ext ?? '?'} (usa .dxf, .dwg o .fmodellib). / Unsupported format.`);
 }
 
 const LIBRARYIMPORT: CommandDef = {
@@ -44,10 +53,10 @@ const LIBRARYIMPORT: CommandDef = {
   category: 'block',
   readOnly: true,
   label: L('Importar a la biblioteca', 'Import to library'),
-  description: L('Añade a la biblioteca los bloques de un DXF (o el dibujo entero como bloque) o de un archivo .fmodellib, con categoría y etiquetas.', 'Adds the blocks of a DXF (or the whole drawing as a block) or of a .fmodellib file to the library, with category and tags.'),
+  description: L('Añade a la biblioteca los bloques de un DXF o DWG (o el dibujo entero como bloque) o de un archivo .fmodellib, con categoría y etiquetas.', 'Adds the blocks of a DXF or DWG (or the whole drawing as a block) or of a .fmodellib file to the library, with category and tags.'),
   icon: 'insert',
   async run() {
-    const f = await openFile({ 'application/octet-stream': ['.dxf', '.fmodellib'] }, 'DXF / FModel library');
+    const f = await openFile({ 'application/octet-stream': ['.dxf', '.dwg', '.fmodellib'] }, 'DXF / DWG / FModel library');
     if (!f) return;
     const session = await buildImportSession(f, await loadCategories());
     if (!session.candidates.length) throw new CommandError(L('El archivo no contiene bloques ni geometría que guardar.', 'The file has no blocks or geometry to save.'));

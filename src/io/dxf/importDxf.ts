@@ -21,7 +21,7 @@ import type {
   TextEntity,
 } from '../../document/types';
 import { MODEL_SPACE_ID } from '../../document/types';
-import type { DxfRecord } from './parser';
+import type { DxfFile, DxfRecord } from './parser';
 import { parseDxf, R } from './parser';
 import { decodeDefinition, readInstanceXdata, readXrecord } from './dynamicData';
 import type { PolyVertex } from '../../geometry/polyline';
@@ -46,7 +46,15 @@ const INSUNITS: Record<number, DrawingUnits> = { 0: 'unitless', 1: 'in', 2: 'ft'
 const ARROWS: Record<string, ArrowType> = { '': 'closed-filled', _CLOSEDBLANK: 'closed', _CLOSED: 'closed', _OPEN: 'open', _OPEN30: 'open30', _DOT: 'dot', _DOTSMALL: 'dot-small', _OBLIQUE: 'tick', _ARCHTICK: 'architectural', _INTEGRAL: 'integral', _NONE: 'none' };
 
 export function importDxfIntoDocument(doc: CadDocument, text: string, opts: { replace?: boolean; owner?: Id } = {}): ImportReport {
-  const dxf = parseDxf(text);
+  return importDxfFile(doc, parseDxf(text), opts);
+}
+
+/**
+ * Importa la estructura intermedia de un DXF (o de un DWG traducido a ella) en el documento.
+ * `format` solo cambia el nombre del formato en el resumen del informe.
+ */
+export function importDxfFile(doc: CadDocument, dxf: DxfFile, opts: { replace?: boolean; owner?: Id; format?: 'DXF' | 'DWG' } = {}): ImportReport {
+  const fmt = opts.format ?? 'DXF';
   const report: ImportReport = { version: dxf.version, units: 'mm', imported: {}, transformed: {}, ignored: {}, layers: 0, blocks: 0, layouts: 0, warnings: [], summary: { es: '', en: '' } };
   const ok = (t: string) => (report.imported[t] = (report.imported[t] ?? 0) + 1);
   const transformed = (t: string, reason: string) => {
@@ -624,8 +632,8 @@ export function importDxfIntoDocument(doc: CadDocument, text: string, opts: { re
   const tcount = Object.values(report.transformed).reduce((a, b) => a + b.count, 0);
   const icount = Object.values(report.ignored).reduce((a, b) => a + b.count, 0);
   report.summary = {
-    es: `DXF ${report.version || ''} importado en ${report.units}: ${total} objetos, ${tcount} transformados, ${icount} ignorados, ${report.layers} capas y ${report.blocks} bloques nuevos. Importación parcial: revisa el informe.`,
-    en: `DXF ${report.version || ''} imported in ${report.units}: ${total} objects, ${tcount} transformed, ${icount} ignored, ${report.layers} new layers and ${report.blocks} blocks. Partial import: check the report.`,
+    es: `${fmt} ${report.version || ''} importado en ${report.units}: ${total} objetos, ${tcount} transformados, ${icount} ignorados, ${report.layers} capas y ${report.blocks} bloques nuevos. Importación parcial: revisa el informe.`,
+    en: `${fmt} ${report.version || ''} imported in ${report.units}: ${total} objects, ${tcount} transformed, ${icount} ignored, ${report.layers} new layers and ${report.blocks} blocks. Partial import: check the report.`,
   };
   return report;
 }

@@ -17,6 +17,9 @@ importers:
       '@fontsource/ibm-plex-mono':
         specifier: 5.3.0
         version: 5.3.0
+      '@mlightcad/libredwg-web':
+        specifier: 0.7.11
+        version: 0.7.11
       '@tarikjabiri/dxf':
         specifier: 2.9.0
         version: 2.9.0
@@ -156,6 +159,10 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@mlightcad/libredwg-web@0.7.11':
+    resolution: {integrity: sha512-ij1ybgcXK7EyZh2OA51m4ophdHqWcswkLw0FsqMol+kgt4huzjqNOt4ISrhGKaSCDnMtk8DiYQiEwJXXa4sQJg==}
+    engines: {node: '>=20'}
 
   '@napi-rs/canvas-android-arm64@0.1.100':
     resolution: {integrity: sha512-hjhCKhntPv9+t4ckHymdx0phYNcVW+GKQR6Lzw2zE+pOVjOplSmtx9nNNknTjbEDLcuLZqA1y8ufKg1XfgftzQ==}
@@ -1011,6 +1018,8 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.6.0
+
+  '@mlightcad/libredwg-web@0.7.11': {}
 
   '@napi-rs/canvas-android-arm64@0.1.100':
     optional: true

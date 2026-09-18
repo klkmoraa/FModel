@@ -20,7 +20,7 @@ export async function confirmDiscard(api: CommandApi): Promise<boolean> {
 }
 
 export function fileBaseName(name: string): string {
-  return name.replace(/\.(fmodel(\.json)?|json|dxf)$/i, '');
+  return name.replace(/\.(fmodel(\.json)?|json|dxf|dwg)$/i, '');
 }
 
 const NEW: CommandDef = {
@@ -53,6 +53,16 @@ export async function openBytes(api: CommandApi, name: string, bytes: Uint8Array
     api.editor.zoomExtents();
     return;
   }
+  if (lower.endsWith('.dwg')) {
+    api.info(L('Leyendo DWG con LibreDWG en segundo plano (la primera vez descarga el lector, ~10 MB)…', 'Reading DWG with LibreDWG in the background (first use downloads the reader, ~10 MB)…'));
+    const { data, report } = await runHeavy('readDwg', { bytes });
+    api.editor.doc.replaceData(data);
+    api.editor.fileName = fileBaseName(name);
+    api.info(L(report.summary.es, report.summary.en));
+    requestUi('conversion-report', { kind: 'import', name, report });
+    api.editor.zoomExtents();
+    return;
+  }
   const res = readPackage(bytes);
   api.editor.doc.replaceData(res.data, res.documentId);
   api.editor.fileName = fileBaseName(name);
@@ -68,10 +78,10 @@ const OPEN: CommandDef = {
   category: 'file',
   readOnly: true,
   label: L('Abrir', 'Open'),
-  description: L('Abre un dibujo .fmodel, JSON de FModel o DXF.', 'Opens a .fmodel drawing, FModel JSON or DXF.'),
+  description: L('Abre un dibujo .fmodel, JSON de FModel, DXF o DWG (lectura experimental con LibreDWG).', 'Opens a .fmodel drawing, FModel JSON, DXF or DWG (experimental reading with LibreDWG).'),
   async run(api) {
     if (!(await confirmDiscard(api))) return;
-    const f = await openFile({ ...FMODEL_ACCEPT, 'application/dxf': ['.dxf'] }, 'FModel / DXF');
+    const f = await openFile({ ...FMODEL_ACCEPT, 'application/dxf': ['.dxf'], 'application/acad': ['.dwg'] }, 'FModel / DXF / DWG');
     if (!f) return;
     await openBytes(api, f.name, f.bytes);
     getServices().fileHandle = f.name.toLowerCase().endsWith('.fmodel') ? (f.handle ?? null) : null;

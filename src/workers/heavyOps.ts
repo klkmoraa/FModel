@@ -7,7 +7,8 @@ import type { DocumentData } from '../document/types';
 import type { DxfExportReport } from '../io/dxf/exportDxf';
 import { exportDxf } from '../io/dxf/exportDxf';
 import type { ImportReport } from '../io/dxf/importDxf';
-import { importDxfIntoDocument } from '../io/dxf/importDxf';
+import { importDxfFile, importDxfIntoDocument } from '../io/dxf/importDxf';
+import type { DxfFile } from '../io/dxf/parser';
 import { createContext } from '../model/context';
 
 /**
@@ -34,6 +35,18 @@ export const HEAVY_OPS = {
   readDxf(payload: { text: string }): { data: DocumentData; report: ImportReport } {
     const doc = createDocument();
     const report = importDxfIntoDocument(doc, payload.text, { replace: true });
+    return { data: doc.data, report };
+  },
+  /** Traduce un DWG a la estructura intermedia del DXF con LibreDWG (carga diferida). */
+  async parseDwg(payload: { bytes: Uint8Array }): Promise<DxfFile> {
+    const [{ readDwgFile }, { default: wasmFile }] = await Promise.all([import('../io/dwg/readDwg'), import('../io/dwg/wasmUrl')]);
+    return readDwgFile(payload.bytes, { wasmFile });
+  },
+  /** Lee un DWG completo en un documento nuevo (abrir). */
+  async readDwg(payload: { bytes: Uint8Array }): Promise<{ data: DocumentData; report: ImportReport }> {
+    const dxf = await HEAVY_OPS.parseDwg(payload);
+    const doc = createDocument();
+    const report = importDxfFile(doc, dxf, { replace: true, format: 'DWG' });
     return { data: doc.data, report };
   },
 };

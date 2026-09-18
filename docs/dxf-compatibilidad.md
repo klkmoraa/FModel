@@ -8,12 +8,18 @@ FModel lee y escribe DXF ASCII. El formato nativo sigue siendo `.fmodel` (versio
 
 ## DWG
 
-FModel **no lee ni escribe DWG** y no simula compatibilidad. No existe hoy una solución que sea a la vez legal para distribuir en una aplicación web y fiable en escritura:
+**Lectura (experimental).** `OPEN` y `LIBRARYIMPORT` aceptan `.dwg`. El archivo lo lee **LibreDWG** compilado a WebAssembly (`@mlightcad/libredwg-web`, se descarga al primer uso, ~10 MB, en el Web Worker):
 
-- Las bibliotecas de Open Design Alliance requieren licencia comercial de pago.
-- LibreDWG (GPL) tiene escritura incompleta y no es apta para producción.
+1. el conversor nativo de LibreDWG escribe un DXF, que pasa por el mismo analizador e importador que cualquier DXF (mismas conversiones y mismo informe, titulado «DWG»);
+2. se corrigen con los datos del propio DWG dos defectos conocidos de ese DXF: el estado de las capas (LibreDWG las marca todas como apagadas) y el bloque de representación de las tablas (`*T`, emparejado por orden de creación solo si el número coincide).
 
-Para intercambiar con DWG, convierte a DXF con la herramienta de tu programa CAD o con un conversor dedicado, y abre el DXF en FModel.
+La prueba `src/io/dwg/readDwg.test.ts` compara tres DWG escritos por AutoCAD 2000 y 2018 (datos de prueba de LibreDWG) con su DXF equivalente escrito por AutoCAD: mismos objetos por tipo, mismas capas (color, encendida, inutilizada, bloqueada, grosor), mismos bloques y misma extensión. Un archivo que no es DWG se rechaza con un mensaje claro.
+
+Limitaciones: versiones anteriores a R13 o muy recientes pueden fallar (LibreDWG lo indica con un error); los parámetros de bloques dinámicos de AutoCAD dentro de un DWG se tratan igual que en DXF (ver más abajo).
+
+**Licencia.** LibreDWG es GPL-3.0. FModel es hoy de uso privado; si se publicara, habría que distribuirlo bajo GPL-3.0 o retirar este lector.
+
+**Escritura.** FModel **no escribe DWG** (LibreDWG no lo hace de forma fiable) y no lo simula: exporta DXF.
 
 ## Exportación (FModel → DXF)
 
