@@ -1,0 +1,4 @@
+interface:
+  display_name: "FModel CAD Workflows"
+  short_description: "Diseña, implementa y revisa flujos CAD 2D en FModel"
+  default_prompt: "Diseña o mejora este flujo CAD 2D respetando los contratos de interacción, precisión, undo y compatibilidad de FModel."

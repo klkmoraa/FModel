@@ -2,6 +2,9 @@ import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
 import { COLLECTIONS } from '../document/document';
 import { createDocumentData } from '../document/defaults';
 import type { AssetRecord, CollectionName, DocumentData, DocumentSettings, Id } from '../document/types';
+import { assertInputBytes, assertZipLimits } from './limits';
+import { INPUT_LIMITS } from './limits';
+import { assertFiniteValues, assertPointLimits } from './validation';
 
 /**
  * Formato nativo FModel 2D CAD.
@@ -26,6 +29,10 @@ export interface NativeFile {
 }
 
 type Migration = (f: NativeFile) => NativeFile;
+
+const ENTITY_TYPES = new Set([
+  'point', 'line', 'ray', 'xline', 'circle', 'arc', 'ellipse', 'lwpolyline', 'polyline2d', 'spline', 'mline', 'region', 'hatch', 'text', 'mtext', 'leader', 'mleader', 'table', 'wipeout', 'image', 'pdfunderlay', 'insert', 'attdef', 'dimension', 'viewport', 'array',
+]);
 
 /** Migraciones: índice i convierte de la versión i+1 a la i+2. */
 const MIGRATIONS: Migration[] = [
@@ -65,6 +72,24 @@ export function fromNativeFile(input: unknown): { data: DocumentData; documentId
   if (!f || f.format !== FORMAT) throw new NativeFormatError('No es un archivo FModel 2D CAD válido (falta el identificador de formato). / Not a valid FModel 2D CAD file.');
   if (typeof f.version !== 'number' || f.version < 1) throw new NativeFormatError('Versión de archivo desconocida. / Unknown file version.');
   if (f.version > FORMAT_VERSION) throw new NativeFormatError(`El archivo es de una versión más reciente (${f.version}) que esta aplicación (${FORMAT_VERSION}). Actualiza FModel. / File is newer than this app.`);
+  if (typeof f.documentId !== 'string' || !f.documentId.trim()) throw new NativeFormatError('El archivo no tiene una identidad de documento válida. / The file has no valid document identity.');
+  if (!f.collections || typeof f.collections !== 'object' || Array.isArray(f.collections)) throw new NativeFormatError('El archivo no contiene colecciones válidas. / The file has no valid collections.');
+  if (!f.settings || typeof f.settings !== 'object' || Array.isArray(f.settings)) throw new NativeFormatError('El archivo no contiene ajustes válidos. / The file has no valid settings.');
+  for (const c of COLLECTIONS) {
+    const list = f.collections[c];
+    if (list !== undefined && !Array.isArray(list)) throw new NativeFormatError(`La colección ${c} no es válida. / Collection ${c} is invalid.`);
+    const maximum = c === 'entities' ? INPUT_LIMITS.maxEntities : c === 'blocks' ? INPUT_LIMITS.maxBlocks : c === 'assets' ? INPUT_LIMITS.maxAssets : INPUT_LIMITS.maxBlocks;
+    if (list && list.length > maximum) throw new NativeFormatError(`La colección ${c} es demasiado grande. / Collection ${c} is too large.`);
+  }
+  assertFiniteValues(f);
+  assertPointLimits(f.collections.entities);
+  for (const entity of f.collections.entities ?? []) {
+    if (!entity || typeof entity !== 'object') throw new NativeFormatError('El archivo contiene una entidad inválida. / The file contains an invalid entity.');
+    const record = entity as { id?: unknown; type?: unknown; owner?: unknown; layer?: unknown };
+    if (typeof record.id !== 'string' || !record.id.trim() || typeof record.owner !== 'string' || !record.owner.trim() || typeof record.layer !== 'string' || !record.layer.trim() || typeof record.type !== 'string' || !ENTITY_TYPES.has(record.type)) {
+      throw new NativeFormatError('El archivo contiene una entidad inválida. / The file contains an invalid entity.');
+    }
+  }
   let file = structuredClone(f);
   while (file.version < FORMAT_VERSION) {
     const m = MIGRATIONS[file.version - 1];
@@ -79,10 +104,8 @@ export function fromNativeFile(input: unknown): { data: DocumentData; documentId
     if (!list) continue;
     const map = new Map<Id, never>();
     for (const rec of list as { id?: Id }[]) {
-      if (!rec || typeof rec.id !== 'string') {
-        warnings.push(`Registro sin ID ignorado en ${c}.`);
-        continue;
-      }
+      if (!rec || typeof rec.id !== 'string' || !rec.id.trim()) throw new NativeFormatError(`Registro sin ID válido en ${c}. / Record without a valid ID in ${c}.`);
+      if (map.has(rec.id)) throw new NativeFormatError(`Identificador duplicado «${rec.id}» en ${c}. / Duplicate ID "${rec.id}" in ${c}.`);
       map.set(rec.id, rec as never);
     }
     (data as unknown as Record<string, Map<Id, never>>)[c] = map;
@@ -97,6 +120,13 @@ export function fromNativeFile(input: unknown): { data: DocumentData; documentId
   if (!data.tableStyles.size) data.tableStyles = base.tableStyles;
   if (!data.mlineStyles.size) data.mlineStyles = base.mlineStyles;
   if (!data.layouts.size) data.layouts = base.layouts;
+  const owners = new Set<Id>(['*model', ...data.layouts.keys(), ...data.blocks.keys()]);
+  for (const entity of data.entities.values()) {
+    if (!owners.has(entity.owner)) throw new NativeFormatError(`La entidad «${entity.id}» tiene un propietario inexistente. / Entity "${entity.id}" has a missing owner.`);
+    if (!data.layers.has(entity.layer)) throw new NativeFormatError(`La entidad «${entity.id}» apunta a una capa inexistente. / Entity "${entity.id}" references a missing layer.`);
+    if (entity.type === 'insert' && !data.blocks.has(entity.blockId)) throw new NativeFormatError(`La inserción «${entity.id}» apunta a un bloque inexistente. / Insert "${entity.id}" references a missing block.`);
+    if (entity.type === 'array' && !data.blocks.has(entity.sourceBlockId)) throw new NativeFormatError(`La matriz «${entity.id}» apunta a un bloque inexistente. / Array "${entity.id}" references a missing block.`);
+  }
   return { data, documentId: file.documentId, warnings };
 }
 
@@ -125,8 +155,10 @@ export function writePackage(data: DocumentData, documentId: Id): Uint8Array {
 }
 
 export function readPackage(bytes: Uint8Array): ReturnType<typeof fromNativeFile> {
+  assertInputBytes(bytes, 'archivo');
   // ZIP (PK\x03\x04) o JSON
   if (bytes[0] === 0x50 && bytes[1] === 0x4b) {
+    assertZipLimits(bytes, 'paquete');
     const files = unzipSync(bytes);
     const json = files['document.json'];
     if (!json) throw new NativeFormatError('El paquete no contiene document.json. / Package missing document.json.');

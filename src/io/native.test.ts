@@ -1,6 +1,8 @@
+import { strToU8, zipSync } from 'fflate';
 import { describe, expect, it } from 'vitest';
 import { createDocument, entityDefaults } from '../document/defaults';
 import type { AssetRecord, DocumentData, LineEntity } from '../document/types';
+import { INPUT_LIMITS } from './limits';
 import { FORMAT, FORMAT_VERSION, fromNativeFile, NativeFormatError, readPackage, toNativeFile, writeDebugJson, writePackage } from './native';
 
 const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
@@ -71,6 +73,79 @@ describe('formato nativo', () => {
     expect(() => fromNativeFile({ format: FORMAT, version: FORMAT_VERSION + 1, collections: {} })).toThrow(/más reciente/);
   });
 
+  it('rechaza coordenadas no finitas antes de construir el documento', () => {
+    const { data, id } = sample();
+    const file = toNativeFile(data, id);
+    const line = (file.collections.entities as LineEntity[])[0];
+    const altered = { ...file, collections: { ...file.collections, entities: [{ ...line, start: { x: Infinity, y: 0 } }] } };
+
+    expect(() => fromNativeFile(altered)).toThrow(NativeFormatError);
+  });
+
+  it('rechaza identificadores duplicados en una colección', () => {
+    const { data, id } = sample();
+    const file = toNativeFile(data, id);
+    const line = (file.collections.entities as LineEntity[])[0];
+    const altered = { ...file, collections: { ...file.collections, entities: [line, { ...line, end: { x: 24, y: 0 } }] } };
+
+    expect(() => fromNativeFile(altered)).toThrow(NativeFormatError);
+  });
+
+  it('rechaza identificadores vacíos en una colección', () => {
+    const { data, id } = sample();
+    const file = toNativeFile(data, id);
+    const line = (file.collections.entities as LineEntity[])[0];
+
+    expect(() => fromNativeFile({ ...file, collections: { ...file.collections, entities: [{ ...line, id: '' }] } })).toThrow(NativeFormatError);
+  });
+
+  it('rechaza la identidad vacía del documento', () => {
+    const { data, id } = sample();
+    const file = toNativeFile(data, id);
+
+    expect(() => fromNativeFile({ ...file, documentId: '' })).toThrow(NativeFormatError);
+  });
+
+  it('rechaza una envoltura sin colecciones', () => {
+    const { data, id } = sample();
+    const file = toNativeFile(data, id);
+
+    expect(() => fromNativeFile({ ...file, collections: null })).toThrow(NativeFormatError);
+  });
+
+  it('rechaza entidades que apuntan a una capa inexistente', () => {
+    const { data, id } = sample();
+    const file = toNativeFile(data, id);
+    const line = (file.collections.entities as LineEntity[])[0];
+    const altered = { ...file, collections: { ...file.collections, entities: [{ ...line, layer: 'capa-ausente' }] } };
+
+    expect(() => fromNativeFile(altered)).toThrow(NativeFormatError);
+  });
+
+  it('rechaza discriminantes de entidad desconocidos', () => {
+    const { data, id } = sample();
+    const file = toNativeFile(data, id);
+    const line = (file.collections.entities as LineEntity[])[0];
+
+    expect(() => fromNativeFile({ ...file, collections: { ...file.collections, entities: [{ ...line, type: 'spline-3d' }] } })).toThrow(NativeFormatError);
+  });
+
+  it('rechaza paquetes ZIP con demasiadas entradas antes de extraerlos', () => {
+    const entries = Object.fromEntries(Array.from({ length: 1_001 }, (_, i) => [`assets/${i}`, strToU8('x')]));
+    entries['document.json'] = strToU8('{}');
+
+    expect(() => readPackage(zipSync(entries))).toThrow(/demasiado grande|too large/i);
+  });
+
+  it('rechaza entidades con más puntos que el límite', () => {
+    const { data, id } = sample();
+    const file = toNativeFile(data, id);
+    const line = (file.collections.entities as LineEntity[])[0];
+    const vertices = Array.from({ length: INPUT_LIMITS.maxPointsPerEntity + 1 }, () => ({ x: 0, y: 0 }));
+
+    expect(() => fromNativeFile({ ...file, collections: { ...file.collections, entities: [{ ...line, type: 'lwpolyline', vertices, closed: false }] } })).toThrow(NativeFormatError);
+  });
+
   it('migra archivos antiguos y lo hace constar', () => {
     const { data, id } = sample();
     const file = toNativeFile(data, id, { embedAssets: true });
@@ -93,11 +168,10 @@ describe('formato nativo', () => {
   });
 
   it('un archivo sin tablas básicas recupera las de un dibujo nuevo', () => {
-    const res = fromNativeFile({ format: FORMAT, version: FORMAT_VERSION, documentId: 'd1', settings: { currentLayer: 'no-existe' }, collections: { entities: [{ id: 'e1', type: 'point' }, { noId: true }] } });
+    const res = fromNativeFile({ format: FORMAT, version: FORMAT_VERSION, documentId: 'd1', settings: { currentLayer: 'no-existe' }, collections: { entities: [] } });
     expect(res.data.layers.size).toBeGreaterThan(0);
     expect(res.data.linetypes.size).toBeGreaterThan(0);
     expect(res.data.layouts.size).toBeGreaterThan(0);
     expect(res.data.layers.has(res.data.settings.currentLayer)).toBe(true);
-    expect(res.warnings.some((w) => w.includes('sin ID'))).toBe(true);
   });
 });

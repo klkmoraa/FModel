@@ -14,6 +14,7 @@ import { missingStarterCategories, packageThumbnail, starterBlock } from '../blo
 import { createDocument } from '../document/defaults';
 import type { Id } from '../document/types';
 import { decodeDxfBytes, importDxfFile, importDxfIntoDocument } from '../io/dxf/importDxf';
+import { assertInputBytes } from '../io/limits';
 import { runHeavy } from '../workers/client';
 import { createContext } from '../model/context';
 import { blockThumbnailOf } from '../render/thumbnail';
@@ -27,6 +28,7 @@ const defaultThumb: ThumbFn = (doc, ctx, id) => blockThumbnailOf(doc, ctx, id, 6
 
 /** Lee un archivo (.dxf, .dwg o .fmodellib) en un documento temporal y prepara los candidatos. No toca el dibujo abierto. */
 export async function buildImportSession(file: { name: string; bytes: Uint8Array }, cats: LibraryCategory[], thumb: ThumbFn = defaultThumb): Promise<LibraryImportSession> {
+  assertInputBytes(file.bytes);
   const ext = file.name.toLowerCase().split('.').pop();
   if (ext === 'fmodellib') {
     const { candidates, categories } = candidatesFromArchive(readLibraryArchive(file.bytes), cats);
@@ -88,7 +90,9 @@ const LIBRARYEXPORT: CommandDef = {
     const bytes = writeLibraryArchive({ categories: cats, blocks });
     const cat = cats.find((c) => c.id === catId);
     const name = `${cat ? cat.name : 'biblioteca'}.fmodellib`;
-    const handle = await saveFile(new Blob([bytes as BlobPart], { type: 'application/zip' }), name, { 'application/zip': ['.fmodellib'] }, 'FModel library');
+    const result = await saveFile(new Blob([bytes as BlobPart], { type: 'application/zip' }), name, { 'application/zip': ['.fmodellib'] }, 'FModel library');
+    if (result.kind === 'cancelled') return;
+    const handle = result.kind === 'saved-to-handle' ? result.handle : null;
     api.info(L(`${blocks.length} bloque(s) exportado(s)${handle ? ` → ${handle.name}` : ''}.`, `${blocks.length} block(s) exported${handle ? ` → ${handle.name}` : ''}.`));
   },
 };

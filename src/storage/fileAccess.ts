@@ -17,6 +17,12 @@ export interface OpenedFile {
   handle?: Handle;
 }
 
+/** Resultado explícito de guardar: descargar es éxito, cancelar no produce efectos. */
+export type SaveFileResult =
+  | { kind: 'saved-to-handle'; handle: Handle }
+  | { kind: 'download-started' }
+  | { kind: 'cancelled' };
+
 export async function openFile(accept: Record<string, string[]>, description: string): Promise<OpenedFile | null> {
   const w = window as unknown as PickerWindow;
   if (w.showOpenFilePicker) {
@@ -43,28 +49,29 @@ export async function openFile(accept: Record<string, string[]>, description: st
   });
 }
 
-export async function saveFile(data: Blob, suggestedName: string, accept: Record<string, string[]>, description: string, existing?: Handle | null): Promise<Handle | null> {
-  const w = window as unknown as PickerWindow;
+export async function saveFile(data: Blob, suggestedName: string, accept: Record<string, string[]>, description: string, existing?: Handle | null): Promise<SaveFileResult> {
   if (existing) {
     const writable = await existing.createWritable();
     await writable.write(data);
     await writable.close();
-    return existing;
+    return { kind: 'saved-to-handle', handle: existing };
   }
+  const w = window as unknown as PickerWindow;
   if (w.showSaveFilePicker) {
+    let handle: Handle;
     try {
-      const handle = await w.showSaveFilePicker({ suggestedName, types: [{ description, accept }] });
-      const writable = await handle.createWritable();
-      await writable.write(data);
-      await writable.close();
-      return handle;
+      handle = await w.showSaveFilePicker({ suggestedName, types: [{ description, accept }] });
     } catch (err) {
-      if ((err as DOMException)?.name === 'AbortError') return null;
+      if ((err as DOMException)?.name === 'AbortError') return { kind: 'cancelled' };
       throw err;
     }
+    const writable = await handle.createWritable();
+    await writable.write(data);
+    await writable.close();
+    return { kind: 'saved-to-handle', handle };
   }
   downloadBlob(data, suggestedName);
-  return null;
+  return { kind: 'download-started' };
 }
 
 export function downloadBlob(data: Blob, name: string) {

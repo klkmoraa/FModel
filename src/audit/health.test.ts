@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { createDocument, entityDefaults } from '../document/defaults';
 import type { CircleEntity, LineEntity, LwPolylineEntity, TextEntity } from '../document/types';
 import { MODEL_SPACE_ID } from '../document/types';
-import { readPackage, writePackage } from '../io/native';
 import { createContext } from '../model/context';
 import { compareDrawings } from './compare';
 import { analyzeDrawing, applyHealthFixes } from './health';
@@ -52,7 +51,7 @@ describe('drawing health', () => {
 describe('version compare', () => {
   it('reports added, removed and modified objects and table changes, ignoring draw order', () => {
     const doc = messyDocument();
-    const base = readPackage(writePackage(doc.data, doc.id)).data;
+    const base = structuredClone(doc.data);
     const [first, second] = doc.entitiesOf(MODEL_SPACE_ID);
     doc.transact('edit', (tx) => {
       tx.removeEntity(first.id);

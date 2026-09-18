@@ -6,6 +6,7 @@ import { boxFromCorners } from '../geometry/bbox';
 import { newId } from '../document/ids';
 import type { AssetRecord, BlockRecord, Id, ImageEntity, PdfUnderlayEntity } from '../document/types';
 import { unitConversion } from '../document/defaults';
+import { assertInputBytes } from '../io/limits';
 import { underlaySize } from '../model/kinds/media';
 import { openFile } from '../storage/fileAccess';
 import { forgetXrefHandle, LIBRARY_PREFIX, readXrefBytes, rememberXrefHandle } from '../xref/sources';
@@ -25,6 +26,7 @@ function asCommandError(err: unknown): never {
 
 function readSource(bytes: Uint8Array, name: string): XrefSource {
   try {
+    assertInputBytes(bytes);
     return readXrefSource(bytes, name);
   } catch (err) {
     throw new CommandError(L(`No se pudo leer «${name}»: ${err instanceof Error ? err.message : String(err)}`, `Could not read "${name}": ${err instanceof Error ? err.message : String(err)}`));

@@ -34,7 +34,9 @@ export async function savePdf(api: CommandApi, sheets: Id[], label: string) {
   api.info(L(`Generando PDF vectorial (${sheets.length} hoja/s)…`, `Generating vector PDF (${sheets.length} sheet/s)…`));
   const { data, warnings } = await exportPdf(await plotContext(api), sheets);
   for (const w of warnings) api.warn(L(w, w));
-  const handle = await saveFile(new Blob([data as BlobPart], { type: 'application/pdf' }), `${fileBase(api, label)}.pdf`, { 'application/pdf': ['.pdf'] }, 'PDF');
+  const result = await saveFile(new Blob([data as BlobPart], { type: 'application/pdf' }), `${fileBase(api, label)}.pdf`, { 'application/pdf': ['.pdf'] }, 'PDF');
+  if (result.kind === 'cancelled') return;
+  const handle = result.kind === 'saved-to-handle' ? result.handle : null;
   api.info(L(`PDF exportado${handle ? `: ${handle.name}` : ''} (${Math.round(data.byteLength / 1024)} KB).`, `PDF exported${handle ? `: ${handle.name}` : ''} (${Math.round(data.byteLength / 1024)} KB).`));
 }
 
@@ -42,7 +44,9 @@ export async function saveSvg(api: CommandApi, sheet: Id) {
   const { data, warnings } = exportSvg(await plotContext(api), sheet);
   for (const w of warnings) api.warn(L(w, w));
   const name = sheetName(api, sheet);
-  const handle = await saveFile(new Blob([data], { type: 'image/svg+xml' }), `${fileBase(api, name)}.svg`, { 'image/svg+xml': ['.svg'] }, 'SVG');
+  const result = await saveFile(new Blob([data], { type: 'image/svg+xml' }), `${fileBase(api, name)}.svg`, { 'image/svg+xml': ['.svg'] }, 'SVG');
+  if (result.kind === 'cancelled') return;
+  const handle = result.kind === 'saved-to-handle' ? result.handle : null;
   api.info(L(`SVG exportado${handle ? `: ${handle.name}` : ''}.`, `SVG exported${handle ? `: ${handle.name}` : ''}.`));
 }
 

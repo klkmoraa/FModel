@@ -27,4 +27,26 @@ describe('archivo .fmodellib', () => {
     const missing = zipSync({ 'manifest.json': strToU8(JSON.stringify({ format: 'fmodel-library', version: 1, categories: [], blocks: [{ id: 'x', file: 'blocks/x.json' }] })) });
     expect(() => readLibraryArchive(missing)).toThrow(/blocks\/x\.json/);
   });
+
+  it('rechaza un ZIP con demasiadas entradas antes de extraerlo', () => {
+    const files = Object.fromEntries(Array.from({ length: 1_001 }, (_, i) => [`blocks/${i}.json`, strToU8('{}')]));
+    files['manifest.json'] = strToU8('{}');
+
+    expect(() => readLibraryArchive(zipSync(files))).toThrow(/demasiado grande|too large/i);
+  });
+
+  it('rechaza manifiestos con índices de bloques inválidos', () => {
+    const invalid = zipSync({ 'manifest.json': strToU8(JSON.stringify({ format: 'fmodel-library', version: 1, categories: [], blocks: null })) });
+
+    expect(() => readLibraryArchive(invalid)).toThrow(/biblioteca/i);
+  });
+
+  it('rechaza bloques sin paquete válido', () => {
+    const invalid = zipSync({
+      'manifest.json': strToU8(JSON.stringify({ format: 'fmodel-library', version: 1, categories: [], blocks: [{ id: 'b1', file: 'blocks/b1.json' }] })),
+      'blocks/b1.json': strToU8('{}'),
+    });
+
+    expect(() => readLibraryArchive(invalid)).toThrow(/bloque inválido|invalid block/i);
+  });
 });

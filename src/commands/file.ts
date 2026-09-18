@@ -5,6 +5,7 @@ import { downloadBlob, openFile, saveFile } from '../storage/fileAccess';
 import { K, L } from './helpers';
 import type { CommandApi, CommandDef } from './types';
 import { decodeDxfBytes, importDxfIntoDocument } from '../io/dxf/importDxf';
+import { assertInputBytes } from '../io/limits';
 import { runHeavy } from '../workers/client';
 
 const FMODEL_ACCEPT = { 'application/x-fmodel': ['.fmodel'], 'application/json': ['.json'] };
@@ -42,6 +43,7 @@ const NEW: CommandDef = {
 };
 
 export async function openBytes(api: CommandApi, name: string, bytes: Uint8Array) {
+  assertInputBytes(bytes);
   const lower = name.toLowerCase();
   if (lower.endsWith('.dxf')) {
     api.info(L('Leyendo DXF en segundo plano…', 'Reading DXF in the background…'));
@@ -92,7 +94,9 @@ async function save(api: CommandApi, as: boolean) {
   const s = getServices();
   const name = `${api.editor.fileName || api.editor.doc.settings.title || 'dibujo'}.fmodel`;
   const bytes = writePackage(api.editor.doc.data, api.editor.doc.id);
-  const handle = await saveFile(new Blob([bytes as BlobPart], { type: 'application/x-fmodel' }), name, { 'application/x-fmodel': ['.fmodel'] }, 'FModel 2D CAD', as ? null : s.fileHandle);
+  const result = await saveFile(new Blob([bytes as BlobPart], { type: 'application/x-fmodel' }), name, { 'application/x-fmodel': ['.fmodel'] }, 'FModel 2D CAD', as ? null : s.fileHandle);
+  if (result.kind === 'cancelled') return;
+  const handle = result.kind === 'saved-to-handle' ? result.handle : null;
   if (handle) {
     s.fileHandle = handle;
     api.editor.fileName = fileBaseName(handle.name);
@@ -200,7 +204,9 @@ const EXPORTDXF: CommandDef = {
     api.info(L('Generando DXF en segundo plano…', 'Generating DXF in the background…'));
     const { text, report } = await runHeavy('exportDxf', { data: api.editor.doc.data });
     const name = `${api.editor.fileName || api.editor.doc.settings.title || 'dibujo'}.dxf`;
-    const handle = await saveFile(new Blob([text], { type: 'application/dxf' }), name, { 'application/dxf': ['.dxf'] }, 'DXF');
+    const result = await saveFile(new Blob([text], { type: 'application/dxf' }), name, { 'application/dxf': ['.dxf'] }, 'DXF');
+    if (result.kind === 'cancelled') return;
+    const handle = result.kind === 'saved-to-handle' ? result.handle : null;
     const summary = exportSummary(report);
     api.info(L(`${summary.es}${handle ? ` → ${handle.name}` : ''}`, `${summary.en}${handle ? ` → ${handle.name}` : ''}`));
     requestUi('conversion-report', { kind: 'export', name: handle?.name ?? name, report });
