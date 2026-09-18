@@ -185,6 +185,8 @@ bloque, polares y XY complejos) queda como geometría estática y aparece en el 
 representación; si no se pueden leer, se mantiene la geometría del `*U…` como bloque estático
 enlazado por nombre y se avisa.
 
+**Resultado:** muestras de ACadSharp (MIT) con un DXF y un DWG de AutoCAD 2018 por tipo; se traducen lineal, punto, rotación, simetría, visibilidad y punto base (verificados contra la geometría `*U`); consulta, XY, polar y alineación quedan estáticos con aviso (la consulta de la muestra usa columnas de punto que la tabla de FModel no representa). *(Actualizado durante la implementación.)*
+
 **Riesgo principal:** el formato se infiere, no está especificado. Esta parte **solo empieza** con
 muestras reales: 5–10 DXF de bloques dinámicos habituales (puertas, ventanas, mobiliario con
 estados) descargados y guardados como DXF desde AutoCAD o convertidos. Cada tipo de parámetro se

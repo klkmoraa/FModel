@@ -24,6 +24,7 @@ import { MODEL_SPACE_ID } from '../../document/types';
 import type { DxfFile, DxfRecord } from './parser';
 import { parseDxf, R } from './parser';
 import { decodeDefinition, readInstanceXdata, readXrecord } from './dynamicData';
+import { acadIndex, anonymousRepresentations, instanceNodes, readAcadDynamicBlocks } from './acadDynamic';
 import type { PolyVertex } from '../../geometry/polyline';
 import { curvesToVertices } from '../../geometry/polyline';
 import type { Curve } from '../../geometry/curves';
@@ -53,7 +54,8 @@ export function importDxfIntoDocument(doc: CadDocument, text: string, opts: { re
  * Importa la estructura intermedia de un DXF (o de un DWG traducido a ella) en el documento.
  * `format` solo cambia el nombre del formato en el resumen del informe.
  */
-export function importDxfFile(doc: CadDocument, dxf: DxfFile, opts: { replace?: boolean; owner?: Id; format?: 'DXF' | 'DWG' } = {}): ImportReport {
+/** `acadDynamic: false` importa los bloques dinámicos de AutoCAD como sus representaciones estáticas. */
+export function importDxfFile(doc: CadDocument, dxf: DxfFile, opts: { replace?: boolean; owner?: Id; format?: 'DXF' | 'DWG'; acadDynamic?: boolean } = {}): ImportReport {
   const fmt = opts.format ?? 'DXF';
   const report: ImportReport = { version: dxf.version, units: 'mm', imported: {}, transformed: {}, ignored: {}, layers: 0, blocks: 0, layouts: 0, warnings: [], summary: { es: '', en: '' } };
   const ok = (t: string) => (report.imported[t] = (report.imported[t] ?? 0) + 1);
@@ -247,6 +249,16 @@ export function importDxfFile(doc: CadDocument, dxf: DxfFile, opts: { replace?: 
       variantRefs.set(name, (variantRefs.get(name) ?? true) && recoverable);
     }
 
+    // bloques dinámicos de AutoCAD: definiciones traducibles y sus representaciones *U
+    const acadDynamic = opts.acadDynamic === false ? new Map<string, ReturnType<typeof readAcadDynamicBlocks> extends Map<string, infer V> ? V : never>() : readAcadDynamicBlocks(dxf);
+    const acadAnon = anonymousRepresentations(dxf);
+    const acadHandles = acadDynamic.size ? acadIndex(dxf) : new Map<string, DxfRecord>();
+    const acadDefinitionOf = (upper: string) => {
+      const def = acadAnon.get(upper);
+      const d = def ? acadDynamic.get(def) : undefined;
+      return d && !d.unsupported.length ? d : undefined;
+    };
+
     // ---------------------------------------------------------------- bloques
     const blockIdByName = new Map<string, Id>();
     const pendingBlocks: { id: Id; def: (typeof dxf.blocks)[number] }[] = [];
@@ -255,6 +267,7 @@ export function importDxfFile(doc: CadDocument, dxf: DxfFile, opts: { replace?: 
       if (upper.startsWith('*MODEL_SPACE') || upper.startsWith('*PAPER_SPACE')) continue;
       if (upper.startsWith('*D')) continue; // cotas: se regeneran nativamente
       if (variantRefs.get(upper) === true) continue;
+      if (acadDefinitionOf(upper)) continue; // representación estática de una instancia dinámica
       const isXref = !!(b.flags & 4);
       const existing = doc.findByName('blocks', b.name);
       const id = existing?.id ?? newId('blk');
@@ -460,14 +473,16 @@ export function importDxfFile(doc: CadDocument, dxf: DxfFile, opts: { replace?: 
           }
           const consumed = j - index - 1;
           const fm = readInstanceXdata(rec.pairs);
-          const baseId = fm && fmDynamic.has(fm.baseName.toUpperCase()) ? blockIdByName.get(fm.baseName.toUpperCase()) : undefined;
+          const acad = acadDefinitionOf(name.toUpperCase());
+          const baseId = fm && fmDynamic.has(fm.baseName.toUpperCase()) ? blockIdByName.get(fm.baseName.toUpperCase()) : acad ? blockIdByName.get(acad.name) : undefined;
+          const dynState = fm && baseId && !acad ? fm.state : acad && baseId ? acad.state(instanceNodes(dxf, rec, acadHandles)) : undefined;
           if (!blockId && !baseId) {
             ignored('INSERT', `bloque «${name}» no encontrado`);
             return consumed;
           }
           const cols = r.num(70, 1);
           const rows = r.num(71, 1);
-          add({ ...base, type: 'insert', blockId: baseId ?? blockId, dynamic: baseId ? fm!.state : undefined, position: r.pt(10), scale: { x: r.num(41, 1), y: r.num(42, 1) }, rotation: r.num(50) * DEG, attributes, grid: cols > 1 || rows > 1 ? { columns: cols, rows, columnSpacing: r.num(44), rowSpacing: r.num(45) } : undefined } as Entity);
+          add({ ...base, type: 'insert', blockId: baseId ?? blockId, dynamic: baseId ? dynState : undefined, position: r.pt(10), scale: { x: r.num(41, 1), y: r.num(42, 1) }, rotation: r.num(50) * DEG, attributes, grid: cols > 1 || rows > 1 ? { columns: cols, rows, columnSpacing: r.num(44), rowSpacing: r.num(45) } : undefined } as Entity);
           ok(baseId ? 'INSERT dinámico' : 'INSERT');
           return consumed;
         }
@@ -625,6 +640,23 @@ export function importDxfFile(doc: CadDocument, dxf: DxfFile, opts: { replace?: 
       tx.update('blocks', id, { dynamic: def });
       ok('Bloque dinámico');
       if (missing) report.warnings.push(`${doc.data.blocks.get(id)?.name}: ${missing} referencia(s) de la definición dinámica sin objeto equivalente.`);
+    }
+
+    for (const [upper, acad] of acadDynamic) {
+      const id = blockIdByName.get(upper);
+      if (!id || !created.has(id)) continue;
+      const bname = doc.data.blocks.get(id)?.name ?? upper;
+      if (acad.unsupported.length) {
+        transformed('Bloque dinámico de AutoCAD', 'usa elementos sin equivalente en FModel: se importan sus representaciones estáticas (una por estado usado)');
+        report.warnings.push(`«${bname}»: ${acad.unsupported.join(', ')} sin equivalente en FModel; las instancias conservan su geometría estática.`);
+        continue;
+      }
+      const { def, shown, hidden, missing } = acad.build((h) => handleToId.get(h.toUpperCase()));
+      tx.update('blocks', id, { dynamic: def });
+      for (const eid of shown) tx.updateEntity(eid, { visible: true });
+      for (const eid of hidden) tx.updateEntity(eid, { visible: false });
+      ok('Bloque dinámico de AutoCAD');
+      if (missing) report.warnings.push(`«${bname}»: ${missing} referencia(s) de la definición dinámica sin objeto equivalente.`);
     }
   });
 

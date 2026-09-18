@@ -95,6 +95,20 @@ escalada y girada, sombreado y sólido; el archivo se regenera con
 
 **Bloques dinámicos exportados por FModel:** se reconstruyen la definición (parámetros, acciones, restricciones, tablas de consulta, variables) y el estado de cada instancia; las variantes `Nombre_Vn` usadas solo por esas instancias no se importan. Si los datos propios están dañados o son de una versión posterior, se importan las variantes estáticas y el informe lo avisa. Prueba: `src/io/dxf/dynamicRoundTrip.test.ts`.
 
+**Bloques dinámicos de AutoCAD (experimental).** La lógica dinámica está en objetos sin documentación oficial (`ACAD_ENHANCEDBLOCK` → `ACAD_EVALUATION_GRAPH` en la definición; `ACAD_ENHANCEDBLOCKDATA` en cada instancia, cuyo `INSERT` apunta a un bloque anónimo `*U`). FModel traduce:
+
+| AutoCAD | FModel |
+|---|---|
+| `BLOCKLINEARPARAMETER` (con conjunto de valores) | parámetro lineal |
+| `BLOCKPOINTPARAMETER` | parámetro de punto |
+| `BLOCKROTATIONPARAMETER` | parámetro de rotación |
+| `BLOCKFLIPPARAMETER` | parámetro de simetría |
+| `BLOCKVISIBILITYPARAMETER` | parámetro de visibilidad con sus estados |
+| `BLOCKBASEPOINTPARAMETER` | punto base |
+| `BLOCKMOVEACTION`, `BLOCKSTRETCHACTION`, `BLOCKSCALEACTION`, `BLOCKROTATEACTION`, `BLOCKFLIPACTION` | acciones desplazar, estirar, escalar, girar y simetría |
+
+Las instancias pasan a ser instancias de la definición dinámica con los valores que tenían en AutoCAD, y los bloques `*U` dejan de importarse. Si un bloque usa algo más (consulta, XY, polar, alineación, matriz, estiramiento polar, tabla de propiedades), **no se convierte a medias**: cada instancia conserva su geometría estática y el informe nombra lo que falta. La prueba `src/io/dxf/acadDynamic.test.ts` compara cada instancia evaluada por FModel con la geometría que AutoCAD guardó en su `*U` (muestras de ACadSharp, un único origen: por eso la función es experimental); `src/io/dwg/acadDynamicDwg.test.ts` comprueba lo mismo con los DWG equivalentes.
+
 ### Se transforma
 
 | DXF | Resultado | Motivo |

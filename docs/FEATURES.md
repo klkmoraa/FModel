@@ -2,7 +2,7 @@
 
 > Archivo generado con `node scripts/features-md.mjs` desde `src/app/features.ts`, la misma fuente que la pestaña «Estado de funciones» de la ayuda (F1). No lo edites a mano.
 
-**Disponible**: 40 · **Experimental**: 3 · **Planeado**: 0 · **No comprometido**: 1
+**Disponible**: 40 · **Experimental**: 4 · **Planeado**: 0 · **No comprometido**: 1
 
 - **Disponible**: funciona de extremo a extremo y tiene pruebas.
 - **Experimental**: funciona con limitaciones documentadas.
@@ -95,6 +95,7 @@
 | Importación y exportación DXF con informe de conversión | Disponible | `IMPORTDXF` `EXPORTDXF` | Detalle en docs/dxf-compatibilidad.md. Los bloques dinámicos de FModel sobreviven a la ida y vuelta. |
 | CSV/JSON de atributos y tablas | Disponible | `DATAEXTRACTION` |  |
 | Lectura DWG con LibreDWG (abrir e importar a la biblioteca) | Experimental | `OPEN` `LIBRARYIMPORT` | Probada con DWG de AutoCAD 2000 y 2018 frente a su DXF equivalente. El lector (WebAssembly, ~10 MB) se descarga al primer uso. LibreDWG es GPL-3.0: uso privado; publicar FModel obligaría a revisar la licencia. |
+| Bloques dinámicos de AutoCAD desde DXF o DWG: parámetros lineal, de punto, rotación, simetría, visibilidad y punto base con acciones desplazar, estirar, escalar, girar y simetría | Experimental | `OPEN` `IMPORTDXF` `LIBRARYIMPORT` | Formato no documentado: cada tipo se verifica comparando las instancias con la geometría que guarda AutoCAD, con muestras de un único origen (ACadSharp). Consulta, XY, polar, alineación y matrices dinámicas se importan como geometría estática y el informe lo explica. |
 | Escritura DWG | No comprometido |  | LibreDWG no escribe DWG de forma fiable y no se simula: exporta DXF. |
 
 ## Referencias
