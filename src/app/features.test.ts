@@ -24,7 +24,7 @@ describe('feature status and UI wiring', () => {
     expect(Object.values(DEFAULT_SHORTCUTS).filter((c) => !findCommand(c))).toEqual([]);
   });
 
-  const uiExists = (ui: string) => ui === 'clean-screen' || (ui.startsWith('panel:') ? !!PANELS[ui.slice(6)] : !!DIALOGS[ui]);
+  const uiExists = (ui: string) => ui === 'clean-screen' || ui === 'welcome' || ui === 'workspace' || (ui.startsWith('panel:') ? !!PANELS[ui.slice(6)] : !!DIALOGS[ui]);
 
   it('every command opens a real dialog or panel', () => {
     const dangling = allCommands()

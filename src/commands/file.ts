@@ -236,4 +236,16 @@ const OPENLAUNCHED: CommandDef = {
   },
 };
 
-export const FILE_COMMANDS: CommandDef[] = [NEW, OPEN, QSAVE, SAVEAS, EXPORTJSON, VERSIONS, RECOVER, IMPORTDXF, EXPORTDXF, OPENLAUNCHED];
+const HOME: CommandDef = {
+  name: 'HOME',
+  aliases: ['INICIO', 'BIENVENIDA', 'START'],
+  category: 'file',
+  readOnly: true,
+  label: L('Pantalla de inicio', 'Home screen'),
+  description: L('Abre la pantalla de bienvenida y proyectos recientes.', 'Opens the welcome screen and recent projects.'),
+  async run() {
+    requestUi('welcome');
+  },
+};
+
+export const FILE_COMMANDS: CommandDef[] = [NEW, OPEN, QSAVE, SAVEAS, EXPORTJSON, VERSIONS, RECOVER, IMPORTDXF, EXPORTDXF, OPENLAUNCHED, HOME];

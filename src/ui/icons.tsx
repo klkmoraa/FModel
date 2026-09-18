@@ -493,12 +493,12 @@ export function CadIcon({ name, size = 20, title }: { name: string; size?: numbe
 
 export const hasCadIcon = (name: string) => name in paths;
 
-/** Ménsula de FusionStructure (marca madre). */
-export function BrandMark({ size = 26 }: { size?: number }) {
+/** Ménsula de FModel (Familia Modelo, FS-M01): brazo en morado de modelo (#7657D5 / #A990FF). */
+export function BrandMark({ size = 26, className }: { size?: number; className?: string }) {
   return (
-    <svg className="brand__mark" width={size} height={size} viewBox="0 0 48 48" aria-hidden="true">
-      <path className="mark__body" d="M8 5h9v38H8z M17 5h24v5.5L17 14z" />
-      <path className="mark__arm" d="M17 21h17v5L17 30z" />
+    <svg className={`brand__mark${className ? ` ${className}` : ''}`} width={size} height={size} viewBox="0 0 48 48" aria-hidden="true">
+      <path className="mark__body" fill="var(--ink, #14171a)" d="M8 5h9v38H8z M17 5h24v5.5L17 14z" />
+      <path className="mark__arm" fill="var(--fm-accent, #7657d5)" d="M17 21h17v5L17 30z" />
     </svg>
   );
 }

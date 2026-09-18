@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import type { Plugin } from 'vite';
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
-import { readdirSync, statSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath, URL } from 'node:url';
 import { serviceWorkerSource } from './src/pwa/serviceWorker.ts';
@@ -25,8 +25,12 @@ function serviceWorker(): Plugin {
   };
 }
 
+const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string };
+
 export default defineConfig({
   base: process.env.FMODEL_BASE ?? '/',
+  // versión visible en la interfaz sin importar package.json desde el código de la aplicación
+  define: { __APP_VERSION__: JSON.stringify(pkg.version) },
   plugins: [react(), serviceWorker()],
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },

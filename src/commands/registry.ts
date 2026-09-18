@@ -23,6 +23,10 @@ export function getUserAliases(): Record<string, string> {
 }
 
 export function findCommand(input: string): CommandDef | undefined {
+  // Los comandos internos se registran con «_» delante: se buscan tal cual antes de quitar el
+  // prefijo (que en AutoCAD solo indica «nombre sin traducir»); si no, nunca se encontrarían.
+  const exact = input.trim().toUpperCase();
+  if (exact.startsWith('_') && commands.has(exact)) return commands.get(exact);
   const key = input.trim().replace(/^[_.'-]+/, '').toUpperCase();
   if (!key) return undefined;
   const target = userAliases[key] ?? (commands.has(key) ? key : aliasMap.get(key));

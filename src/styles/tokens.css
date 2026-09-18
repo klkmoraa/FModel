@@ -1,7 +1,7 @@
 /* ==========================================================================
    FModel 2D CAD · tokens derivados del brandbook FusionStructure 2026
    Familia «Modelo» (FS-M01 Dibujo CAD): #7657D5 día · #A990FF noche.
-   Marca madre: #1AA57A (solo en el brazo de la ménsula).
+   Marca de producto: brazo de la ménsula con el morado de Modelo (--fm-accent).
    Papel técnico de día, carbón de noche; arcilla leve con luz arriba-izquierda.
    ========================================================================== */
 
@@ -11,9 +11,17 @@
   --fs-font-ui: 'Inter Variable', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --fs-font-data: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', 'Cascadia Code', monospace;
 
-  /* marca y familia */
-  --fs-brand-accent: #1aa57a;
+  /* familias del brandbook FusionStructure 2026 */
+  --fs-family-nucleo: #1aa57a;
+  --fs-family-analisis: #ed4b46;
   --fs-family-modelo: #7657d5;
+  --fs-family-civil: #468c09;
+  --fs-family-proyecto: #d9720a;
+  --fs-family-interop: #3a72e3;
+  --fs-family-aprendizaje: #c94a8f;
+
+  /* marca y producto: brazo de la ménsula con el morado de Modelo (--fm-accent) */
+  --fs-brand-accent: var(--fs-family-nucleo);
   --fm-accent: var(--fs-family-modelo);
   --fm-accent-ink: #ffffff;
   --fm-accent-soft: color-mix(in srgb, var(--fm-accent) 12%, transparent);
@@ -114,7 +122,13 @@
     --n-900: #f2f4f3;
     --surface: var(--n-100);
     --surface-sunken: var(--n-000);
+    --fs-family-nucleo: #1aa57a;
+    --fs-family-analisis: #ff8e80;
     --fs-family-modelo: #a990ff;
+    --fs-family-civil: #72cf4a;
+    --fs-family-proyecto: #f3c553;
+    --fs-family-interop: #72a1ff;
+    --fs-family-aprendizaje: #f07db5;
     --fm-accent-ink: #0e1113;
     --fs-signal-axial: #63c5ff;
     --fs-signal-moment: #ff8e80;
@@ -146,7 +160,13 @@
   --n-900: #f2f4f3;
   --surface: var(--n-100);
   --surface-sunken: var(--n-000);
+  --fs-family-nucleo: #1aa57a;
+  --fs-family-analisis: #ff8e80;
   --fs-family-modelo: #a990ff;
+  --fs-family-civil: #72cf4a;
+  --fs-family-proyecto: #f3c553;
+  --fs-family-interop: #72a1ff;
+  --fs-family-aprendizaje: #f07db5;
   --fm-accent-ink: #0e1113;
   --fs-signal-axial: #63c5ff;
   --fs-signal-moment: #ff8e80;

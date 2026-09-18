@@ -109,16 +109,39 @@ button {
   flex-shrink: 0;
 }
 
+.brand--btn {
+  background: transparent;
+  border: 0;
+  padding: 4px 8px 4px 4px;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  color: inherit;
+  text-align: left;
+  transition: background var(--fs-quick) var(--fs-ease), transform var(--fs-instant) var(--fs-ease);
+}
+.brand--btn:hover {
+  background: var(--surface-hover);
+}
+.brand--btn:active {
+  transform: var(--press);
+}
+.brand--btn:focus-visible {
+  outline: 2px solid var(--fm-accent);
+  outline-offset: 2px;
+}
+
 .brand__mark {
+  flex-shrink: 0;
+}
+.brand .brand__mark {
   width: 26px;
   height: 26px;
-  flex-shrink: 0;
 }
 .brand__mark .mark__body {
   fill: var(--ink);
 }
 .brand__mark .mark__arm {
-  fill: var(--fs-brand-accent);
+  fill: var(--fm-accent);
 }
 
 .brand__name {

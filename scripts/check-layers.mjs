@@ -10,7 +10,8 @@
  *      layers, annotation
  *   3  selection, snap, blocks,       operaciones de dominio sin interfaz; `app` es el
  *      modify, audit, io, storage,    localizador de servicios (solo tipos) y el catálogo
- *      xref, app                      de funciones, sin dependencias en ejecución
+ *      xref, app, templates           de funciones, sin dependencias en ejecución;
+ *                                     `templates` construye dibujos de partida con bloques
  *   4  render, output                 dibujo en pantalla y salida vectorial
  *   5  commands, editor               interacción y ejecución de comandos
  *   6  ui, main                       React y arranque
@@ -43,6 +44,7 @@ const LAYERS = {
   storage: 3,
   xref: 3,
   app: 3,
+  templates: 3,
   render: 4,
   output: 4,
   workers: 4,

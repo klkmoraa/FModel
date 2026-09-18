@@ -7,7 +7,7 @@ import { AttributeExtraction } from './dialogs/AttributeExtraction';
 import { CompareDialog } from './dialogs/CompareDialog';
 import { ConversionReportDialog, type ConversionPayload } from './dialogs/ConversionReportDialog';
 import { HealthReportDialog } from './dialogs/HealthReportDialog';
-import { HelpDialog } from './dialogs/HelpDialog';
+import { HelpDialog, type HelpTab } from './dialogs/HelpDialog';
 import { OptionsDialog } from './dialogs/OptionsDialog';
 import { StylesDialog } from './dialogs/StylesDialog';
 import { VersionsDialog } from './dialogs/VersionsDialog';
@@ -55,7 +55,7 @@ export const DIALOGS: Record<string, DialogRenderer> = {
   references: (e, close) => <ReferencesDialog editor={e} onClose={close} />,
   'health-report': (e, close, _onUi, st) => <HealthReportDialog editor={e} payload={st.payload as Parameters<typeof HealthReportDialog>[0]['payload']} onClose={close} />,
   compare: (e, close) => <CompareDialog editor={e} onClose={close} />,
-  help: (e, close) => <HelpDialog editor={e} onClose={close} />,
+  help: (e, close, _onUi, st) => <HelpDialog editor={e} onClose={close} initialTab={(st.payload as { tab?: HelpTab } | undefined)?.tab} />,
   options: (e, close, _onUi, st) => <OptionsDialog editor={e} onClose={close} initialTab={st.cmd === 'ALIASEDIT' ? 'aliases' : st.cmd === 'SHORTCUTS' ? 'shortcuts' : undefined} />,
   styles: (e, close, _onUi, st) => <StylesDialog editor={e} onClose={close} initialTab={styleTabFor(st.cmd)} />,
   versions: (e, close, onUi) => <VersionsDialog editor={e} onClose={close} onUi={onUi} />,

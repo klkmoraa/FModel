@@ -7,7 +7,7 @@ import type { Editor } from '../../editor/editor';
 import { Dialog } from '../Dialogs';
 import { tr } from '../controls';
 
-type Tab = 'commands' | 'features' | 'keys' | 'about';
+export type HelpTab = 'commands' | 'features' | 'keys' | 'about';
 
 const CATEGORY: Record<string, { es: string; en: string }> = {
   draw: { es: 'Dibujo', en: 'Draw' },
@@ -27,14 +27,14 @@ const CATEGORY: Record<string, { es: string; en: string }> = {
 };
 
 /** Ayuda: comandos buscables (con el comando activo preseleccionado), estado de funciones, teclas y acerca de. */
-export function HelpDialog({ editor, onClose }: { editor: Editor; onClose: () => void }) {
+export function HelpDialog({ editor, onClose, initialTab }: { editor: Editor; onClose: () => void; initialTab?: HelpTab }) {
   const lang = editor.lang;
   const active = editor.runner.active?.def.name;
-  const [tab, setTab] = useState<Tab>('commands');
+  const [tab, setTab] = useState<HelpTab>(initialTab ?? 'commands');
   const [q, setQ] = useState(active && active !== 'HELP' ? active : '');
   const [status, setStatus] = useState<FeatureStatus | 'all'>('all');
   const commands = useMemo(() => (q.trim() ? searchCommands(q, lang, 80) : allCommands().filter((c) => !c.name.startsWith('_'))), [q, lang]);
-  const tabs: [Tab, string][] = [
+  const tabs: [HelpTab, string][] = [
     ['commands', tr(lang, 'Comandos', 'Commands')],
     ['features', tr(lang, 'Estado de funciones', 'Feature status')],
     ['keys', tr(lang, 'Teclado y ratón', 'Keyboard and mouse')],

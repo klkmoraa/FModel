@@ -1,4 +1,4 @@
-import { Moon, Redo2, Search, Sun, Undo2 } from 'lucide-react';
+import { Home, Moon, Redo2, Search, Sun, Undo2 } from 'lucide-react';
 import { QuickProperties } from './QuickProperties';
 import { Onboarding } from './Onboarding';
 import { comboOf } from './keys';
@@ -20,6 +20,7 @@ import { StatusBar } from './StatusBar';
 import { Docks } from './Docks';
 import { Dialogs, type DialogState } from './Dialogs';
 import { MobileBar, TouchHud } from './MobileBar';
+import { WelcomeScreen } from './welcome/WelcomeScreen';
 
 export function App({ editor }: { editor: Editor }) {
   useEditorEvents(editor, ['prefs', 'command', 'space']);
@@ -36,6 +37,24 @@ export function App({ editor }: { editor: Editor }) {
   const cmdRef = useRef<CommandLineHandle>(null);
   const dynRef = useRef<DynamicInputHandle>(null);
   const isMobile = useMediaQuery('(max-width: 820px)');
+  const [surface, setSurface] = useState<'welcome' | 'workspace'>(() => {
+    if (typeof window === 'undefined') return 'workspace';
+    const param = new URLSearchParams(window.location.search).get('surface');
+    if (param === 'workspace') return 'workspace';
+    if (param === 'welcome') return 'welcome';
+    return 'welcome';
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    if (surface === 'welcome') {
+      url.searchParams.delete('surface');
+    } else {
+      url.searchParams.set('surface', 'workspace');
+    }
+    window.history.replaceState(null, '', url);
+  }, [surface]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = editor.prefs.theme === 'system' ? '' : editor.prefs.theme;
@@ -45,6 +64,14 @@ export function App({ editor }: { editor: Editor }) {
   }, [editor.prefs.theme, lang, dark]);
 
   const openUi = useCallback((ui: string, cmd?: string, payload?: unknown) => {
+    if (ui === 'welcome') {
+      setSurface('welcome');
+      return;
+    }
+    if (ui === 'workspace') {
+      setSurface('workspace');
+      return;
+    }
     if (ui === 'clean-screen') {
       setClean((c) => !c);
       return;
@@ -129,16 +156,34 @@ export function App({ editor }: { editor: Editor }) {
     }
   };
 
+  if (surface === 'welcome') {
+    return <WelcomeScreen editor={editor} dark={dark} onOpenWorkspace={() => setSurface('workspace')} />;
+  }
+
   return (
     <div className={`app${clean ? ' app--clean' : ''}`} data-busy={editor.runner.busy || undefined}>
       <header className="topbar">
-        <div className="brand">
+        <button
+          type="button"
+          className="brand brand--btn"
+          onClick={() => setSurface('welcome')}
+          title={lang === 'es' ? 'Ir al inicio (HOME)' : 'Go to Home (HOME)'}
+        >
           <BrandMark />
           <div className="brand__name">
             <strong>FModel</strong>
             <small>2D CAD · FS-M01</small>
           </div>
-        </div>
+        </button>
+        <button
+          type="button"
+          className="icon-btn"
+          onClick={() => setSurface('welcome')}
+          title={lang === 'es' ? 'Inicio (HOME)' : 'Home (HOME)'}
+          aria-label={lang === 'es' ? 'Inicio' : 'Home'}
+        >
+          <Home size={17} />
+        </button>
         <div className="doc-tabs">
           <span className="doc-tab is-active" title={editor.doc.settings.title}>
             {editor.doc.dirty && <span className="doc-tab__dirty" aria-label={lang === 'es' ? 'Cambios sin guardar' : 'Unsaved changes'} />}
