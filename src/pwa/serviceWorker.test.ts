@@ -136,4 +136,15 @@ describe('service worker', () => {
     const cached = await sw.dispatch('fetch', { request: libReq });
     expect(await cached!.text()).toContain('library/muebles.dxf');
   });
+
+  it('no almacena en caché respuestas parciales (HTTP 206)', async () => {
+    const network = { online: true, status: 206 };
+    const sw = boot(['./', 'index.html'], 'v1', network);
+    await sw.dispatch('install');
+
+    const rangeReq = req(`${sw.scope}heavy.wasm`);
+    const fetched = await sw.dispatch('fetch', { request: rangeReq });
+    expect(fetched?.status).toBe(206);
+    expect(sw.stores.get('fmodel-cad-v1')?.has(`${sw.scope}heavy.wasm`)).toBe(false);
+  });
 });

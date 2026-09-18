@@ -84,7 +84,7 @@ self.addEventListener('fetch', (event) => {
         (hit) =>
           hit ||
           fetch(req).then((res) => {
-            if (res.ok && res.type === 'basic') cache.put(req, res.clone());
+            if (res.status === 200 && res.type === 'basic') cache.put(req, res.clone());
             return res;
           }),
       ),

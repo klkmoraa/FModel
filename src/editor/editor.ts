@@ -530,8 +530,8 @@ export class Editor {
   }
 
   /** Ejecuta un comando por nombre desde la interfaz. */
-  command(name: string, args?: string[]) {
-    void this.runner.execute(name, args);
+  command(name: string, args?: string[]): Promise<void> {
+    return this.runner.execute(name, args);
   }
 
   // ------------------------------------------------------------------ resolución de puntos

@@ -13,7 +13,7 @@ function serviceWorker(): Plugin {
     apply: 'build',
     generateBundle(_options, bundle) {
       const publicDir = fileURLToPath(new URL('./public', import.meta.url));
-      const walk = (dir: string): string[] => readdirSync(dir).flatMap((f) => (statSync(join(dir, f)).isDirectory() ? walk(join(dir, f)) : [relative(publicDir, join(dir, f))]));
+      const walk = (dir: string): string[] => readdirSync(dir).flatMap((f) => (statSync(join(dir, f)).isDirectory() ? walk(join(dir, f)) : [relative(publicDir, join(dir, f)).replace(/\\/g, '/')]));
       // fuentes: solo woff2 latinas (el resto de subconjuntos se descarga si alguna vez hace falta)
       // el lector DWG (WebAssembly, ~10 MB) y la biblioteca inicial (~4 MB) no se precargan: se guardan en caché al usarlos
       const wanted = (f: string) => !f.endsWith('.map') && !f.endsWith('.wasm') && !f.startsWith('library/') && f !== 'sw.js' && !f.startsWith('.') && !f.includes('/.') && !(/\.woff2?$/.test(f) && (!f.endsWith('.woff2') || /cyrillic|greek|vietnamese/.test(f)));

@@ -6,6 +6,7 @@ import type {
   BlockRecord,
   DimensionEntity,
   DimStyleRecord,
+  DynamicBlockDefinition,
   Entity,
   HatchEntity,
   Id,
@@ -16,6 +17,7 @@ import type {
   MLeaderStyleRecord,
   MLineEntity,
   MLineStyleRecord,
+  PolarStretchAction,
   TableEntity,
   TableStyleRecord,
   TextStyleRecord,
@@ -164,6 +166,16 @@ export function createClipboardPackage(doc: CadDocument, entityIds: Id[], ctx?: 
     const ts = doc.data.tableStyles.get(t);
     if (ts?.textStyle) textStyles.add(ts.textStyle);
   }
+  for (const m of mlineStyles) {
+    const ms = doc.data.mlineStyles.get(m);
+    if (ms?.elements) {
+      for (const el of ms.elements) {
+        if (el.linetype && el.linetype !== 'ByLayer' && el.linetype !== 'ByBlock') {
+          linetypes.add(el.linetype);
+        }
+      }
+    }
+  }
 
   return {
     format: CLIPBOARD_FORMAT,
@@ -263,19 +275,96 @@ export function parseClipboardPackage(text: string): ClipboardPackage | LegacyCl
   return validateClipboardPackage(parsed);
 }
 
-function cleanEntityForComparison(e: Entity, blockIdMap?: Map<Id, Id>): Record<string, unknown> {
+export interface ComparisonMappings {
+  mapBlock?: Map<Id, Id>;
+  mapLayer?: Map<Id, Id>;
+  mapLt?: Map<string, string>;
+  mapTextStyle?: Map<Id, Id>;
+  mapDimStyle?: Map<Id, Id>;
+  mapMLeaderStyle?: Map<Id, Id>;
+  mapTableStyle?: Map<Id, Id>;
+  mapMLineStyle?: Map<Id, Id>;
+  mapAsset?: Map<Id, Id>;
+}
+
+function cleanEntityForComparison(e: Entity, mappings?: ComparisonMappings): Record<string, unknown> {
   const copy: Record<string, unknown> = { ...e };
   delete copy.id;
   delete copy.owner;
   delete copy.order;
-  if (blockIdMap) {
-    if (copy.type === 'insert' && typeof copy.blockId === 'string' && blockIdMap.has(copy.blockId as Id)) {
-      copy.blockId = blockIdMap.get(copy.blockId as Id);
+
+  // Normalizar asociatividad para comparación independiente de IDs locales del bloque
+  if (e.type === 'dimension' && Array.isArray(e.assoc)) {
+    copy.assoc = e.assoc.map((a) => ({ point: a.point, snap: a.snap }));
+  }
+  if (e.type === 'hatch' && Array.isArray(e.associative)) {
+    copy.associative = e.associative.length ? true : undefined;
+  }
+
+  if (mappings) {
+    const {
+      mapBlock,
+      mapLayer,
+      mapLt,
+      mapTextStyle,
+      mapDimStyle,
+      mapMLeaderStyle,
+      mapTableStyle,
+      mapMLineStyle,
+      mapAsset,
+    } = mappings;
+
+    if (mapLayer && typeof copy.layer === 'string' && mapLayer.has(copy.layer as Id)) {
+      copy.layer = mapLayer.get(copy.layer as Id);
     }
-    if (copy.type === 'array' && typeof copy.sourceBlockId === 'string' && blockIdMap.has(copy.sourceBlockId as Id)) {
-      copy.sourceBlockId = blockIdMap.get(copy.sourceBlockId as Id);
+
+    if (mapLt && typeof copy.linetype === 'string' && mapLt.has(copy.linetype)) {
+      copy.linetype = mapLt.get(copy.linetype);
+    }
+
+    if (copy.type === 'text' || copy.type === 'mtext' || copy.type === 'attdef') {
+      if (mapTextStyle && typeof copy.style === 'string' && mapTextStyle.has(copy.style as Id)) {
+        copy.style = mapTextStyle.get(copy.style as Id);
+      }
+    } else if (copy.type === 'dimension' || copy.type === 'leader') {
+      if (mapDimStyle && typeof copy.style === 'string' && mapDimStyle.has(copy.style as Id)) {
+        copy.style = mapDimStyle.get(copy.style as Id);
+      }
+    } else if (copy.type === 'mleader') {
+      if (mapMLeaderStyle && typeof copy.style === 'string' && mapMLeaderStyle.has(copy.style as Id)) {
+        copy.style = mapMLeaderStyle.get(copy.style as Id);
+      }
+      if (copy.content && typeof copy.content === 'object' && (copy.content as any).type === 'block') {
+        const content = { ...(copy.content as any) };
+        if (mapBlock && mapBlock.has(content.blockId as Id)) {
+          content.blockId = mapBlock.get(content.blockId as Id);
+        }
+        copy.content = content;
+      }
+    } else if (copy.type === 'table') {
+      if (mapTableStyle && typeof copy.style === 'string' && mapTableStyle.has(copy.style as Id)) {
+        copy.style = mapTableStyle.get(copy.style as Id);
+      }
+    } else if (copy.type === 'mline') {
+      if (mapMLineStyle && typeof copy.style === 'string' && mapMLineStyle.has(copy.style as Id)) {
+        copy.style = mapMLineStyle.get(copy.style as Id);
+      }
+    }
+
+    if (mapBlock) {
+      if (copy.type === 'insert' && typeof copy.blockId === 'string' && mapBlock.has(copy.blockId as Id)) {
+        copy.blockId = mapBlock.get(copy.blockId as Id);
+      }
+      if (copy.type === 'array' && typeof copy.sourceBlockId === 'string' && mapBlock.has(copy.sourceBlockId as Id)) {
+        copy.sourceBlockId = mapBlock.get(copy.sourceBlockId as Id);
+      }
+    }
+
+    if (mapAsset && (copy.type === 'image' || copy.type === 'pdfunderlay') && typeof copy.assetId === 'string' && mapAsset.has(copy.assetId as Id)) {
+      copy.assetId = mapAsset.get(copy.assetId as Id);
     }
   }
+
   return copy;
 }
 
@@ -294,15 +383,15 @@ function canonicalJson(val: unknown): string {
 function entitiesMatch(
   existingEntities: Entity[],
   pkgEntities: Entity[],
-  blockIdMap?: Map<Id, Id>,
+  mappings?: ComparisonMappings,
 ): boolean {
   if (existingEntities.length !== pkgEntities.length) return false;
-  const serialize = (e: Entity, map?: Map<Id, Id>) => {
-    const cleaned = cleanEntityForComparison(e, map);
+  const serialize = (e: Entity, m?: ComparisonMappings) => {
+    const cleaned = cleanEntityForComparison(e, m);
     return canonicalJson(cleaned);
   };
   const existingSerialized = existingEntities.map((e) => serialize(e)).sort();
-  const pkgSerialized = pkgEntities.map((e) => serialize(e, blockIdMap)).sort();
+  const pkgSerialized = pkgEntities.map((e) => serialize(e, mappings)).sort();
 
   for (let i = 0; i < existingSerialized.length; i++) {
     if (existingSerialized[i] !== pkgSerialized[i]) return false;
@@ -316,7 +405,7 @@ function isBlockEquivalent(
   existingBlockId: Id,
   pkgBlock: BlockRecord,
   pkgBlockEntities: Entity[],
-  blockIdMap?: Map<Id, Id>,
+  mappings?: ComparisonMappings,
 ): boolean {
   const existing = doc.data.blocks.get(existingBlockId);
   if (!existing) return false;
@@ -330,7 +419,7 @@ function isBlockEquivalent(
 
   const existingEntities = doc.entitiesOf(existingBlockId);
   const pkgEntities = pkgBlockEntities.filter((e) => e.owner === pkgBlock.id);
-  return entitiesMatch(existingEntities, pkgEntities, blockIdMap);
+  return entitiesMatch(existingEntities, pkgEntities, mappings);
 }
 
 /** Ordena bloques de forma topológica para que las dependencias anidadas se procesen antes de los bloques contenedores. */
@@ -346,6 +435,8 @@ function sortBlocksTopologically(blocks: BlockRecord[], blockEntities: Entity[])
       parent.add(e.blockId);
     } else if (e.type === 'array' && deps.has(e.sourceBlockId)) {
       parent.add(e.sourceBlockId);
+    } else if (e.type === 'mleader' && e.content.type === 'block' && deps.has(e.content.blockId)) {
+      parent.add(e.content.blockId);
     }
   }
 
@@ -373,6 +464,44 @@ function sortBlocksTopologically(blocks: BlockRecord[], blockEntities: Entity[])
     visit(b);
   }
   return result;
+}
+
+/** Remapea identificadores de entidades en parámetros, acciones y restricciones de bloques dinámicos de forma tipada. */
+function remapDynamicBlockDef(dynamic: DynamicBlockDefinition, blockEntityMap: Map<Id, Id>): DynamicBlockDefinition {
+  const cloned: DynamicBlockDefinition = structuredClone(dynamic);
+  if (cloned.parameters) {
+    for (const param of cloned.parameters) {
+      if (param.type === 'visibility' && param.states) {
+        for (const state of param.states) {
+          if (state.visible) {
+            state.visible = state.visible.map((id) => blockEntityMap.get(id) ?? id);
+          }
+        }
+      }
+    }
+  }
+  if (cloned.actions) {
+    for (const act of cloned.actions) {
+      if (act.selection) {
+        act.selection = act.selection.map((id) => blockEntityMap.get(id) ?? id);
+      }
+      if (act.type === 'polarstretch' && (act as PolarStretchAction).rotateOnly) {
+        (act as PolarStretchAction).rotateOnly = (act as PolarStretchAction).rotateOnly.map((id) => blockEntityMap.get(id) ?? id);
+      }
+    }
+  }
+  if (cloned.constraints) {
+    for (const c of cloned.constraints) {
+      if (c.refs) {
+        for (const ref of c.refs) {
+          if (ref.entityId && blockEntityMap.has(ref.entityId)) {
+            ref.entityId = blockEntityMap.get(ref.entityId)!;
+          }
+        }
+      }
+    }
+  }
+  return cloned;
 }
 
 /**
@@ -469,6 +598,7 @@ export function pasteClipboardPackage(
     }
 
     // 4. Estilos de directriz múltiple
+    const newlyAddedMLeaderStyles = new Set<Id>();
     for (const ms of pkg.mleaderStyles ?? []) {
       const existing = doc.findByName('mleaderStyles', ms.name);
       if (existing) {
@@ -476,8 +606,10 @@ export function pasteClipboardPackage(
       } else {
         const id = newId('mls');
         const textStyle = mapTextStyle.get(ms.textStyle) ?? ms.textStyle;
-        tx.add('mleaderStyles', { ...ms, id, textStyle });
+        const { blockId: _origBlockId, ...restMs } = ms;
+        tx.add('mleaderStyles', { ...restMs, id, textStyle });
         mapMLeaderStyle.set(ms.id, id);
+        newlyAddedMLeaderStyles.add(id);
       }
     }
 
@@ -501,7 +633,14 @@ export function pasteClipboardPackage(
         mapMLineStyle.set(ms.id, existing.id);
       } else {
         const id = newId('mls');
-        tx.add('mlineStyles', { ...ms, id });
+        const elements = ms.elements?.map((el) => {
+          if (el.linetype && el.linetype !== 'ByLayer' && el.linetype !== 'ByBlock') {
+            const remappedLt = mapLt.get(el.linetype) ?? (doc.data.linetypes.has(el.linetype) ? el.linetype : 'ByLayer');
+            return { ...el, linetype: remappedLt };
+          }
+          return { ...el };
+        }) ?? [];
+        tx.add('mlineStyles', { ...ms, id, elements });
         mapMLineStyle.set(ms.id, id);
       }
     }
@@ -545,9 +684,21 @@ export function pasteClipboardPackage(
       blockEntityMap.set(be.id, newId());
     }
 
+    const compMappings: ComparisonMappings = {
+      mapBlock,
+      mapLayer,
+      mapLt,
+      mapTextStyle,
+      mapDimStyle,
+      mapMLeaderStyle,
+      mapTableStyle,
+      mapMLineStyle,
+      mapAsset,
+    };
+
     for (const b of orderedBlocks) {
       const existing = doc.findByName('blocks', b.name);
-      if (existing && isBlockEquivalent(doc, existing.id, b, allPkgBlockEntities, mapBlock)) {
+      if (existing && isBlockEquivalent(doc, existing.id, b, allPkgBlockEntities, compMappings)) {
         // Bloque equivalente ya existente: reutilizar
         mapBlock.set(b.id, existing.id);
         reusedBlocks.add(b.id);
@@ -561,13 +712,21 @@ export function pasteClipboardPackage(
         const id = newId('blk');
         mapBlock.set(b.id, id);
 
-        let dynamicDef = b.dynamic;
-        if (dynamicDef) {
-          const json = JSON.stringify(dynamicDef).replace(/"([^"]+)"/g, (m, s: string) => (blockEntityMap.has(s as Id) ? `"${blockEntityMap.get(s as Id)}"` : m));
-          dynamicDef = JSON.parse(json);
-        }
-
+        const dynamicDef = b.dynamic ? remapDynamicBlockDef(b.dynamic, blockEntityMap) : undefined;
         tx.add('blocks', { ...structuredClone(b), id, name, dynamic: dynamicDef, revision: 1 });
+      }
+    }
+
+    // Remapear blockId de mleaderStyles recién agregados tras conocer el mapa de bloques
+    for (const ms of pkg.mleaderStyles ?? []) {
+      if (ms.blockId) {
+        const destMlsId = mapMLeaderStyle.get(ms.id);
+        if (destMlsId && newlyAddedMLeaderStyles.has(destMlsId)) {
+          const remappedBlockId = mapBlock.get(ms.blockId);
+          if (remappedBlockId) {
+            tx.update('mleaderStyles', destMlsId, { blockId: remappedBlockId });
+          }
+        }
       }
     }
 
@@ -606,6 +765,33 @@ export function pasteClipboardPackage(
         clone.sourceBlockId = mapBlock.get(clone.sourceBlockId) ?? clone.sourceBlockId;
       } else if (clone.type === 'image' || clone.type === 'pdfunderlay') {
         clone.assetId = mapAsset.get(clone.assetId) ?? clone.assetId;
+      }
+
+      // Asociatividad de cotas dentro del bloque
+      if (clone.type === 'dimension' && clone.assoc) {
+        const mappedAssoc = clone.assoc
+          .map((a) => {
+            if (blockEntityMap.has(a.entityId)) {
+              return { ...a, entityId: blockEntityMap.get(a.entityId)! };
+            }
+            return null;
+          })
+          .filter(Boolean);
+        if (mappedAssoc.length > 0) {
+          clone.assoc = mappedAssoc as DimensionEntity['assoc'];
+        } else {
+          delete (clone as Partial<DimensionEntity>).assoc;
+        }
+      }
+
+      // Asociatividad de sombreados (hatch) dentro del bloque
+      if (clone.type === 'hatch' && clone.associative) {
+        const mappedAssoc = clone.associative.map((id) => blockEntityMap.get(id)).filter(Boolean) as Id[];
+        if (mappedAssoc.length > 0) {
+          clone.associative = mappedAssoc;
+        } else {
+          delete (clone as Partial<HatchEntity>).associative;
+        }
       }
 
       const { order: _o, ...rest } = clone;

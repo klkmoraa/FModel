@@ -5,9 +5,12 @@ import type {
   ArrayEntity,
   AssetRecord,
   DimensionEntity,
+  HatchEntity,
   ImageEntity,
   InsertEntity,
   LineEntity,
+  MLeaderEntity,
+  MLineEntity,
   TextEntity,
 } from '../document/types';
 import { MODEL_SPACE_ID } from '../document/types';
@@ -563,5 +566,458 @@ describe('portapapeles portable (DAT-002)', () => {
       ],
     };
     expect(() => validateClipboardPackage(invalidPackage)).toThrowError(ClipboardError);
+  });
+
+  it('remapea de forma tipada selection, rotateOnly y constraints en bloques dinámicos', () => {
+    const srcDoc = createDocument();
+    const dstDoc = createDocument();
+
+    srcDoc.transact('CREA_DIN_AVANZADO', (tx) => {
+      tx.add('blocks', {
+        id: 'blk_dyn_adv',
+        name: 'PuertaAvanzada',
+        kind: 'normal',
+        basePoint: { x: 0, y: 0 },
+        description: 'Puerta polar con restricción',
+        units: 'unitless',
+        explodable: true,
+        scaleUniformly: true,
+        annotative: false,
+        revision: 1,
+        dynamic: {
+          parameters: [
+            { id: 'p_vis', name: 'Visibilidad', type: 'visibility', position: { x: 0, y: 0 }, defaultState: 'S1', states: [{ name: 'S1', visible: ['l_hoja_adv'] }] } as any,
+          ],
+          actions: [
+            {
+              id: 'act_polar',
+              type: 'polarstretch',
+              name: 'GiroEstiramiento',
+              paramId: 'p_polar',
+              paramPoint: 'end',
+              frame: [],
+              selection: ['l_hoja_adv'],
+              rotateOnly: ['l_arco_adv'],
+            },
+          ],
+          constraints: [
+            {
+              id: 'c_coinc',
+              kind: 'geometric',
+              type: 'coincident',
+              enabled: true,
+              refs: [
+                { entityId: 'l_hoja_adv', part: 'start' },
+                { entityId: 'l_arco_adv', part: 'center' },
+              ],
+            },
+          ],
+          lookups: [],
+          variables: [],
+          propertyOrder: [],
+        },
+      });
+      tx.addEntity<LineEntity>({
+        ...entityDefaults(srcDoc),
+        id: 'l_hoja_adv',
+        type: 'line',
+        owner: 'blk_dyn_adv',
+        start: { x: 0, y: 0 },
+        end: { x: 80, y: 0 },
+      });
+      tx.addEntity<ArcEntity>({
+        ...entityDefaults(srcDoc),
+        id: 'l_arco_adv',
+        type: 'arc',
+        owner: 'blk_dyn_adv',
+        center: { x: 0, y: 0 },
+        radius: 80,
+        startAngle: 0,
+        endAngle: Math.PI / 2,
+      });
+      tx.addEntity<InsertEntity>({
+        ...entityDefaults(srcDoc),
+        id: 'ins_dyn_adv',
+        type: 'insert',
+        blockId: 'blk_dyn_adv',
+        position: { x: 0, y: 0 },
+        scale: { x: 1, y: 1 },
+        rotation: 0,
+        attributes: [],
+      });
+    });
+
+    const pkg = createClipboardPackage(srcDoc, ['ins_dyn_adv']);
+    const res = pasteClipboardPackage(dstDoc, pkg, MODEL_SPACE_ID, { x: 10, y: 10 });
+    const pastedIns = dstDoc.entity(res.insertedIds[0]) as InsertEntity;
+    const pastedBlk = dstDoc.data.blocks.get(pastedIns.blockId)!;
+    const ents = dstDoc.entitiesOf(pastedBlk.id);
+    const newHojaId = ents.find((e) => e.type === 'line')!.id;
+    const newArcoId = ents.find((e) => e.type === 'arc')!.id;
+
+    const dyn = pastedBlk.dynamic!;
+    expect(dyn.parameters[0].type).toBe('visibility');
+    if (dyn.parameters[0].type === 'visibility') {
+      expect(dyn.parameters[0].states[0].visible).toEqual([newHojaId]);
+    }
+    const act = dyn.actions[0];
+    expect(act.selection).toEqual([newHojaId]);
+    if (act.type === 'polarstretch') {
+      expect(act.rotateOnly).toEqual([newArcoId]);
+    }
+    expect(dyn.constraints[0].refs[0].entityId).toBe(newHojaId);
+    expect(dyn.constraints[0].refs[1].entityId).toBe(newArcoId);
+  });
+
+  it('remapea mleaderStyle.blockId al bloque registrado en destino', () => {
+    const srcDoc = createDocument();
+    const dstDoc = createDocument();
+
+    srcDoc.transact('CREA_MLEADER_STYLE_BLOCK', (tx) => {
+      tx.add('blocks', {
+        id: 'blk_burbuja',
+        name: 'BurbujaDetalle',
+        kind: 'normal',
+        basePoint: { x: 0, y: 0 },
+        description: 'Burbuja de directriz',
+        units: 'unitless',
+        explodable: true,
+        scaleUniformly: true,
+        annotative: false,
+        revision: 1,
+      });
+      tx.addEntity<ArcEntity>({
+        ...entityDefaults(srcDoc),
+        id: 'arc_burbuja',
+        type: 'arc',
+        owner: 'blk_burbuja',
+        center: { x: 0, y: 0 },
+        radius: 5,
+        startAngle: 0,
+        endAngle: Math.PI * 2,
+      });
+      tx.add('mleaderStyles', {
+        ...srcDoc.data.mleaderStyles.get('standard')!,
+        id: 'mls_burbuja',
+        name: 'DirectrizBurbuja',
+        contentType: 'block',
+        blockId: 'blk_burbuja',
+      });
+      tx.addEntity<MLeaderEntity>({
+        ...entityDefaults(srcDoc),
+        id: 'mld_1',
+        type: 'mleader',
+        style: 'mls_burbuja',
+        leaders: [{ vertices: [{ x: 0, y: 0 }, { x: 10, y: 10 }] }],
+        landing: { x: 10, y: 10 },
+        doglegLength: 5,
+        direction: 1,
+        content: { type: 'block', blockId: 'blk_burbuja', scale: 1, rotation: 0, attributes: {} },
+      });
+    });
+
+    const pkg = createClipboardPackage(srcDoc, ['mld_1']);
+    expect(pkg.mleaderStyles?.length).toBe(1);
+    expect(pkg.blocks?.some((b) => b.name === 'BurbujaDetalle')).toBe(true);
+
+    const res = pasteClipboardPackage(dstDoc, pkg, MODEL_SPACE_ID, { x: 20, y: 20 });
+    const pastedMld = dstDoc.entity(res.insertedIds[0]) as MLeaderEntity;
+    const destStyle = dstDoc.data.mleaderStyles.get(pastedMld.style)!;
+    expect(destStyle).toBeDefined();
+    expect(destStyle.name).toBe('DirectrizBurbuja');
+    expect(destStyle.blockId).toBeDefined();
+    expect(dstDoc.data.blocks.has(destStyle.blockId!)).toBe(true);
+    expect(dstDoc.data.blocks.get(destStyle.blockId!)?.name).toBe('BurbujaDetalle');
+    if (pastedMld.content.type === 'block') {
+      expect(pastedMld.content.blockId).toBe(destStyle.blockId);
+    }
+  });
+
+  it('remapea asociatividad de cotas y sombreados dentro de definiciones de bloques', () => {
+    const srcDoc = createDocument();
+    const dstDoc = createDocument();
+
+    srcDoc.transact('CREA_BLOQUE_ASOCIATIVO', (tx) => {
+      tx.add('blocks', {
+        id: 'blk_assoc',
+        name: 'PiezaAcotada',
+        kind: 'normal',
+        basePoint: { x: 0, y: 0 },
+        description: 'Pieza con cota y sombreado asociativo interno',
+        units: 'unitless',
+        explodable: true,
+        scaleUniformly: true,
+        annotative: false,
+        revision: 1,
+      });
+      tx.addEntity<LineEntity>({
+        ...entityDefaults(srcDoc),
+        id: 'l_pieza',
+        type: 'line',
+        owner: 'blk_assoc',
+        start: { x: 0, y: 0 },
+        end: { x: 50, y: 0 },
+      });
+      tx.addEntity<DimensionEntity>({
+        ...entityDefaults(srcDoc),
+        id: 'dim_pieza',
+        type: 'dimension',
+        owner: 'blk_assoc',
+        dimType: 'linear',
+        style: 'standard',
+        overrides: {},
+        p1: { x: 0, y: 0 },
+        p2: { x: 50, y: 0 },
+        p3: { x: 25, y: 5 },
+        rotation: 0,
+        assoc: [{ point: 'p1', entityId: 'l_pieza', snap: 'endpoint-start' }],
+      });
+      tx.addEntity<HatchEntity>({
+        ...entityDefaults(srcDoc),
+        id: 'hatch_pieza',
+        type: 'hatch',
+        owner: 'blk_assoc',
+        pattern: { type: 'solid', name: 'SOLID', angle: 0, scale: 1, spacing: 1, double: false },
+        origin: { x: 0, y: 0 },
+        islandStyle: 'normal',
+        loops: [],
+        associative: ['l_pieza'],
+      });
+      tx.addEntity<InsertEntity>({
+        ...entityDefaults(srcDoc),
+        id: 'ins_assoc',
+        type: 'insert',
+        blockId: 'blk_assoc',
+        position: { x: 0, y: 0 },
+        scale: { x: 1, y: 1 },
+        rotation: 0,
+        attributes: [],
+      });
+    });
+
+    const pkg = createClipboardPackage(srcDoc, ['ins_assoc']);
+    const res = pasteClipboardPackage(dstDoc, pkg, MODEL_SPACE_ID, { x: 0, y: 0 });
+    const pastedIns = dstDoc.entity(res.insertedIds[0]) as InsertEntity;
+    const pastedBlk = dstDoc.data.blocks.get(pastedIns.blockId)!;
+    const ents = dstDoc.entitiesOf(pastedBlk.id);
+
+    const newL = ents.find((e) => e.type === 'line') as LineEntity;
+    const newDim = ents.find((e) => e.type === 'dimension') as DimensionEntity;
+    const newHatch = ents.find((e) => e.type === 'hatch') as HatchEntity;
+
+    expect(newDim.assoc).toBeDefined();
+    expect(newDim.assoc![0].entityId).toBe(newL.id);
+    expect(newDim.assoc![0].entityId).not.toBe('l_pieza');
+
+    expect(newHatch.associative).toBeDefined();
+    expect(newHatch.associative![0]).toBe(newL.id);
+    expect(newHatch.associative![0]).not.toBe('l_pieza');
+  });
+
+  it('recolecta y remapea tipos de línea utilizados en elementos de mlineStyles', () => {
+    const srcDoc = createDocument();
+    const dstDoc = createDocument();
+
+    srcDoc.transact('CREA_MLINE_STYLE', (tx) => {
+      tx.add('linetypes', {
+        id: 'lt_trazos',
+        name: 'TRAZOS_ML',
+        description: 'Trazos para multilínea',
+        pattern: [5, -2],
+      });
+      tx.add('mlineStyles', {
+        id: 'mls_vial',
+        name: 'VialDoble',
+        description: 'Calle con eje a trazos',
+        elements: [
+          { offset: 0.5, color: 'ByLayer', linetype: 'ByLayer' },
+          { offset: 0, color: 'ByLayer', linetype: 'lt_trazos' },
+          { offset: -0.5, color: 'ByLayer', linetype: 'ByLayer' },
+        ],
+        startCap: 'line',
+        endCap: 'line',
+      });
+      tx.addEntity<MLineEntity>({
+        ...entityDefaults(srcDoc),
+        id: 'ml_1',
+        type: 'mline',
+        style: 'mls_vial',
+        scale: 1,
+        justification: 'zero',
+        vertices: [{ x: 0, y: 0 }, { x: 100, y: 0 }],
+        closed: false,
+      });
+    });
+
+    const pkg = createClipboardPackage(srcDoc, ['ml_1']);
+    expect(pkg.mlineStyles?.length).toBe(1);
+    expect(pkg.linetypes?.some((lt) => lt.name === 'TRAZOS_ML')).toBe(true);
+
+    const res = pasteClipboardPackage(dstDoc, pkg, MODEL_SPACE_ID, { x: 10, y: 10 });
+    const pastedMl = dstDoc.entity(res.insertedIds[0]) as MLineEntity;
+    const destStyle = dstDoc.data.mlineStyles.get(pastedMl.style)!;
+    expect(destStyle).toBeDefined();
+
+    const destLt = dstDoc.findByName('linetypes', 'TRAZOS_ML')!;
+    expect(destLt).toBeDefined();
+    expect(destStyle.elements[1].linetype).toBe(destLt.id);
+  });
+
+  it('ordena topológicamente bloques cuando un bloque contiene una directriz tipo bloque', () => {
+    const srcDoc = createDocument();
+    const dstDoc = createDocument();
+
+    srcDoc.transact('CREA_NESTED_MLEADER_BLOCK', (tx) => {
+      // Bloque dependiente (burbuja)
+      tx.add('blocks', {
+        id: 'blk_etiqueta',
+        name: 'Etiqueta',
+        kind: 'normal',
+        basePoint: { x: 0, y: 0 },
+        description: 'Etiqueta',
+        units: 'unitless',
+        explodable: true,
+        scaleUniformly: true,
+        annotative: false,
+        revision: 1,
+      });
+      tx.addEntity<ArcEntity>({
+        ...entityDefaults(srcDoc),
+        id: 'arc_tag',
+        type: 'arc',
+        owner: 'blk_etiqueta',
+        center: { x: 0, y: 0 },
+        radius: 3,
+        startAngle: 0,
+        endAngle: Math.PI * 2,
+      });
+
+      // Bloque contenedor que incluye una entidad mleader que referencia a 'blk_etiqueta'
+      tx.add('blocks', {
+        id: 'blk_contenedor',
+        name: 'ContenedorConMLeader',
+        kind: 'normal',
+        basePoint: { x: 0, y: 0 },
+        description: 'Contenedor',
+        units: 'unitless',
+        explodable: true,
+        scaleUniformly: true,
+        annotative: false,
+        revision: 1,
+      });
+      tx.addEntity<MLeaderEntity>({
+        ...entityDefaults(srcDoc),
+        id: 'mld_inner',
+        type: 'mleader',
+        owner: 'blk_contenedor',
+        style: 'standard',
+        leaders: [{ vertices: [{ x: 0, y: 0 }, { x: 5, y: 5 }] }],
+        landing: { x: 5, y: 5 },
+        doglegLength: 2,
+        direction: 1,
+        content: { type: 'block', blockId: 'blk_etiqueta', scale: 1, rotation: 0, attributes: {} },
+      });
+
+      tx.addEntity<InsertEntity>({
+        ...entityDefaults(srcDoc),
+        id: 'ins_cont',
+        type: 'insert',
+        blockId: 'blk_contenedor',
+        position: { x: 0, y: 0 },
+        scale: { x: 1, y: 1 },
+        rotation: 0,
+        attributes: [],
+      });
+    });
+
+    const pkg = createClipboardPackage(srcDoc, ['ins_cont']);
+    expect(pkg.blocks?.length).toBe(2);
+
+    const res = pasteClipboardPackage(dstDoc, pkg, MODEL_SPACE_ID, { x: 0, y: 0 });
+    expect(res.insertedIds.length).toBe(1);
+
+    const pastedContBlk = dstDoc.findByName('blocks', 'ContenedorConMLeader')!;
+    const pastedTagBlk = dstDoc.findByName('blocks', 'Etiqueta')!;
+    expect(pastedContBlk).toBeDefined();
+    expect(pastedTagBlk).toBeDefined();
+
+    const innerEnts = dstDoc.entitiesOf(pastedContBlk.id);
+    const innerMld = innerEnts.find((e) => e.type === 'mleader') as MLeaderEntity;
+    expect(innerMld).toBeDefined();
+    if (innerMld.content.type === 'block') {
+      expect(innerMld.content.blockId).toBe(pastedTagBlk.id);
+    }
+  });
+
+  it('reutiliza bloques geométricamente idénticos con capas y estilos personalizados en vez de crear Nombre (2)', () => {
+    const srcDoc1 = createDocument({ title: 'Doc1' });
+    const srcDoc2 = createDocument({ title: 'Doc2' });
+    const dstDoc = createDocument({ title: 'DocDest' });
+
+    // Preparamos en ambos documentos origen un bloque con capa "Carpinteria" y tipo de línea "OCULTA"
+    for (const doc of [srcDoc1, srcDoc2]) {
+      doc.transact('SETUP', (tx) => {
+        const lt = tx.add('linetypes', {
+          id: doc === srcDoc1 ? 'lt_1' : 'lt_2',
+          name: 'OCULTA',
+          description: 'Línea oculta',
+          pattern: [4, -2],
+        });
+        const lay = tx.add('layers', {
+          ...doc.data.layers.get('0')!,
+          id: doc === srcDoc1 ? 'lay_1' : 'lay_2',
+          name: 'Carpinteria',
+          color: '#ff0000',
+          linetype: lt.id,
+          lineweight: 0.3,
+        });
+        const blk = tx.add('blocks', {
+          id: doc === srcDoc1 ? 'blk_1' : 'blk_2',
+          name: 'Ventana',
+          kind: 'normal',
+          basePoint: { x: 0, y: 0 },
+          description: 'Ventana abatible',
+          units: 'unitless',
+          explodable: true,
+          scaleUniformly: true,
+          annotative: false,
+          revision: 1,
+        });
+        tx.addEntity<LineEntity>({
+          ...entityDefaults(doc),
+          id: doc === srcDoc1 ? 'l_v1' : 'l_v2',
+          type: 'line',
+          owner: blk.id,
+          layer: lay.id,
+          linetype: lt.id,
+          start: { x: 0, y: 0 },
+          end: { x: 120, y: 10 },
+        });
+        tx.addEntity<InsertEntity>({
+          ...entityDefaults(doc),
+          id: doc === srcDoc1 ? 'ins_v1' : 'ins_v2',
+          type: 'insert',
+          blockId: blk.id,
+          position: { x: 0, y: 0 },
+          scale: { x: 1, y: 1 },
+          rotation: 0,
+          attributes: [],
+        });
+      });
+    }
+
+    // Pegamos la ventana de srcDoc1 en dstDoc
+    const pkg1 = createClipboardPackage(srcDoc1, ['ins_v1']);
+    pasteClipboardPackage(dstDoc, pkg1, MODEL_SPACE_ID, { x: 0, y: 0 });
+    expect(dstDoc.findByName('blocks', 'Ventana')).toBeDefined();
+    expect(dstDoc.findByName('blocks', 'Ventana (2)')).toBeUndefined();
+
+    // Pegamos la ventana de srcDoc2 en dstDoc (definición equivalente pero IDs de capa/tipo de línea distintos en pkg2)
+    const pkg2 = createClipboardPackage(srcDoc2, ['ins_v2']);
+    pasteClipboardPackage(dstDoc, pkg2, MODEL_SPACE_ID, { x: 150, y: 0 });
+
+    // NO debe haberse creado 'Ventana (2)' porque la definición es equivalente
+    expect(dstDoc.findByName('blocks', 'Ventana (2)')).toBeUndefined();
+    expect(dstDoc.findByName('blocks', 'Ventana')).toBeDefined();
   });
 });

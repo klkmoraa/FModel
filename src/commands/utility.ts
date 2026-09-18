@@ -459,10 +459,14 @@ const UPDATEAPP: CommandDef = {
   readOnly: true,
   label: L('Actualizar aplicación', 'Update app'),
   description: L('Aplica la versión nueva de FModel ya descargada (recarga la página).', 'Applies the already downloaded new FModel version (reloads the page).'),
-  run(api) {
+  async run(api) {
     if (!pendingUpdate) return api.info(L('Ya tienes la versión más reciente.', 'You already have the latest version.'));
     if (api.editor.doc.dirty) api.warn(L('Hay cambios sin guardar: se conservan en el autoguardado y puedes recuperarlos con RECOVER.', 'There are unsaved changes: they are kept in autosave and can be recovered with RECOVER.'));
-    void getServices().persistence.autosave().finally(() => pendingUpdate?.());
+    try {
+      await getServices().persistence.autosave();
+    } finally {
+      pendingUpdate?.();
+    }
   },
 };
 

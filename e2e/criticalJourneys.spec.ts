@@ -443,7 +443,6 @@ test.describe('Recorridos críticos E2E en navegador real (TST-001)', () => {
 
       // Ejecutar UPDATEAPP mientras el dibujo está dirty
       await editor.command('UPDATEAPP');
-      await new Promise((r) => setTimeout(r, 50));
 
       const recovery = await persistence.pendingRecovery();
       return {
@@ -484,13 +483,15 @@ test.describe('Recorridos críticos E2E en navegador real (TST-001)', () => {
     // Pasar al espacio de trabajo
     await page.goto('/?surface=workspace');
     await page.waitForFunction(() => !!(window as any).fmodel?.editor);
+    await page.waitForSelector('button');
 
-    // Enfocar la línea de comandos o el lienzo y comprobar foco
-    const canFocus = await page.evaluate(() => {
-      const input = document.querySelector('input, button') as HTMLElement | null;
-      input?.focus();
-      return document.activeElement !== document.body;
+    // Navegar con teclado para verificar foco real en controles de la interfaz
+    await page.keyboard.press('Tab');
+    await page.keyboard.press('Tab');
+    const hasFocus = await page.evaluate(() => {
+      const el = document.activeElement;
+      return el !== null && el !== document.body;
     });
-    expect(canFocus).toBe(true);
+    expect(hasFocus).toBe(true);
   });
 });
