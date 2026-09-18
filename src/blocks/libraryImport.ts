@@ -11,7 +11,8 @@ import type { BlockPackage, LibraryBlock, LibrarySourceKind } from './library';
 import { makeLibraryBlock, packageBlock } from './library';
 import type { LibraryArchive } from './libraryArchive';
 import type { LibraryCategory } from './libraryCategories';
-import { mergeCategories, suggestCategory, UNCLASSIFIED } from './libraryCategories';
+import { descendantIds, mergeCategories, suggestCategory, UNCLASSIFIED } from './libraryCategories';
+import { stretchablePackage } from './stretchable';
 
 export interface ImportCandidate {
   key: string;
@@ -25,6 +26,8 @@ export interface ImportCandidate {
   selected: boolean;
   /** conserva la fecha original al importar desde .fmodellib */
   savedAt?: number;
+  /** al guardar, hacerlo estirable (Ancho y Fondo) si no es dinámico */
+  stretchable?: boolean;
 }
 
 /** Lo que el diálogo de la biblioteca necesita para guardar: candidatos y categorías (ya fusionadas). */
@@ -64,6 +67,9 @@ export function modelSpaceToBlock(doc: CadDocument, ctx: ModelContext, name: str
   return id;
 }
 
+/** Los muebles se ofrecen estirables por defecto. */
+export const isFurniture = (cats: LibraryCategory[], categoryId: string) => descendantIds(cats, 'cat-mob').has(categoryId);
+
 const baseName = (file: string) => file.replace(/\.[^.]+$/, '').trim() || 'Dibujo';
 
 /** Bloques con nombre del documento y, además, el espacio modelo entero como bloque. */
@@ -81,7 +87,8 @@ export function candidatesFromDocument(doc: CadDocument, ctx: ModelContext, cats
       categoryId: suggestCategory(`${b.name} ${b.description}`, cats),
       tags: [],
       selected: true,
-    }));
+    }))
+    .map((c) => ({ ...c, stretchable: !c.dynamic && isFurniture(cats, c.categoryId) }));
   const name = baseName(opts.file);
   const modelId = modelSpaceToBlock(doc, ctx, name);
   if (modelId) {
@@ -95,6 +102,7 @@ export function candidatesFromDocument(doc: CadDocument, ctx: ModelContext, cats
       categoryId: suggestCategory(name, cats),
       tags: [],
       selected: !out.length,
+      stretchable: isFurniture(cats, suggestCategory(name, cats)),
     });
   }
   return out;
@@ -139,7 +147,8 @@ export function planLibraryWrite(session: LibraryImportSession, existing: Librar
       }
     }
     names.add(fold(name));
-    const item = makeLibraryBlock(c.pkg, { name, categoryId: c.categoryId, tags: c.tags, description: c.description, thumbnail: c.thumbnail, source: { kind: session.source.kind, file: session.source.file, importedAt: Date.now() } });
+    const pkg = c.stretchable && !c.dynamic ? stretchablePackage(c.pkg) : c.pkg;
+    const item = makeLibraryBlock(pkg, { name, categoryId: c.categoryId, tags: c.tags, description: c.description, thumbnail: c.thumbnail, source: { kind: session.source.kind, file: session.source.file, importedAt: Date.now() } });
     put.push(c.savedAt ? { ...item, savedAt: c.savedAt } : item);
   }
   return { put, remove };

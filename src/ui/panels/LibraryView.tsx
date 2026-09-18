@@ -1,4 +1,4 @@
-import { Download, FolderPlus, Pencil, Trash2, Upload } from 'lucide-react';
+import { Download, FolderPlus, MoveHorizontal, Pencil, Trash2, Upload } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { LibraryBlock } from '../../blocks/library';
 import { insertLibraryBlock } from '../../blocks/library';
@@ -6,6 +6,7 @@ import type { LibraryCategory } from '../../blocks/libraryCategories';
 import { categoryPath, categoryTree, descendantIds, UNCLASSIFIED } from '../../blocks/libraryCategories';
 import { commitLibrary, loadCategories, loadLibrary, onLibraryChanged } from '../../blocks/libraryStore';
 import { newId } from '../../document/ids';
+import { stretchablePackage } from '../../blocks/stretchable';
 import type { Editor } from '../../editor/editor';
 import { useMediaQuery } from '../hooks';
 import { tr } from '../controls';
@@ -51,6 +52,15 @@ export function LibraryView({ editor, query }: { editor: Editor; query: string }
       editor.command('INSERT', [name]);
     } catch (err) {
       editor.runner.message('error', { es: String(err instanceof Error ? err.message : err), en: String(err instanceof Error ? err.message : err) });
+    }
+  };
+
+  const makeStretchable = (b: LibraryBlock) => {
+    try {
+      void commitLibrary({ put: [{ ...b, package: stretchablePackage(b.package), dynamic: true, savedAt: Date.now() }] });
+      editor.runner.message('info', { es: `«${b.name}» ya es estirable en la biblioteca.`, en: `"${b.name}" is now stretchable in the library.` });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
     }
   };
 
@@ -115,6 +125,11 @@ export function LibraryView({ editor, query }: { editor: Editor; query: string }
               <div className="libcard__name">{b.name}</div>
               <div className="libcard__meta">
                 <span>{categoryPath(cats, b.categoryId)}</span>
+                {!b.dynamic && (
+                  <button className="icon-btn" style={{ width: 22, height: 22 }} onClick={() => makeStretchable(b)} title={tr(lang, 'Hacer estirable (Ancho y Fondo)', 'Make stretchable (Width and Depth)')}>
+                    <MoveHorizontal size={12} />
+                  </button>
+                )}
                 <button className="icon-btn" style={{ width: 22, height: 22 }} onClick={() => setEditing(b)} title={tr(lang, 'Editar', 'Edit')}>
                   <Pencil size={12} />
                 </button>

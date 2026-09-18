@@ -25,6 +25,12 @@ describe('candidatos de importación a la biblioteca', () => {
     const root = c[0].pkg.blocks.find((b) => b.id === c[0].pkg.root)!;
     expect(root.basePoint).toEqual({ x: 10, y: 20 });
     expect(doc.entitiesOf(MODEL_SPACE_ID)).toHaveLength(0);
+    // los muebles se ofrecen estirables y se guardan dinámicos
+    expect(c[0].stretchable).toBe(true);
+    const session: LibraryImportSession = { mode: 'import', source: { kind: 'dxf', file: 'silla-oficina.dxf' }, candidates: c, categories: DEFAULT_CATEGORIES };
+    const put = planLibraryWrite(session, [], () => 'rename').put[0];
+    expect(put.dynamic).toBe(true);
+    expect(put.package.blocks.find((b) => b.id === put.package.root)!.dynamic!.parameters.map((p) => p.name)).toEqual(['Ancho', 'Fondo']);
   });
 
   it('un DXF con bloques los ofrece todos y el espacio modelo sin marcar', () => {

@@ -80,6 +80,11 @@ export function LibraryImportDialog({ editor, session, onClose, onUi }: { editor
                 <input className="input" value={c.name} onChange={(e) => patch(c.key, { name: e.target.value })} aria-label={tr(lang, 'Nombre', 'Name')} />
                 {c.dynamic && <span className="libbadge">{tr(lang, 'Dinámico', 'Dynamic')}</span>}
                 {c.key === '*model' && <span className="libbadge libbadge--muted">{tr(lang, 'Dibujo entero', 'Whole drawing')}</span>}
+                {!c.dynamic && (
+                  <label className="libimp__stretch" title={tr(lang, 'Añade Ancho y Fondo para alargarlo o acortarlo', 'Adds Width and Depth to lengthen or shorten it')}>
+                    <input type="checkbox" checked={!!c.stretchable} onChange={(e) => patch(c.key, { stretchable: e.target.checked })} /> {tr(lang, 'Estirable', 'Stretchable')}
+                  </label>
+                )}
               </div>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 <select className="select" value={c.categoryId} onChange={(e) => patch(c.key, { categoryId: e.target.value })} aria-label={tr(lang, 'Categoría', 'Category')}>

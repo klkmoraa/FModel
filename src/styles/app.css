@@ -1964,3 +1964,4 @@ kbd {
   background: #fffefa;
   border-radius: 6px;
 }
+.libimp__stretch { display: inline-flex; gap: 4px; align-items: center; font-size: 12px; color: var(--ink-secondary); white-space: nowrap; }

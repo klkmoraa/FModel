@@ -1,4 +1,4 @@
-import { BookmarkPlus, Pencil, Star, Trash2 } from 'lucide-react';
+import { BookmarkPlus, MoveHorizontal, Pencil, Star, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { blockUsage, isInsertableBlock } from '../../blocks/blockOps';
 import type { Editor } from '../../editor/editor';
@@ -73,6 +73,11 @@ export function BlocksPanel({ editor, onUi }: { editor: Editor; onUi: (ui: strin
                   <button className="icon-btn" style={{ width: 22, height: 22, color: b.favorite ? 'var(--fs-signal-attention)' : undefined }} onClick={() => doc.transact('BLOCK FAVORITE', (tx) => tx.update('blocks', b.id, { favorite: !b.favorite }))} title={tr(lang, 'Favorito', 'Favorite')}>
                     <Star size={12} />
                   </button>
+                  {!b.dynamic && (
+                    <button className="icon-btn" style={{ width: 22, height: 22 }} onClick={() => editor.command('BESTIRABLE', [b.name])} title={tr(lang, 'Hacer estirable (Ancho y Fondo)', 'Make stretchable (Width and Depth)')}>
+                      <MoveHorizontal size={12} />
+                    </button>
+                  )}
                   <button className="icon-btn" style={{ width: 22, height: 22 }} onClick={() => editor.command('WBLOCK', [b.name])} title={tr(lang, 'Enviar a la biblioteca', 'Send to library')}>
                     <BookmarkPlus size={12} />
                   </button>

@@ -2,6 +2,7 @@ import { requestUi } from '../app/services';
 import { createBlock, extractAttributes, insertBlock, isInsertableBlock, validateBlockName } from '../blocks/blockOps';
 import { resetDynamic, validateDynamicBlock } from '../blocks/dynamic';
 import { installDynamicSamples } from '../blocks/samples';
+import { makeStretchable } from '../blocks/stretchable';
 import type { AttdefEntity, InsertEntity } from '../document/types';
 import { TEXTSTYLE_STANDARD_ID } from '../document/defaults';
 import { add, K, L, make } from './helpers';
@@ -205,6 +206,31 @@ const RESETBLOCK: CommandDef = {
   },
 };
 
+const BESTIRABLE: CommandDef = {
+  name: 'BESTIRABLE',
+  aliases: ['ESTIRABLE', 'MAKESTRETCHABLE'],
+  category: 'block',
+  label: L('Hacer estirable', 'Make stretchable'),
+  description: L('Convierte un bloque en dinámico con Ancho y Fondo: se alarga, acorta, ensancha o estrecha arrastrando sus pinzamientos o escribiendo la medida, sin deformar lo que no cruza el corte.', 'Makes a block dynamic with Width and Depth: lengthen, shorten, widen or narrow it by dragging its grips or typing the size, without distorting what does not cross the cut.'),
+  async run(api, args) {
+    let name = args?.[0];
+    if (!name) {
+      const r = await api.getString({ prompt: L('Nombre del bloque', 'Block name'), allowSpaces: true });
+      if (r.kind !== 'string') return;
+      name = r.value;
+    }
+    const b = api.editor.doc.findByName('blocks', name);
+    if (!b) throw new CommandError(L(`No existe el bloque «${name}».`, `Block "${name}" not found.`));
+    try {
+      makeStretchable(api.editor.doc, api.editor.ctx, b.id);
+    } catch (err) {
+      const m = err instanceof Error ? err.message : String(err);
+      throw new CommandError(L(m.split(' / ')[0], m.split(' / ')[1] ?? m));
+    }
+    api.info(L(`«${b.name}» ya es estirable: selecciona una instancia y arrastra sus flechas o cambia Ancho y Fondo en Propiedades.`, `"${b.name}" is now stretchable: select an instance and drag its arrows or change Width and Depth in Properties.`));
+  },
+};
+
 const BVALIDATE: CommandDef = {
   name: 'BVALIDATE',
   aliases: ['VALIDARBLOQUE'],
@@ -258,4 +284,4 @@ const ATTSYNC: CommandDef = {
   },
 };
 
-export const BLOCK_COMMANDS: CommandDef[] = [INSERT, BLOCK, ATTDEF, ATTEDIT, DATAEXTRACTION, DYNBLOCKSAMPLES, RESETBLOCK, BVALIDATE, ATTSYNC];
+export const BLOCK_COMMANDS: CommandDef[] = [INSERT, BLOCK, ATTDEF, ATTEDIT, DATAEXTRACTION, DYNBLOCKSAMPLES, RESETBLOCK, BESTIRABLE, BVALIDATE, ATTSYNC];
