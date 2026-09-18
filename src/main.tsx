@@ -18,6 +18,9 @@ import { App } from './ui/App';
 import { consumeLaunchQueue, registerServiceWorker } from './pwa/register';
 import { queueLaunchedFile } from './commands/file';
 import { setPendingUpdate } from './commands/utility';
+import { readPackage, writePackage } from './io/native';
+import { createClipboardPackage, parseClipboardPackage, pasteClipboardPackage } from './io/clipboard';
+import { importDxfIntoDocument } from './io/dxf/importDxf';
 
 registerAllCommands();
 
@@ -56,8 +59,29 @@ consumeLaunchQueue((file) => {
   editor.command('_OPENLAUNCHED');
 });
 
-// exposición para depuración en consola
-(globalThis as unknown as { fmodel: unknown }).fmodel = { editor, doc };
+// exposición para depuración en consola y pruebas E2E
+(globalThis as unknown as { fmodel: unknown }).fmodel = {
+  editor,
+  doc,
+  persistence,
+  createDocument,
+  io: {
+    writePackage,
+    readPackage,
+    createClipboardPackage,
+    parseClipboardPackage,
+    pasteClipboardPackage,
+    importDxfIntoDocument,
+    exportDxf: async () => {
+      const { exportDxf } = await import('./io/dxf/exportDxf');
+      return exportDxf(editor.doc, editor.ctx);
+    },
+    exportSvg: async (spaceId: string) => {
+      const { exportSvg } = await import('./output/plot');
+      return exportSvg({ doc: editor.doc, ctx: editor.ctx, index: editor.index }, spaceId);
+    },
+  },
+};
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

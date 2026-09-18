@@ -40,12 +40,13 @@
 
 ## DAT-002 — Hacer portable el portapapeles entre dibujos
 
-- [ ] **Estado:** Abierta
+- [x] **Estado:** Cerrada
+- **Responsable:** Codex · **Inicio:** 2026-09-18 · **Cierre:** 2026-09-18
 - **Prioridad:** P1 — referencias rotas y pérdida semántica
 - **Depende de:** DAT-003
 - **Bloquea:** TST-001
 
-**Evidencia:** `src/commands/modify.ts:1139-1189` copia solo `Entity[]` y, al pegar, repara únicamente la capa. Inserciones, matrices, imágenes/PDF, estilos de texto/cota/directriz/tabla/multilínea y definiciones anidadas pueden apuntar a IDs que no existen en el destino.
+**Evidencia:** `src/io/clipboard.ts` implementa `ClipboardPackage` v2 con cierre transitivo de bloques anidados, capas, tipos de línea, estilos de texto/cota/directriz/tabla/multilínea y recursos binarios (`AssetRecord` con `dataUrl`); `pasteClipboardPackage` remapea identificadores, reutiliza definiciones idénticas evitando duplicados al pegar varias veces, resuelve colisiones de nombres y limpia referencias huérfanas en cotas y sombreados; `src/commands/modify.ts` selecciona los objetos insertados y emite avisos si hay incidencias.
 
 **Archivos previstos:**
 
@@ -58,20 +59,22 @@
 
 **Implementación:**
 
-- [ ] Escribir pruebas fallidas para bloque anidado, imagen, texto con estilo propio, cota y matriz asociativa entre dos documentos.
-- [ ] Construir el cierre transitivo de dependencias sin incluir registros no usados.
-- [ ] Remapear IDs con funciones tipadas y resolver colisiones por nombre/contenido.
-- [ ] Mantener compatibilidad de lectura con el formato actual `fmodel-clip` o emitir un mensaje claro.
-- [ ] Seleccionar los objetos recién pegados y presentar advertencias de conversiones.
+- [x] Escribir pruebas fallidas para bloque anidado, imagen, texto con estilo propio, cota y matriz asociativa entre dos documentos.
+- [x] Construir el cierre transitivo de dependencias sin incluir registros no usados.
+- [x] Remapear IDs con funciones tipadas y resolver colisiones por nombre/contenido.
+- [x] Mantener compatibilidad de lectura con el formato actual `fmodel-clip` o emitir un mensaje claro.
+- [x] Seleccionar los objetos recién pegados y presentar advertencias de conversiones.
 
 **Criterios de aceptación:**
 
-- [ ] Ninguna entidad pegada conserva referencias a registros inexistentes.
-- [ ] Pegar dos veces no duplica estilos/definiciones equivalentes de forma innecesaria.
-- [ ] Los recursos binarios requeridos viajan con el paquete.
-- [ ] Entradas alteradas o incompletas se rechazan sin cambiar el dibujo.
+- [x] Ninguna entidad pegada conserva referencias a registros inexistentes.
+- [x] Pegar dos veces no duplica estilos/definiciones equivalentes de forma innecesaria.
+- [x] Los recursos binarios requeridos viajan con el paquete.
+- [x] Entradas alteradas o incompletas se rechazan sin cambiar el dibujo.
 
-**Verificación:** `pnpm vitest run src/io/clipboard.test.ts && pnpm verify`
+**Cierre:** 2026-09-18
+
+**Verificación:** `pnpm vitest run src/io/clipboard.test.ts` (8 pruebas focalizadas) y `pnpm lint && pnpm verify` (50 archivos, 385 pruebas, capas correctas, typecheck estricto y build limpio).
 
 ---
 

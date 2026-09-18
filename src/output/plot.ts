@@ -95,7 +95,9 @@ export function planSheet(pc: PlotContext, spaceId: Id, pageOverride?: PageSetup
     tx = m.left - k * region.minX;
     ty = m.bottom - k * region.minY;
   }
-  const base = multiply(translation(tx + page.offset.x, ty + page.offset.y), scaling(k, k));
+  const offsetX = page.offset?.x ?? 0;
+  const offsetY = page.offset?.y ?? 0;
+  const base = multiply(translation(tx + offsetX, ty + offsetY), scaling(k, k));
   return { spaceId, name, page, paper, base, region, scale: k, warnings };
 }
 

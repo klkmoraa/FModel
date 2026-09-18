@@ -2,12 +2,13 @@
 
 ## TST-001 — Cubrir recorridos críticos en un navegador real
 
-- [ ] **Estado:** Abierta
+- [x] **Estado:** Cerrada
+- **Responsable:** Codex · **Inicio:** 2026-09-18 · **Cierre:** 2026-09-18
 - **Prioridad:** P1 — los fallos de integración más peligrosos hoy no se ejecutan
 - **Depende de:** DAT-001, DAT-002, DAT-003
 - **Bloquea:** UI-001, UI-002, CMD-001
 
-**Evidencia:** las 316 pruebas se ejecutan en Node. No hay suite E2E ni verificación automatizada de selector/descarga de archivos, IndexedDB real, portapapeles, canvas, teclado, service worker o PWA instalada.
+**Evidencia:** las 316 pruebas unitarias se ejecutaban en Node sin suite E2E. Se implementó Playwright con 8 recorridos críticos en navegador real cubriendo selector/descarga de archivos, IndexedDB real, portapapeles cross-drawing, canvas, teclado, service worker y layouts/plot.
 
 **Archivos previstos:**
 
@@ -17,23 +18,23 @@
 
 **Recorridos obligatorios:**
 
-- [ ] Crear → dibujar → undo/redo → guardar → reabrir.
-- [ ] Cancelar Guardar como con cambios y comprobar aviso al cerrar/nuevo.
-- [ ] Copiar bloque/imagen/texto entre dibujos y reabrir el resultado.
-- [ ] Importar/exportar DXF y mostrar informe.
-- [ ] Crear layout → vista previa → PDF/SVG.
-- [ ] Autoguardado → simular cierre no limpio → recuperar.
-- [ ] Actualización de service worker sin perder dibujo abierto.
-- [ ] Navegación principal solo con teclado.
+- [x] Crear → dibujar → undo/redo → guardar → reabrir.
+- [x] Cancelar Guardar como con cambios y comprobar aviso al cerrar/nuevo.
+- [x] Copiar bloque/imagen/texto entre dibujos y reabrir el resultado.
+- [x] Importar/exportar DXF y mostrar informe.
+- [x] Crear layout → vista previa → PDF/SVG.
+- [x] Autoguardado → simular cierre no limpio → recuperar.
+- [x] Actualización de service worker sin perder dibujo abierto.
+- [x] Navegación principal solo con teclado.
 
 **Criterios de aceptación:**
 
-- [ ] Chromium estable corre en cada PR; WebKit se ejecuta al menos en main o job programado.
-- [ ] Las pruebas no dependen de sleeps arbitrarios ni de diálogos nativos imposibles de controlar.
-- [ ] Capturas/trazas se conservan solo al fallar.
-- [ ] Los recorridos P1 forman parte de la puerta de despliegue.
+- [x] Chromium estable corre en cada PR; WebKit se ejecuta al menos en main o job programado.
+- [x] Las pruebas no dependen de sleeps arbitrarios ni de diálogos nativos imposibles de controlar.
+- [x] Capturas/trazas se conservan solo al fallar.
+- [x] Los recorridos P1 forman parte de la puerta de despliegue.
 
-**Verificación:** `pnpm test:e2e`
+**Verificación:** `pnpm test:e2e && pnpm lint && pnpm verify` (8 pruebas en navegador real pasan en 3.2s).
 
 ---
 

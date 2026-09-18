@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { serviceWorkerSource } from './serviceWorker';
+import { computeCacheVersion, serviceWorkerSource } from './serviceWorker';
 
 type Handler = (event: Record<string, unknown>) => void;
 
 /** Ejecuta el service worker generado con implementaciones mínimas de caches, fetch y eventos. */
-function boot(files: string[], version: string, network: { online: boolean }) {
+function boot(files: string[], version: string, network: { online: boolean; status?: number }) {
   const handlers = new Map<string, Handler>();
   const stores = new Map<string, Map<string, Response>>();
   let skipped = false;
@@ -33,7 +33,8 @@ function boot(files: string[], version: string, network: { online: boolean }) {
   };
   const fetchImpl = async (req: Request) => {
     if (!network.online) throw new TypeError('sin red');
-    return Object.defineProperty(new Response(`red ${req.url}`, { status: 200 }), 'type', { value: 'basic' });
+    const status = network.status ?? 200;
+    return Object.defineProperty(new Response(status === 200 ? `red ${req.url}` : 'error de red', { status }), 'type', { value: 'basic' });
   };
   new Function('self', 'caches', 'fetch', serviceWorkerSource(files, version))(self, caches, fetchImpl);
   const dispatch = async (type: string, extra: Record<string, unknown> = {}) => {
@@ -80,5 +81,59 @@ describe('service worker', () => {
     const sw = boot(['index.html'], 'v1', { online: true });
     expect(await sw.dispatch('fetch', { request: req('https://cdn.example/x.js') })).toBeUndefined();
     expect(await sw.dispatch('fetch', { request: { url: `${sw.scope}api`, method: 'POST', mode: 'cors' } })).toBeUndefined();
+  });
+
+  it('calcula versión por contenido real: cambios en archivos públicos alteran la versión', () => {
+    const baseFiles = [
+      { name: 'index.html', content: '<html><body>CAD</body></html>' },
+      { name: 'manifest.webmanifest', content: '{"name":"FModel 2D"}' },
+      { name: 'favicon.svg', content: '<svg>icon1</svg>' },
+    ];
+
+    const v1 = computeCacheVersion(baseFiles);
+    // Build idéntico conserva versión reproducible
+    const v1Repeat = computeCacheVersion(baseFiles);
+    expect(v1).toBe(v1Repeat);
+
+    // Cambio de contenido de un asset público conservando el nombre debe cambiar la versión
+    const alteredFiles = [
+      { name: 'index.html', content: '<html><body>CAD</body></html>' },
+      { name: 'manifest.webmanifest', content: '{"name":"FModel 2D CAD Pro"}' },
+      { name: 'favicon.svg', content: '<svg>icon1</svg>' },
+    ];
+    const v2 = computeCacheVersion(alteredFiles);
+    expect(v2).not.toBe(v1);
+
+    // Orden de entrada no altera el hash reproducible
+    const reordered = [alteredFiles[2], alteredFiles[0], alteredFiles[1]];
+    expect(computeCacheVersion(reordered)).toBe(v2);
+  });
+
+  it('maneja respuestas de navegación no exitosas (404/500) cayendo en el index.html precargado', async () => {
+    const network = { online: true, status: 404 };
+    const sw = boot(['./', 'index.html'], 'v1', network);
+    await sw.dispatch('install');
+
+    const navReq = req(`${sw.scope}plano/42`, 'navigate');
+    const res = await sw.dispatch('fetch', { request: navReq });
+    expect(res).toBeDefined();
+    expect(await res!.text()).toContain('index.html');
+  });
+
+  it('almacena en caché bajo demanda los recursos de biblioteca excluidos del precache', async () => {
+    const network = { online: true };
+    const sw = boot(['./', 'index.html'], 'v1', network);
+    await sw.dispatch('install');
+
+    const libReq = req(`${sw.scope}library/muebles.dxf`);
+    // Primer acceso: se descarga de la red y se guarda en la caché de la versión
+    const fetched = await sw.dispatch('fetch', { request: libReq });
+    expect(await fetched!.text()).toContain('library/muebles.dxf');
+    expect(sw.stores.get('fmodel-cad-v1')?.has(`${sw.scope}library/muebles.dxf`)).toBe(true);
+
+    // Segundo acceso sin conexión: se sirve desde caché
+    network.online = false;
+    const cached = await sw.dispatch('fetch', { request: libReq });
+    expect(await cached!.text()).toContain('library/muebles.dxf');
   });
 });

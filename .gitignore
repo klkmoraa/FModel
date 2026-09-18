@@ -5,3 +5,5 @@ coverage
 *.local
 .vite
 tmp
+playwright-report
+test-results

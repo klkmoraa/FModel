@@ -22,6 +22,13 @@ import { selectByFence, selectInBox, selectInPolygon } from '../selection/pick';
 import { K, L } from './helpers';
 import type { CommandApi, CommandDef } from './types';
 import { CommandError } from './types';
+import {
+  type ClipboardPackage,
+  type LegacyClipboardPackage,
+  createClipboardPackage,
+  parseClipboardPackage,
+  pasteClipboardPackage,
+} from '../io/clipboard';
 
 function transformed(api: CommandApi, ids: Id[], m: Mat2D | null): Entity[] {
   if (!m) return [];
@@ -1136,15 +1143,14 @@ const UNGROUP: CommandDef = {
 
 // ------------------------------------------------------------------ portapapeles
 
-let clipboard: { entities: Entity[]; base: Vec2 } | null = null;
+let clipboard: ClipboardPackage | LegacyClipboardPackage | null = null;
 
 async function clip(api: CommandApi, cut: boolean) {
   const ids = await selectOrFail(api);
-  const ents = ids.map((id) => structuredClone(api.editor.doc.entity(id)!));
-  const b = ents.map((e) => kindOf(e).bbox(e, api.editor.ctx)).reduce((a, x) => ({ minX: Math.min(a.minX, x.minX), minY: Math.min(a.minY, x.minY), maxX: Math.max(a.maxX, x.maxX), maxY: Math.max(a.maxY, x.maxY) }));
-  clipboard = { entities: ents, base: { x: b.minX, y: b.minY } };
+  const pkg = createClipboardPackage(api.editor.doc, ids, api.editor.ctx);
+  clipboard = pkg;
   try {
-    await navigator.clipboard?.writeText(JSON.stringify({ format: 'fmodel-clip', entities: ents }));
+    await navigator.clipboard?.writeText(JSON.stringify(pkg));
   } catch {
     /* portapapeles del sistema no disponible */
   }
@@ -1160,33 +1166,33 @@ const PASTECLIP: CommandDef = {
   label: L('Pegar', 'Paste'),
   description: L('Pega objetos del portapapeles en un punto de inserción.', 'Pastes clipboard objects at an insertion point.'),
   async run(api) {
-    let data = clipboard;
-    if (!data) {
+    let pkg: ClipboardPackage | LegacyClipboardPackage | null = clipboard;
+    if (!pkg) {
       try {
         const txt = await navigator.clipboard?.readText();
-        const parsed = txt ? JSON.parse(txt) : null;
-        if (parsed?.format === 'fmodel-clip') {
-          const ents = parsed.entities as Entity[];
-          const b = ents.map((e) => kindOf(e).bbox(e, api.editor.ctx)).reduce((a, x) => ({ minX: Math.min(a.minX, x.minX), minY: Math.min(a.minY, x.minY), maxX: Math.max(a.maxX, x.maxX), maxY: Math.max(a.maxY, x.maxY) }));
-          data = { entities: ents, base: { x: b.minX, y: b.minY } };
+        if (txt) {
+          pkg = parseClipboardPackage(txt);
         }
       } catch {
         /* sin contenido compatible */
       }
     }
-    if (!data) throw new CommandError(L('El portapapeles no contiene objetos de FModel.', 'The clipboard has no FModel objects.'));
-    const d = data;
-    const moved = (p: Vec2) => d.entities.map((e) => kindOf(e).transform(e, translation(p.x - d.base.x, p.y - d.base.y), api.editor.ctx)).filter(Boolean) as Entity[];
-    const p = await api.getPoint({ prompt: L('Precise el punto de inserción', 'Specify insertion point'), preview: (q) => ({ entities: moved(q).map((e) => ({ ...e, owner: api.editor.inputOwner })) }) });
+    if (!pkg) throw new CommandError(L('El portapapeles no contiene objetos de FModel.', 'The clipboard has no FModel objects.'));
+    const d = pkg;
+    const baseX = d.base?.x ?? 0;
+    const baseY = d.base?.y ?? 0;
+    const moved = (p: Vec2) => d.entities.map((e) => kindOf(e).transform(e, translation(p.x - baseX, p.y - baseY), api.editor.ctx)).filter(Boolean) as Entity[];
+    const p = await api.getPoint({
+      prompt: L('Precise el punto de inserción', 'Specify insertion point'),
+      preview: (q) => ({ entities: moved(q).map((e) => ({ ...e, owner: api.editor.inputOwner })) }),
+    });
     if (p.kind !== 'point') return;
     const doc = api.editor.doc;
-    api.apply('PASTECLIP', (tx) => {
-      for (const e of moved(p.p)) {
-        const { id: _i, order: _o, ...rest } = e;
-        const layer = doc.data.layers.has(rest.layer) ? rest.layer : doc.settings.currentLayer;
-        tx.addEntity({ ...rest, owner: api.editor.inputOwner, layer } as never);
-      }
-    });
+    const res = api.apply('PASTECLIP', (tx) => pasteClipboardPackage(doc, d, api.editor.inputOwner, p.p, tx));
+    api.editor.selection.set(res.insertedIds);
+    if (res.warnings.length > 0) {
+      api.warn(L(`Pegado con avisos: ${res.warnings.join('; ')}`, `Pasted with warnings: ${res.warnings.join('; ')}`));
+    }
   },
 };
 

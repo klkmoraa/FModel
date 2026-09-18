@@ -2,12 +2,13 @@
 
 ## PWA-001 — Versionar la caché por contenido real
 
-- [ ] **Estado:** Abierta
+- [x] **Estado:** Cerrada
+- **Responsable:** Codex · **Inicio:** 2026-09-18 · **Cierre:** 2026-09-18
 - **Prioridad:** P1 — usuarios pueden conservar recursos públicos obsoletos
 - **Depende de:** —
 - **Bloquea:** —
 
-**Evidencia:** `vite.config.ts` calcula la versión con `files.join('|')`. Los chunks con hash cambian de nombre, pero `manifest.webmanifest`, iconos y `public/library/**` pueden cambiar de contenido conservando nombre; el identificador de caché no cambia por esos bytes.
+**Evidencia:** `vite.config.ts` y `src/pwa/serviceWorker.ts` calculan la versión mediante `computeCacheVersion` incorporando el hash SHA-256 de los bytes de cada chunk y de cada archivo público; un cambio de contenido en manifiesto o iconos genera una versión de caché distinta incluso con el mismo nombre. El service worker maneja respuestas de navegación no exitosas (`!res.ok`) con caída en el `index.html` precargado, y la biblioteca inicial se gestiona con caché en tiempo de ejecución (`cache-first`) sin inflar el precache.
 
 **Archivos previstos:**
 
@@ -17,18 +18,20 @@
 
 **Implementación:**
 
-- [ ] Calcular revisión con nombre + hash de contenido de cada asset incluido o usar el hash del bundle/manifiesto generado.
-- [ ] Probar que cambiar solo un icono/manifiesto genera un CACHE distinto.
-- [ ] Definir estrategia explícita para la biblioteca inicial excluida del precache.
-- [ ] Manejar respuestas de navegación no exitosas cuando corresponda, no solo rechazo de red.
+- [x] Calcular revisión con nombre + hash de contenido de cada asset incluido o usar el hash del bundle/manifiesto generado.
+- [x] Probar que cambiar solo un icono/manifiesto genera un CACHE distinto.
+- [x] Definir estrategia explícita para la biblioteca inicial excluida del precache.
+- [x] Manejar respuestas de navegación no exitosas cuando corresponda, no solo rechazo de red.
 
 **Criterios de aceptación:**
 
-- [ ] Dos builds con bytes distintos no comparten versión de caché.
-- [ ] Un build idéntico conserva versión reproducible.
-- [ ] Actualizar no mezcla recursos de versiones distintas y el modo offline sigue funcionando.
+- [x] Dos builds con bytes distintos no comparten versión de caché.
+- [x] Un build idéntico conserva versión reproducible.
+- [x] Actualizar no mezcla recursos de versiones distintas y el modo offline sigue funcionando.
 
-**Verificación:** `pnpm vitest run src/pwa/serviceWorker.test.ts && pnpm build`
+**Cierre:** 2026-09-18
+
+**Verificación:** `pnpm vitest run src/pwa/serviceWorker.test.ts` (6 pruebas focalizadas) y `pnpm lint && pnpm verify` (50 archivos, 388 pruebas, capas correctas, typecheck estricto y build limpio con service worker emitido).
 
 ---
 

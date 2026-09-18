@@ -41,3 +41,9 @@ jobs:
 
       - name: Compilación
         run: pnpm exec vite build
+
+      - name: Instalar navegadores Playwright
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Pruebas E2E en navegador real
+        run: pnpm test:e2e
