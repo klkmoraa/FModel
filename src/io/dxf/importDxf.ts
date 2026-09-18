@@ -23,6 +23,7 @@ import type {
 import { MODEL_SPACE_ID } from '../../document/types';
 import type { DxfRecord } from './parser';
 import { parseDxf, R } from './parser';
+import { decodeDefinition, readInstanceXdata, readXrecord } from './dynamicData';
 import type { PolyVertex } from '../../geometry/polyline';
 import { curvesToVertices } from '../../geometry/polyline';
 import type { Curve } from '../../geometry/curves';
@@ -218,6 +219,26 @@ export function importDxfIntoDocument(doc: CadDocument, text: string, opts: { re
     }
     const firstLayout = layoutByBlockName.get('*PAPER_SPACE') ?? [...doc.data.layouts.keys()][0];
 
+    // ---------------------------------------------------------------- datos dinámicos de FModel
+    const fmDynamic = new Map<string, string>();
+    for (const o of dxf.objects) {
+      try {
+        const x = readXrecord(o);
+        if (x) fmDynamic.set(x.blockName.toUpperCase(), x.json);
+      } catch (err) {
+        report.warnings.push(`Bloque dinámico de FModel no recuperado: ${err instanceof Error ? err.message : String(err)}; se conservan las variantes estáticas.`);
+      }
+    }
+    // variantes estáticas usadas solo por instancias FModel recuperables: no se importan
+    const variantRefs = new Map<string, boolean>();
+    for (const rec of [...dxf.entities, ...dxf.blocks.flatMap((b) => b.entities)]) {
+      if (rec.type !== 'INSERT') continue;
+      const name = new R(rec).str(2).toUpperCase();
+      const x = readInstanceXdata(rec.pairs);
+      const recoverable = !!x && fmDynamic.has(x.baseName.toUpperCase()) && x.baseName.toUpperCase() !== name;
+      variantRefs.set(name, (variantRefs.get(name) ?? true) && recoverable);
+    }
+
     // ---------------------------------------------------------------- bloques
     const blockIdByName = new Map<string, Id>();
     const pendingBlocks: { id: Id; def: (typeof dxf.blocks)[number] }[] = [];
@@ -225,6 +246,7 @@ export function importDxfIntoDocument(doc: CadDocument, text: string, opts: { re
       const upper = b.name.toUpperCase();
       if (upper.startsWith('*MODEL_SPACE') || upper.startsWith('*PAPER_SPACE')) continue;
       if (upper.startsWith('*D')) continue; // cotas: se regeneran nativamente
+      if (variantRefs.get(upper) === true) continue;
       const isXref = !!(b.flags & 4);
       const existing = doc.findByName('blocks', b.name);
       const id = existing?.id ?? newId('blk');
@@ -259,9 +281,17 @@ export function importDxfIntoDocument(doc: CadDocument, text: string, opts: { re
         linetype: ltId(r.str(6, 'BYLAYER')),
         linetypeScale: r.num(48, 1) || 1,
         lineweight: r.has(370) ? r.num(370) : -1,
-        transparency: r.has(440) ? transparencyOf(r.num(440)) : 'ByLayer',
+        transparency: !r.has(440) ? 'ByLayer' : (r.num(440) & 0x03000000) === 0x01000000 ? 'ByBlock' : transparencyOf(r.num(440)),
         visible: r.num(60) !== 1,
       };
+    };
+
+    const handleToId = new Map<string, Id>();
+    let currentHandle = '';
+    const add = (e: Omit<Entity, 'id' | 'order'>) => {
+      const created = tx.addEntity(e as never) as Entity;
+      if (currentHandle && !handleToId.has(currentHandle)) handleToId.set(currentHandle, created.id);
+      return created;
     };
 
     const convertList = (recs: DxfRecord[], ownerFor: (r: R) => Id) => {
@@ -269,6 +299,7 @@ export function importDxfIntoDocument(doc: CadDocument, text: string, opts: { re
         const rec = recs[i];
         const r = new R(rec);
         const owner = ownerFor(r);
+        currentHandle = r.str(5).toUpperCase();
         try {
           const consumed = convert(rec, r, owner, recs, i);
           i += consumed;
@@ -279,7 +310,6 @@ export function importDxfIntoDocument(doc: CadDocument, text: string, opts: { re
       }
     };
 
-    const add = (e: Omit<Entity, 'id' | 'order'>) => tx.addEntity(e as never);
 
     /** Devuelve cuántos registros adicionales consumió (VERTEX/ATTRIB/SEQEND). */
     const convert = (rec: DxfRecord, r: R, owner: Id, recs: DxfRecord[], index: number): number => {
@@ -421,14 +451,16 @@ export function importDxfIntoDocument(doc: CadDocument, text: string, opts: { re
             if (recs[j]?.type === 'SEQEND') j++;
           }
           const consumed = j - index - 1;
-          if (!blockId) {
+          const fm = readInstanceXdata(rec.pairs);
+          const baseId = fm && fmDynamic.has(fm.baseName.toUpperCase()) ? blockIdByName.get(fm.baseName.toUpperCase()) : undefined;
+          if (!blockId && !baseId) {
             ignored('INSERT', `bloque «${name}» no encontrado`);
             return consumed;
           }
           const cols = r.num(70, 1);
           const rows = r.num(71, 1);
-          add({ ...base, type: 'insert', blockId, position: r.pt(10), scale: { x: r.num(41, 1), y: r.num(42, 1) }, rotation: r.num(50) * DEG, attributes, grid: cols > 1 || rows > 1 ? { columns: cols, rows, columnSpacing: r.num(44), rowSpacing: r.num(45) } : undefined } as Entity);
-          ok('INSERT');
+          add({ ...base, type: 'insert', blockId: baseId ?? blockId, dynamic: baseId ? fm!.state : undefined, position: r.pt(10), scale: { x: r.num(41, 1), y: r.num(42, 1) }, rotation: r.num(50) * DEG, attributes, grid: cols > 1 || rows > 1 ? { columns: cols, rows, columnSpacing: r.num(44), rowSpacing: r.num(45) } : undefined } as Entity);
+          ok(baseId ? 'INSERT dinámico' : 'INSERT');
           return consumed;
         }
         case 'ATTDEF': {
@@ -576,6 +608,16 @@ export function importDxfIntoDocument(doc: CadDocument, text: string, opts: { re
       if (layout) convertList(b.entities, () => layout);
     }
     convertList(dxf.entities, (r) => (r.num(67) === 1 ? (firstLayout ?? MODEL_SPACE_ID) : (opts.owner ?? MODEL_SPACE_ID)));
+
+    const created = new Set(pendingBlocks.map((p) => p.id));
+    for (const [upper, json] of fmDynamic) {
+      const id = blockIdByName.get(upper);
+      if (!id || !created.has(id)) continue;
+      const { def, missing } = decodeDefinition(json, (h) => handleToId.get(h.toUpperCase()));
+      tx.update('blocks', id, { dynamic: def });
+      ok('Bloque dinámico');
+      if (missing) report.warnings.push(`${doc.data.blocks.get(id)?.name}: ${missing} referencia(s) de la definición dinámica sin objeto equivalente.`);
+    }
   });
 
   const total = Object.values(report.imported).reduce((a, b) => a + b, 0);

@@ -102,3 +102,11 @@ describe('codificación', () => {
     expect(decodeDxfBytes(bytes)).toContain('Cimentación');
   });
 });
+
+describe('transparencia de objetos', () => {
+  it('distingue PorBloque (0x01000000) de un valor explícito', () => {
+    const text = dxf(header(), entities('0', 'LINE', '8', '0', '440', String(0x01000000), '10', '0', '20', '0', '11', '1', '21', '0', '0', 'LINE', '8', '0', '440', String(0x02000000 | 127), '10', '0', '20', '0', '11', '1', '21', '0'));
+    const { list } = run(text);
+    expect(list.map((e) => e.transparency)).toEqual(['ByBlock', 50]);
+  });
+});
