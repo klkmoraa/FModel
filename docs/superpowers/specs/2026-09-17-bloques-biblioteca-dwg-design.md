@@ -40,18 +40,16 @@ definición dinámica.
 **Diseño:** se mantiene exactamente lo que ven otros programas (variantes estáticas) y se añaden
 datos propios que solo FModel interpreta, con el mecanismo estándar de DXF para datos de aplicación.
 
-- **Definición base:** además de las variantes, se escribe el bloque `Nombre` con el estado por
-  defecto. Su `BLOCK_RECORD` lleva un diccionario de extensión con un `XRECORD` `FMODEL_DYNAMIC`
-  que contiene la `DynamicBlockDefinition` en JSON, troceada en cadenas de grupo 1 de ≤ 250
-  caracteres, precedidas de un grupo 90 con la versión del esquema (1).
-- **Identidad de entidades:** la definición dinámica referencia entidades por ID. Cada entidad del
-  bloque base lleva XDATA `FMODEL` (APPID registrado) con su ID de FModel (grupo 1000).
+- **Definición:** el bloque `Nombre` se sigue escribiendo con su contenido de definición. Un
+  diccionario `FMODEL_DYNAMIC_BLOCKS` del diccionario raíz contiene, por bloque dinámico, un
+  `XRECORD` con la `DynamicBlockDefinition` en JSON (versión de esquema 1, trozos de ≤ 120
+  caracteres) en la que cada ID de entidad se sustituye por `@H:<handle DXF>`.
 - **Instancias:** el `INSERT` sigue apuntando a su variante estática `Nombre_Vn` (para otros
-  programas) y lleva XDATA `FMODEL` con el handle del bloque base (1005) y el
-  `DynamicInstanceState` en JSON troceado (1000). Si el JSON supera el límite de XDATA (16 KB por
-  entidad), se guarda en un `XRECORD` del diccionario de extensión del `INSERT`.
+  programas) y lleva XDATA `FMODEL` (APPID registrado) con el nombre del bloque base y el
+  `DynamicInstanceState` en JSON troceado. Si ese JSON superase el límite de XDATA (16 KB), la
+  instancia se exporta solo como variante estática y se avisa.
 - **Importación:** si el importador encuentra `FMODEL_DYNAMIC`, reconstruye la definición
-  remapeando IDs mediante la XDATA, apunta cada instancia al bloque base con su estado y descarta
+  remapeando cada `@H:<handle>` al ID de la entidad importada, apunta cada instancia al bloque base con su estado y descarta
   las variantes `Nombre_Vn` que queden sin uso. Si los datos están dañados o su versión es
   desconocida, conserva las variantes estáticas y lo dice en el informe.
 - **Informe:** la fila «Bloque dinámico → bloque estático» pasa a «se conserva en FModel; otros
