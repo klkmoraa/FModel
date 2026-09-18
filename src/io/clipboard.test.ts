@@ -1020,4 +1020,263 @@ describe('portapapeles portable (DAT-002)', () => {
     expect(dstDoc.findByName('blocks', 'Ventana (2)')).toBeUndefined();
     expect(dstDoc.findByName('blocks', 'Ventana')).toBeDefined();
   });
+
+  it('reutiliza bloques dinámicos idénticos y evita duplicación innecesaria en destino', () => {
+    const srcDoc = createDocument({ title: 'Origen Din' });
+    const dstDoc = createDocument({ title: 'Destino Din' });
+
+    srcDoc.transact('CREA_BLOQUE_DIN', (tx) => {
+      tx.add('blocks', {
+        id: 'blk_puerta_dyn',
+        name: 'PuertaEstirar',
+        kind: 'normal',
+        basePoint: { x: 0, y: 0 },
+        description: 'Puerta dinámica con estiramiento',
+        units: 'unitless',
+        explodable: true,
+        scaleUniformly: true,
+        annotative: false,
+        revision: 1,
+        dynamic: {
+          parameters: [
+            { id: 'p_long', name: 'Longitud', type: 'linear', base: { x: 0, y: 0 }, end: { x: 80, y: 0 }, baseLocation: 'start', valueSet: { kind: 'none' } } as any,
+          ],
+          actions: [
+            { id: 'act_st', type: 'stretch', name: 'EstirarHoja', paramId: 'p_long', paramPoint: 'end', frame: [], selection: ['l_hoja_dyn'], axis: 'xy', distanceMultiplier: 1, angleOffset: 0 },
+          ],
+          constraints: [],
+          lookups: [],
+          variables: [],
+          propertyOrder: [],
+        },
+      });
+      tx.addEntity<LineEntity>({
+        ...entityDefaults(srcDoc),
+        id: 'l_hoja_dyn',
+        type: 'line',
+        owner: 'blk_puerta_dyn',
+        start: { x: 0, y: 0 },
+        end: { x: 80, y: 0 },
+      });
+      tx.addEntity<InsertEntity>({
+        ...entityDefaults(srcDoc),
+        id: 'ins_p1',
+        type: 'insert',
+        blockId: 'blk_puerta_dyn',
+        position: { x: 0, y: 0 },
+        scale: { x: 1, y: 1 },
+        rotation: 0,
+        attributes: [],
+      });
+    });
+
+    // Copiamos la primera vez a dstDoc
+    const pkg1 = createClipboardPackage(srcDoc, ['ins_p1']);
+    pasteClipboardPackage(dstDoc, pkg1, MODEL_SPACE_ID, { x: 0, y: 0 });
+    expect(dstDoc.findByName('blocks', 'PuertaEstirar')).toBeDefined();
+    expect(dstDoc.findByName('blocks', 'PuertaEstirar (2)')).toBeUndefined();
+
+    // Copiamos la segunda vez idéntica a dstDoc
+    const pkg2 = createClipboardPackage(srcDoc, ['ins_p1']);
+    pasteClipboardPackage(dstDoc, pkg2, MODEL_SPACE_ID, { x: 100, y: 0 });
+
+    // Debe haberse reutilizado el bloque dinámico existente sin crear PuertaEstirar (2)
+    expect(dstDoc.findByName('blocks', 'PuertaEstirar (2)')).toBeUndefined();
+    expect(dstDoc.findByName('blocks', 'PuertaEstirar')).toBeDefined();
+  });
+
+  it('distingue bloques dinámicos con igual geometría base pero distintas acciones o parámetros y crea Nombre (2)', () => {
+    const doc1 = createDocument({ title: 'Doc1' });
+    const doc2 = createDocument({ title: 'Doc2' });
+
+    // Doc1: bloque 'PuertaVar' con estiramiento
+    doc1.transact('CREA_DYN1', (tx) => {
+      tx.add('blocks', {
+        id: 'blk_d1',
+        name: 'PuertaVar',
+        kind: 'normal',
+        basePoint: { x: 0, y: 0 },
+        description: 'Con estiramiento',
+        units: 'unitless',
+        explodable: true,
+        scaleUniformly: true,
+        annotative: false,
+        revision: 1,
+        dynamic: {
+          parameters: [
+            { id: 'p_len', name: 'Longitud', type: 'linear', base: { x: 0, y: 0 }, end: { x: 80, y: 0 }, baseLocation: 'start', valueSet: { kind: 'none' } } as any,
+          ],
+          actions: [
+            { id: 'a_st', type: 'stretch', name: 'Estirar', paramId: 'p_len', paramPoint: 'end', frame: [], selection: ['l_d1'], axis: 'xy', distanceMultiplier: 1, angleOffset: 0 },
+          ],
+          constraints: [],
+          lookups: [],
+          variables: [],
+          propertyOrder: [],
+        },
+      });
+      tx.addEntity<LineEntity>({
+        ...entityDefaults(doc1),
+        id: 'l_d1',
+        type: 'line',
+        owner: 'blk_d1',
+        start: { x: 0, y: 0 },
+        end: { x: 80, y: 0 },
+      });
+      tx.addEntity<InsertEntity>({
+        ...entityDefaults(doc1),
+        id: 'ins_d1',
+        type: 'insert',
+        blockId: 'blk_d1',
+        position: { x: 0, y: 0 },
+        scale: { x: 1, y: 1 },
+        rotation: 0,
+        attributes: [],
+      });
+    });
+
+    // Doc2: bloque con el MISMO nombre 'PuertaVar' y MISMA geometría (línea 0,0 a 80,0), pero con Flip
+    doc2.transact('CREA_DYN2', (tx) => {
+      tx.add('blocks', {
+        id: 'blk_d2',
+        name: 'PuertaVar',
+        kind: 'normal',
+        basePoint: { x: 0, y: 0 },
+        description: 'Con inversión',
+        units: 'unitless',
+        explodable: true,
+        scaleUniformly: true,
+        annotative: false,
+        revision: 1,
+        dynamic: {
+          parameters: [
+            { id: 'p_flip', name: 'Invertir', type: 'flip', base: { x: 0, y: 0 }, end: { x: 0, y: 80 }, labelNotFlipped: 'Normal', labelFlipped: 'Invertida' } as any,
+          ],
+          actions: [
+            { id: 'a_flip', type: 'flip', name: 'InvertirAccion', paramId: 'p_flip', selection: ['l_d2'] },
+          ],
+          constraints: [],
+          lookups: [],
+          variables: [],
+          propertyOrder: [],
+        },
+      });
+      tx.addEntity<LineEntity>({
+        ...entityDefaults(doc2),
+        id: 'l_d2',
+        type: 'line',
+        owner: 'blk_d2',
+        start: { x: 0, y: 0 },
+        end: { x: 80, y: 0 },
+      });
+      tx.addEntity<InsertEntity>({
+        ...entityDefaults(doc2),
+        id: 'ins_d2',
+        type: 'insert',
+        blockId: 'blk_d2',
+        position: { x: 0, y: 0 },
+        scale: { x: 1, y: 1 },
+        rotation: 0,
+        attributes: [],
+      });
+    });
+
+    const dst = createDocument({ title: 'Destino' });
+
+    // Pegar primero el bloque con estiramiento
+    const pkg1 = createClipboardPackage(doc1, ['ins_d1']);
+    pasteClipboardPackage(dst, pkg1, MODEL_SPACE_ID, { x: 0, y: 0 });
+    expect(dst.findByName('blocks', 'PuertaVar')).toBeDefined();
+
+    // Pegar ahora el bloque con inversión: aunque la geometría base coincide, sus acciones dinámicas difieren
+    const pkg2 = createClipboardPackage(doc2, ['ins_d2']);
+    pasteClipboardPackage(dst, pkg2, MODEL_SPACE_ID, { x: 100, y: 0 });
+
+    // NO debe reutilizarse: debe crearse PuertaVar (2) para no perder la acción Flip
+    const blk2 = dst.findByName('blocks', 'PuertaVar (2)');
+    expect(blk2).toBeDefined();
+    expect(blk2?.dynamic?.actions[0].type).toBe('flip');
+
+    const blk1 = dst.findByName('blocks', 'PuertaVar');
+    expect(blk1?.dynamic?.actions[0].type).toBe('stretch');
+  });
+
+  it('recolecta recursivamente capas y tipos de línea a través de cadenas transitivas mleaderStyle -> bloque -> capa -> linetype', () => {
+    const srcDoc = createDocument({ title: 'Origen Transitivo' });
+    const dstDoc = createDocument({ title: 'Destino Transitivo' });
+
+    srcDoc.transact('SETUP_TRANSITIVO', (tx) => {
+      const lt = tx.add('linetypes', {
+        id: 'lt_punto_eje',
+        name: 'PUNTO_EJE',
+        description: 'Punto y raya',
+        pattern: [10, -2, 2, -2],
+      });
+      const lay = tx.add('layers', {
+        ...srcDoc.data.layers.get('0')!,
+        id: 'lay_simbologia',
+        name: 'SimbologiaDetalle',
+        linetype: lt.id,
+      });
+      const blkTag = tx.add('blocks', {
+        id: 'blk_tag_trans',
+        name: 'TagTransitivo',
+        kind: 'normal',
+        basePoint: { x: 0, y: 0 },
+        description: 'Tag con capa que usa tipo de línea personalizado',
+        units: 'unitless',
+        explodable: true,
+        scaleUniformly: true,
+        annotative: false,
+        revision: 1,
+      });
+      tx.addEntity<LineEntity>({
+        ...entityDefaults(srcDoc),
+        id: 'l_tag_trans',
+        type: 'line',
+        owner: blkTag.id,
+        layer: lay.id,
+        linetype: 'ByLayer',
+        start: { x: 0, y: 0 },
+        end: { x: 10, y: 10 },
+      });
+
+      const mls = tx.add('mleaderStyles', {
+        ...srcDoc.data.mleaderStyles.get('standard')!,
+        id: 'mls_tag_trans',
+        name: 'DirectrizConTag',
+        contentType: 'block',
+        blockId: blkTag.id,
+      });
+
+      // Creamos una entidad en el dibujo usando este estilo
+      tx.addEntity<MLeaderEntity>({
+        ...entityDefaults(srcDoc),
+        id: 'mld_trans',
+        type: 'mleader',
+        style: mls.id,
+        leaders: [{ vertices: [{ x: 0, y: 0 }, { x: 20, y: 20 }] }],
+        landing: { x: 20, y: 20 },
+        doglegLength: 5,
+        direction: 1,
+        content: { type: 'block', blockId: blkTag.id, scale: 1, rotation: 0, attributes: {} },
+      });
+    });
+
+    const pkg = createClipboardPackage(srcDoc, ['mld_trans']);
+
+    // Comprobamos que el cierre transitivo recogió la capa y el tipo de línea indirectos
+    expect(pkg.blocks?.some((b) => b.name === 'TagTransitivo')).toBe(true);
+    expect(pkg.layers?.some((l) => l.name === 'SimbologiaDetalle')).toBe(true);
+    expect(pkg.linetypes?.some((lt) => lt.name === 'PUNTO_EJE')).toBe(true);
+
+    // Pegamos en un documento limpio
+    pasteClipboardPackage(dstDoc, pkg, MODEL_SPACE_ID, { x: 0, y: 0 });
+
+    const destLt = dstDoc.findByName('linetypes', 'PUNTO_EJE');
+    const destLay = dstDoc.findByName('layers', 'SimbologiaDetalle');
+    expect(destLt).toBeDefined();
+    expect(destLay).toBeDefined();
+    expect(destLay?.linetype).toBe(destLt?.id);
+  });
 });

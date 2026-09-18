@@ -3,16 +3,20 @@ import { LAYER0_ID } from '../document/defaults';
 import { newId } from '../document/ids';
 import type {
   AssetRecord,
+  BlockConstraint,
   BlockRecord,
   DimensionEntity,
   DimStyleRecord,
+  DynAction,
   DynamicBlockDefinition,
+  DynParam,
   Entity,
   HatchEntity,
   Id,
   InsertEntity,
   LayerRecord,
   LinetypeRecord,
+  LookupTable,
   MLeaderEntity,
   MLeaderStyleRecord,
   MLineEntity,
@@ -147,33 +151,59 @@ export function createClipboardPackage(doc: CadDocument, entityIds: Id[], ctx?: 
     inspectEntity(e);
   }
 
-  for (const l of layers) {
-    const lr = doc.data.layers.get(l);
-    if (lr?.linetype && lr.linetype !== 'ByLayer' && lr.linetype !== 'ByBlock') {
-      linetypes.add(lr.linetype);
+  // Cierre transitivo completo de dependencias de capas, estilos, bloques y recursos
+  let changed = true;
+  while (changed) {
+    const prevBlockCount = blocks.size;
+    const prevLayerCount = layers.size;
+    const prevLinetypeCount = linetypes.size;
+    const prevTextStyleCount = textStyles.size;
+    const prevDimStyleCount = dimStyles.size;
+    const prevMLeaderCount = mleaderStyles.size;
+    const prevTableCount = tableStyles.size;
+    const prevMLineCount = mlineStyles.size;
+
+    for (const l of layers) {
+      const lr = doc.data.layers.get(l);
+      if (lr?.linetype && lr.linetype !== 'ByLayer' && lr.linetype !== 'ByBlock') {
+        linetypes.add(lr.linetype);
+      }
     }
-  }
-  for (const d of dimStyles) {
-    const ds = doc.data.dimStyles.get(d);
-    if (ds?.textStyle) textStyles.add(ds.textStyle);
-  }
-  for (const m of mleaderStyles) {
-    const ms = doc.data.mleaderStyles.get(m);
-    if (ms?.textStyle) textStyles.add(ms.textStyle);
-    if (ms?.blockId) visitBlock(ms.blockId);
-  }
-  for (const t of tableStyles) {
-    const ts = doc.data.tableStyles.get(t);
-    if (ts?.textStyle) textStyles.add(ts.textStyle);
-  }
-  for (const m of mlineStyles) {
-    const ms = doc.data.mlineStyles.get(m);
-    if (ms?.elements) {
-      for (const el of ms.elements) {
-        if (el.linetype && el.linetype !== 'ByLayer' && el.linetype !== 'ByBlock') {
-          linetypes.add(el.linetype);
+    for (const d of dimStyles) {
+      const ds = doc.data.dimStyles.get(d);
+      if (ds?.textStyle) textStyles.add(ds.textStyle);
+    }
+    for (const m of mleaderStyles) {
+      const ms = doc.data.mleaderStyles.get(m);
+      if (ms?.textStyle) textStyles.add(ms.textStyle);
+      if (ms?.blockId) visitBlock(ms.blockId);
+    }
+    for (const t of tableStyles) {
+      const ts = doc.data.tableStyles.get(t);
+      if (ts?.textStyle) textStyles.add(ts.textStyle);
+    }
+    for (const m of mlineStyles) {
+      const ms = doc.data.mlineStyles.get(m);
+      if (ms?.elements) {
+        for (const el of ms.elements) {
+          if (el.linetype && el.linetype !== 'ByLayer' && el.linetype !== 'ByBlock') {
+            linetypes.add(el.linetype);
+          }
         }
       }
+    }
+
+    if (
+      blocks.size === prevBlockCount &&
+      layers.size === prevLayerCount &&
+      linetypes.size === prevLinetypeCount &&
+      textStyles.size === prevTextStyleCount &&
+      dimStyles.size === prevDimStyleCount &&
+      mleaderStyles.size === prevMLeaderCount &&
+      tableStyles.size === prevTableCount &&
+      mlineStyles.size === prevMLineCount
+    ) {
+      changed = false;
     }
   }
 
@@ -298,7 +328,7 @@ function cleanEntityForComparison(e: Entity, mappings?: ComparisonMappings): Rec
     copy.assoc = e.assoc.map((a) => ({ point: a.point, snap: a.snap }));
   }
   if (e.type === 'hatch' && Array.isArray(e.associative)) {
-    copy.associative = e.associative.length ? true : undefined;
+    copy.associative = e.associative.length > 0 ? e.associative.length : undefined;
   }
 
   if (mappings) {
@@ -399,6 +429,173 @@ function entitiesMatch(
   return true;
 }
 
+/** Construye correspondencia biyectiva entre entidades empaquetadas y existentes según su firma canónica. */
+function buildEntityMatchMap(
+  existingEntities: Entity[],
+  pkgEntities: Entity[],
+  mappings?: ComparisonMappings,
+): Map<Id, Id> | null {
+  const serialize = (e: Entity, m?: ComparisonMappings) => canonicalJson(cleanEntityForComparison(e, m));
+  const existingBySig = new Map<string, Id[]>();
+  for (const e of existingEntities) {
+    const s = serialize(e);
+    const list = existingBySig.get(s) ?? [];
+    list.push(e.id);
+    existingBySig.set(s, list);
+  }
+
+  const matchMap = new Map<Id, Id>();
+  for (const p of pkgEntities) {
+    const s = serialize(p, mappings);
+    const list = existingBySig.get(s);
+    if (!list || list.length === 0) return null;
+    const matchedId = list.shift()!;
+    matchMap.set(p.id, matchedId);
+  }
+
+  return matchMap;
+}
+
+/** Compara si dos definiciones dinámicas de bloque son funcionalmente equivalentes. */
+function dynamicDefsMatch(
+  existingDyn: DynamicBlockDefinition,
+  pkgDyn: DynamicBlockDefinition,
+  entityMatchMap: Map<Id, Id>,
+): boolean {
+  // 1. Mapear parámetros por tipo y nombre
+  const existingParams = existingDyn.parameters ?? [];
+  const pkgParams = pkgDyn.parameters ?? [];
+  if (existingParams.length !== pkgParams.length) return false;
+
+  const paramMap = new Map<Id, Id>();
+  for (const p of pkgParams) {
+    const match = existingParams.find((ep) => ep.name === p.name && ep.type === p.type);
+    if (!match) return false;
+    paramMap.set(p.id, match.id);
+  }
+
+  const normParams = (params: DynParam[], isPkg: boolean) => {
+    return params
+      .map((p) => {
+        const copy = structuredClone(p) as unknown as Record<string, unknown>;
+        if (isPkg && paramMap.has(p.id)) {
+          copy.id = paramMap.get(p.id);
+        }
+        if (copy.type === 'visibility' && Array.isArray((copy as any).states)) {
+          (copy as any).states = ((copy as any).states as { name: string; visible: Id[] }[]).map((st) => ({
+            name: st.name,
+            visible: (st.visible ?? []).map((id) => (isPkg ? (entityMatchMap.get(id) ?? id) : id)).sort(),
+          }));
+        }
+        return canonicalJson(copy);
+      })
+      .sort();
+  };
+
+  const existingNormParams = normParams(existingParams, false);
+  const pkgNormParams = normParams(pkgParams, true);
+  for (let i = 0; i < existingNormParams.length; i++) {
+    if (existingNormParams[i] !== pkgNormParams[i]) return false;
+  }
+
+  // 2. Normalizar acciones
+  const existingActions = existingDyn.actions ?? [];
+  const pkgActions = pkgDyn.actions ?? [];
+  if (existingActions.length !== pkgActions.length) return false;
+
+  const normActions = (actions: DynAction[], isPkg: boolean) => {
+    return actions
+      .map((act) => {
+        const copy = structuredClone(act) as unknown as Record<string, unknown>;
+        delete copy.id;
+        if (isPkg && typeof copy.paramId === 'string' && paramMap.has(copy.paramId as Id)) {
+          copy.paramId = paramMap.get(copy.paramId as Id);
+        }
+        if (Array.isArray(copy.selection)) {
+          copy.selection = (copy.selection as Id[]).map((id) => (isPkg ? (entityMatchMap.get(id) ?? id) : id)).sort();
+        }
+        if (copy.type === 'polarstretch' && Array.isArray((copy as any).rotateOnly)) {
+          (copy as any).rotateOnly = ((copy as any).rotateOnly as Id[])
+            .map((id) => (isPkg ? (entityMatchMap.get(id) ?? id) : id))
+            .sort();
+        }
+        return canonicalJson(copy);
+      })
+      .sort();
+  };
+
+  const existingNormActions = normActions(existingActions, false);
+  const pkgNormActions = normActions(pkgActions, true);
+  for (let i = 0; i < existingNormActions.length; i++) {
+    if (existingNormActions[i] !== pkgNormActions[i]) return false;
+  }
+
+  // 3. Normalizar restricciones (constraints)
+  const existingConstraints = existingDyn.constraints ?? [];
+  const pkgConstraints = pkgDyn.constraints ?? [];
+  if (existingConstraints.length !== pkgConstraints.length) return false;
+
+  const normConstraints = (constraints: BlockConstraint[], isPkg: boolean) => {
+    return constraints
+      .map((c) => {
+        const copy = structuredClone(c) as unknown as Record<string, unknown>;
+        delete copy.id;
+        if (Array.isArray(copy.refs)) {
+          copy.refs = (copy.refs as { entityId: Id; part: string }[])
+            .map((r) => ({
+              entityId: isPkg ? (entityMatchMap.get(r.entityId) ?? r.entityId) : r.entityId,
+              part: r.part,
+            }))
+            .sort((a, b) => `${a.entityId}:${a.part}`.localeCompare(`${b.entityId}:${b.part}`));
+        }
+        return canonicalJson(copy);
+      })
+      .sort();
+  };
+
+  const existingNormConstraints = normConstraints(existingConstraints, false);
+  const pkgNormConstraints = normConstraints(pkgConstraints, true);
+  for (let i = 0; i < existingNormConstraints.length; i++) {
+    if (existingNormConstraints[i] !== pkgNormConstraints[i]) return false;
+  }
+
+  // 4. Normalizar tablas de consulta (lookups)
+  const existingLookups = existingDyn.lookups ?? [];
+  const pkgLookups = pkgDyn.lookups ?? [];
+  if (existingLookups.length !== pkgLookups.length) return false;
+
+  const normLookups = (lookups: LookupTable[], isPkg: boolean) => {
+    return lookups
+      .map((l) => {
+        const copy = structuredClone(l) as unknown as Record<string, unknown>;
+        delete copy.id;
+        if (isPkg && Array.isArray(copy.inputs)) {
+          copy.inputs = (copy.inputs as Id[]).map((id) => paramMap.get(id) ?? id);
+        }
+        return canonicalJson(copy);
+      })
+      .sort();
+  };
+
+  const existingNormLookups = normLookups(existingLookups, false);
+  const pkgNormLookups = normLookups(pkgLookups, true);
+  for (let i = 0; i < existingNormLookups.length; i++) {
+    if (existingNormLookups[i] !== pkgNormLookups[i]) return false;
+  }
+
+  // 5. Variables de usuario
+  const existingVars = existingDyn.variables ?? [];
+  const pkgVars = pkgDyn.variables ?? [];
+  if (existingVars.length !== pkgVars.length) return false;
+  const existingNormVars = existingVars.map((v) => canonicalJson(v)).sort();
+  const pkgNormVars = pkgVars.map((v) => canonicalJson(v)).sort();
+  for (let i = 0; i < existingNormVars.length; i++) {
+    if (existingNormVars[i] !== pkgNormVars[i]) return false;
+  }
+
+  return true;
+}
+
 /** Comprueba si una definición de bloque existente es geométricamente y paramétricamente equivalente a una empaquetada. */
 function isBlockEquivalent(
   doc: CadDocument,
@@ -419,7 +616,15 @@ function isBlockEquivalent(
 
   const existingEntities = doc.entitiesOf(existingBlockId);
   const pkgEntities = pkgBlockEntities.filter((e) => e.owner === pkgBlock.id);
-  return entitiesMatch(existingEntities, pkgEntities, mappings);
+  if (!entitiesMatch(existingEntities, pkgEntities, mappings)) return false;
+
+  if (existing.dynamic && pkgBlock.dynamic) {
+    const entityMatchMap = buildEntityMatchMap(existingEntities, pkgEntities, mappings);
+    if (!entityMatchMap) return false;
+    return dynamicDefsMatch(existing.dynamic, pkgBlock.dynamic, entityMatchMap);
+  }
+
+  return true;
 }
 
 /** Ordena bloques de forma topológica para que las dependencias anidadas se procesen antes de los bloques contenedores. */
@@ -632,7 +837,7 @@ export function pasteClipboardPackage(
       if (existing) {
         mapMLineStyle.set(ms.id, existing.id);
       } else {
-        const id = newId('mls');
+        const id = newId('mlns');
         const elements = ms.elements?.map((el) => {
           if (el.linetype && el.linetype !== 'ByLayer' && el.linetype !== 'ByBlock') {
             const remappedLt = mapLt.get(el.linetype) ?? (doc.data.linetypes.has(el.linetype) ? el.linetype : 'ByLayer');
@@ -722,7 +927,7 @@ export function pasteClipboardPackage(
       if (ms.blockId) {
         const destMlsId = mapMLeaderStyle.get(ms.id);
         if (destMlsId && newlyAddedMLeaderStyles.has(destMlsId)) {
-          const remappedBlockId = mapBlock.get(ms.blockId);
+          const remappedBlockId = mapBlock.get(ms.blockId) ?? (doc.data.blocks.has(ms.blockId) ? ms.blockId : undefined);
           if (remappedBlockId) {
             tx.update('mleaderStyles', destMlsId, { blockId: remappedBlockId });
           }
