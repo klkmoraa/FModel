@@ -473,6 +473,41 @@ function canonicalJson(val: unknown): string {
   return `{${pairs.join(',')}}`;
 }
 
+interface NamedRecordLike {
+  id: Id;
+  name: string;
+}
+
+function namedRecordContent(record: NamedRecordLike): string {
+  const { id: _id, name: _name, ...content } = record;
+  return canonicalJson(content);
+}
+
+function belongsToNameFamily(name: string, base: string): boolean {
+  const lower = name.toLowerCase();
+  const lowerBase = base.toLowerCase();
+  if (lower === lowerBase) return true;
+  if (!lower.startsWith(`${lowerBase} (`) || !lower.endsWith(')')) return false;
+  const suffix = Number(lower.slice(lowerBase.length + 2, -1));
+  return Number.isInteger(suffix) && suffix >= 2;
+}
+
+function findEquivalentNamedRecord<T extends NamedRecordLike>(records: Iterable<T>, source: T): T | undefined {
+  const signature = namedRecordContent(source);
+  for (const record of records) {
+    if (belongsToNameFamily(record.name, source.name) && namedRecordContent(record) === signature) return record;
+  }
+  return undefined;
+}
+
+function nextNamedRecordName<T extends NamedRecordLike>(records: Iterable<T>, base: string): string {
+  const names = new Set([...records].map((record) => record.name.toLowerCase()));
+  if (!names.has(base.toLowerCase())) return base;
+  let i = 2;
+  while (names.has(`${base} (${i})`.toLowerCase())) i++;
+  return `${base} (${i})`;
+}
+
 function entitiesMatch(
   existingEntities: Entity[],
   pkgEntities: Entity[],
@@ -957,52 +992,65 @@ export function pasteClipboardPackage(
 
     // 1. Tipos de línea
     for (const lt of pkg.linetypes ?? []) {
-      const existing = doc.findByName('linetypes', lt.name);
-      if (existing) {
-        mapLt.set(lt.id, existing.id);
+      const equivalent = findEquivalentNamedRecord(doc.data.linetypes.values(), lt);
+      if (equivalent) {
+        mapLt.set(lt.id, equivalent.id);
       } else {
         const id = newId('lt');
-        tx.add('linetypes', { ...lt, id });
+        const name = nextNamedRecordName(doc.data.linetypes.values(), lt.name);
+        tx.add('linetypes', { ...lt, id, name });
         mapLt.set(lt.id, id);
       }
     }
 
     // 2. Estilos de texto
     for (const ts of pkg.textStyles ?? []) {
-      const existing = doc.findByName('textStyles', ts.name);
-      if (existing) {
-        mapTextStyle.set(ts.id, existing.id);
+      const equivalent = findEquivalentNamedRecord(doc.data.textStyles.values(), ts);
+      if (equivalent) {
+        mapTextStyle.set(ts.id, equivalent.id);
       } else {
         const id = newId('ts');
-        tx.add('textStyles', { ...ts, id });
+        const name = nextNamedRecordName(doc.data.textStyles.values(), ts.name);
+        tx.add('textStyles', { ...ts, id, name });
         mapTextStyle.set(ts.id, id);
       }
     }
 
     // 3. Estilos de cota
     for (const ds of pkg.dimStyles ?? []) {
-      const existing = doc.findByName('dimStyles', ds.name);
-      if (existing) {
-        mapDimStyle.set(ds.id, existing.id);
+      const textStyle = mapTextStyle.get(ds.textStyle)
+        ?? (doc.data.textStyles.has(ds.textStyle) ? ds.textStyle : doc.settings.currentTextStyle);
+      const candidate = { ...ds, textStyle };
+      const equivalent = findEquivalentNamedRecord(doc.data.dimStyles.values(), candidate);
+      if (equivalent) {
+        mapDimStyle.set(ds.id, equivalent.id);
       } else {
         const id = newId('ds');
-        const textStyle = mapTextStyle.get(ds.textStyle) ?? ds.textStyle;
-        tx.add('dimStyles', { ...ds, id, textStyle });
+        const name = nextNamedRecordName(doc.data.dimStyles.values(), ds.name);
+        tx.add('dimStyles', { ...candidate, id, name });
         mapDimStyle.set(ds.id, id);
       }
     }
 
-    // 4. Estilos de directriz múltiple
+    // 4. Estilos de directriz múltiple. blockId se completa después de resolver bloques.
     const newlyAddedMLeaderStyles = new Set<Id>();
     for (const ms of pkg.mleaderStyles ?? []) {
-      const existing = doc.findByName('mleaderStyles', ms.name);
-      if (existing) {
-        mapMLeaderStyle.set(ms.id, existing.id);
+      const textStyle = mapTextStyle.get(ms.textStyle)
+        ?? (doc.data.textStyles.has(ms.textStyle) ? ms.textStyle : doc.settings.currentTextStyle);
+      const { blockId: sourceBlockId, ...restMs } = ms;
+      const candidate = { ...restMs, textStyle };
+      const equivalent = sourceBlockId
+        ? undefined
+        : findEquivalentNamedRecord(
+            [...doc.data.mleaderStyles.values()].filter((style) => !style.blockId),
+            candidate,
+          );
+      if (equivalent) {
+        mapMLeaderStyle.set(ms.id, equivalent.id);
       } else {
         const id = newId('mls');
-        const textStyle = mapTextStyle.get(ms.textStyle) ?? ms.textStyle;
-        const { blockId: _origBlockId, ...restMs } = ms;
-        tx.add('mleaderStyles', { ...restMs, id, textStyle });
+        const name = nextNamedRecordName(doc.data.mleaderStyles.values(), ms.name);
+        tx.add('mleaderStyles', { ...candidate, id, name });
         mapMLeaderStyle.set(ms.id, id);
         newlyAddedMLeaderStyles.add(id);
       }
@@ -1010,32 +1058,37 @@ export function pasteClipboardPackage(
 
     // 5. Estilos de tabla
     for (const ts of pkg.tableStyles ?? []) {
-      const existing = doc.findByName('tableStyles', ts.name);
-      if (existing) {
-        mapTableStyle.set(ts.id, existing.id);
+      const textStyle = mapTextStyle.get(ts.textStyle)
+        ?? (doc.data.textStyles.has(ts.textStyle) ? ts.textStyle : doc.settings.currentTextStyle);
+      const candidate = { ...ts, textStyle };
+      const equivalent = findEquivalentNamedRecord(doc.data.tableStyles.values(), candidate);
+      if (equivalent) {
+        mapTableStyle.set(ts.id, equivalent.id);
       } else {
         const id = newId('tbs');
-        const textStyle = mapTextStyle.get(ts.textStyle) ?? ts.textStyle;
-        tx.add('tableStyles', { ...ts, id, textStyle });
+        const name = nextNamedRecordName(doc.data.tableStyles.values(), ts.name);
+        tx.add('tableStyles', { ...candidate, id, name });
         mapTableStyle.set(ts.id, id);
       }
     }
 
     // 6. Estilos de multilínea
     for (const ms of pkg.mlineStyles ?? []) {
-      const existing = doc.findByName('mlineStyles', ms.name);
-      if (existing) {
-        mapMLineStyle.set(ms.id, existing.id);
+      const elements = ms.elements?.map((el) => {
+        if (el.linetype && el.linetype !== 'ByLayer' && el.linetype !== 'ByBlock') {
+          const remappedLt = mapLt.get(el.linetype) ?? (doc.data.linetypes.has(el.linetype) ? el.linetype : 'ByLayer');
+          return { ...el, linetype: remappedLt };
+        }
+        return { ...el };
+      }) ?? [];
+      const candidate = { ...ms, elements };
+      const equivalent = findEquivalentNamedRecord(doc.data.mlineStyles.values(), candidate);
+      if (equivalent) {
+        mapMLineStyle.set(ms.id, equivalent.id);
       } else {
         const id = newId('mlns');
-        const elements = ms.elements?.map((el) => {
-          if (el.linetype && el.linetype !== 'ByLayer' && el.linetype !== 'ByBlock') {
-            const remappedLt = mapLt.get(el.linetype) ?? (doc.data.linetypes.has(el.linetype) ? el.linetype : 'ByLayer');
-            return { ...el, linetype: remappedLt };
-          }
-          return { ...el };
-        }) ?? [];
-        tx.add('mlineStyles', { ...ms, id, elements });
+        const name = nextNamedRecordName(doc.data.mlineStyles.values(), ms.name);
+        tx.add('mlineStyles', { ...candidate, id, name });
         mapMLineStyle.set(ms.id, id);
       }
     }
@@ -1046,13 +1099,15 @@ export function pasteClipboardPackage(
         mapLayer.set(l.id, LAYER0_ID);
         continue;
       }
-      const existing = doc.findByName('layers', l.name);
-      if (existing) {
-        mapLayer.set(l.id, existing.id);
+      const linetype = mapLt.get(l.linetype) ?? (doc.data.linetypes.has(l.linetype) ? l.linetype : 'ByLayer');
+      const candidate = { ...l, linetype };
+      const equivalent = findEquivalentNamedRecord(doc.data.layers.values(), candidate);
+      if (equivalent) {
+        mapLayer.set(l.id, equivalent.id);
       } else {
         const id = newId('layer');
-        const linetype = mapLt.get(l.linetype) ?? (doc.data.linetypes.has(l.linetype) ? l.linetype : 'ByLayer');
-        tx.add('layers', { ...l, id, linetype });
+        const name = nextNamedRecordName(doc.data.layers.values(), l.name);
+        tx.add('layers', { ...candidate, id, name });
         mapLayer.set(l.id, id);
       }
     }
@@ -1095,22 +1150,21 @@ export function pasteClipboardPackage(
     };
 
     for (const b of orderedBlocks) {
-      const existing = doc.findByName('blocks', b.name);
-      if (existing && isBlockEquivalent(doc, existing.id, b, allPkgBlockEntities, compMappings)) {
-        // Bloque equivalente ya existente: reutilizar
-        mapBlock.set(b.id, existing.id);
-        if (b.dynamic && existing.dynamic) {
-          const paramMap = buildDynamicParamMap(existing.dynamic, b.dynamic);
+      const equivalent = [...doc.data.blocks.values()].find(
+        (candidate) =>
+          belongsToNameFamily(candidate.name, b.name)
+          && isBlockEquivalent(doc, candidate.id, b, allPkgBlockEntities, compMappings),
+      );
+      if (equivalent) {
+        // Bloque equivalente ya existente: reutilizar, incluso si ya fue renombrado por una colisión previa.
+        mapBlock.set(b.id, equivalent.id);
+        if (b.dynamic && equivalent.dynamic) {
+          const paramMap = buildDynamicParamMap(equivalent.dynamic, b.dynamic);
           if (paramMap) dynamicParamMaps.set(b.id, paramMap);
         }
         reusedBlocks.add(b.id);
       } else {
-        let name = b.name;
-        if (existing) {
-          let i = 2;
-          while (doc.findByName('blocks', `${b.name} (${i})`)) i++;
-          name = `${b.name} (${i})`;
-        }
+        const name = nextNamedRecordName(doc.data.blocks.values(), b.name);
         const id = newId('blk');
         mapBlock.set(b.id, id);
 
