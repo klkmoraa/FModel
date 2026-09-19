@@ -102,12 +102,12 @@ export function App({ editor }: { editor: Editor }) {
       const target = e.target as HTMLElement;
       const inField = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable);
       const combo = comboOf(e);
-      if (combo === 'Ctrl+K' || (combo === 'Ctrl+Shift+P')) {
+      if (palette || dialog || !editor.prefs.onboardingDone) return;
+      if (combo === 'Ctrl+K' || combo === 'Ctrl+Shift+P') {
         e.preventDefault();
         setPalette(true);
         return;
       }
-      if (palette || dialog || !editor.prefs.onboardingDone) return;
       if (inField && !target.classList.contains('cmdline__input')) return;
       editor.shiftDown = e.shiftKey;
       // atajos configurables
