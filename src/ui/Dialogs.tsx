@@ -1,5 +1,5 @@
 import { X } from 'lucide-react';
-import { useRef, type ReactNode } from 'react';
+import { createContext, useContext, useRef, type ReactNode, type RefObject } from 'react';
 import type { Editor } from '../editor/editor';
 import { DraftingSettings } from './dialogs/DraftingSettings';
 import { FileMenu } from './dialogs/FileMenu';
@@ -20,6 +20,8 @@ import type { LibraryImportSession } from '../blocks/libraryImport';
 import { tr } from './controls';
 import { useModalFocusTrap } from './modalFocus';
 
+const DialogReturnFocusContext = createContext<RefObject<HTMLElement | null> | null>(null);
+
 export interface DialogState {
   id: string;
   cmd?: string;
@@ -29,8 +31,8 @@ export interface DialogState {
 
 export function Dialog({ title, onClose, children, footer, wide, lang }: { title: string; onClose: () => void; children: ReactNode; footer?: ReactNode; wide?: boolean; lang: 'es' | 'en' }) {
   const dialogRef = useRef<HTMLDivElement>(null);
-  const returnFocusRef = useRef<HTMLElement | null>(document.activeElement instanceof HTMLElement ? document.activeElement : null);
-  useModalFocusTrap(dialogRef, onClose, returnFocusRef);
+  const returnFocusRef = useContext(DialogReturnFocusContext);
+  useModalFocusTrap(dialogRef, onClose, returnFocusRef ?? undefined);
 
   return (
     <div className="veil" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
@@ -83,9 +85,9 @@ export function registerDialog(id: string, render: DialogRenderer) {
   DIALOGS[id] = render;
 }
 
-export function Dialogs({ editor, state, onClose, onUi }: { editor: Editor; state: DialogState | null; onClose: () => void; onUi: (ui: string, cmd?: string, payload?: unknown) => void }) {
+export function Dialogs({ editor, state, returnFocusRef, onClose, onUi }: { editor: Editor; state: DialogState | null; returnFocusRef: RefObject<HTMLElement | null>; onClose: () => void; onUi: (ui: string, cmd?: string, payload?: unknown) => void }) {
   if (!state) return null;
   const render = DIALOGS[state.id];
   if (!render) return null;
-  return <>{render(editor, onClose, onUi, state)}</>;
+  return <DialogReturnFocusContext.Provider value={returnFocusRef}>{render(editor, onClose, onUi, state)}</DialogReturnFocusContext.Provider>;
 }
