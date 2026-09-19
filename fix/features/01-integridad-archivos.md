@@ -79,6 +79,8 @@
 
 **Seguimiento 2026-09-18:** commit `96321a3`. La equivalencia compara las referencias asociativas después del mapeo biyectivo de entidades y respeta `propertyOrder`. Tres regresiones fallaron antes del cambio y luego pasaron; `pnpm vitest run src/io/clipboard.test.ts` cerró con 23 pruebas y `pnpm lint && pnpm verify` con 50 archivos/404 pruebas, capas, documentación, tipos y build correctos (avisos de lint preexistentes).
 
+**Seguimiento de auditoría 2026-09-19:** PR #2. La reapertura detectó cuatro huecos reproducibles: assets embebidos distintos con igual nombre+tamaño se deduplicaban incorrectamente; los viewports no transportaban/remapeaban `frozenLayers` ni `layerOverrides`; los overrides de cota/directriz podían conservar `textStyle`/`blockId` del origen; y `InsertEntity.dynamic.values` conservaba IDs de parámetros del origen al reutilizar un bloque dinámico equivalente. La fase roja confirmó 4 fallos de 29 pruebas de clipboard (409/413 globales). El cambio mínimo añadió cierre/remapeo tipado para esas referencias, deduplicación de assets por contenido y mapa biyectivo de parámetros dinámicos. CI #41 cerró `src/io/clipboard.test.ts` 29/29, suite 413/413, typecheck, lint, capas, features, build y 8/8 E2E en verde.
+
 ---
 
 ## DAT-003 — Validar archivos y aplicar límites de recursos
