@@ -85,6 +85,32 @@ test.describe('alineación visual con FusionStructureBrand', () => {
     await expect(origin).toBeFocused();
   });
 
+  test('un control modal puede consumir Escape y los atajos globales no atraviesan el diálogo', async ({ page }) => {
+    await page.goto('/?surface=workspace');
+    await page.waitForFunction(() => !!(window as any).fmodel?.editor);
+    await page.evaluate(() => {
+      (window as any).fmodel.editor.setPrefs({ onboardingDone: true });
+    });
+
+    await page.evaluate(() => {
+      window.dispatchEvent(new CustomEvent('fmodel:ui', { detail: { ui: 'options', cmd: 'SHORTCUTS' } }));
+    });
+
+    const dialog = page.getByRole('dialog', { name: /Opciones|Options/ });
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('button', { name: /Nuevo atajo|New shortcut/ }).click();
+
+    const capture = dialog.getByRole('textbox', { name: /Combinación|Combination/ });
+    await expect(capture).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(capture).toHaveCount(0);
+    await expect(dialog).toBeVisible();
+
+    await page.keyboard.press('Control+K');
+    await expect(page.locator('.palette')).toHaveCount(0);
+    await expect(dialog).toBeVisible();
+  });
+
   test('las etiquetas activas pequeñas usan el morado de alto contraste', async ({ page }) => {
     await page.goto('/?surface=workspace');
     await page.waitForFunction(() => !!(window as any).fmodel?.editor);
