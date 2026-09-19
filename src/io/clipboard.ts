@@ -25,6 +25,7 @@ import type {
   TableEntity,
   TableStyleRecord,
   TextStyleRecord,
+  ViewportEntity,
 } from '../document/types';
 import { translation } from '../geometry/matrix';
 import type { Vec2 } from '../geometry/vec';
@@ -117,8 +118,10 @@ export function createClipboardPackage(doc: CadDocument, entityIds: Id[], ctx?: 
       textStyles.add(e.style);
     } else if (e.type === 'dimension' || e.type === 'leader') {
       dimStyles.add(e.style);
+      if (e.type === 'dimension' && e.overrides.textStyle) textStyles.add(e.overrides.textStyle);
     } else if (e.type === 'mleader') {
       mleaderStyles.add(e.style);
+      if (e.overrides?.textStyle) textStyles.add(e.overrides.textStyle);
     } else if (e.type === 'table') {
       tableStyles.add(e.style);
     } else if (e.type === 'mline') {
@@ -127,12 +130,22 @@ export function createClipboardPackage(doc: CadDocument, entityIds: Id[], ctx?: 
     if (e.type === 'image' || e.type === 'pdfunderlay') {
       assets.add(e.assetId);
     }
+    if (e.type === 'viewport') {
+      for (const layerId of e.frozenLayers) layers.add(layerId);
+      for (const [layerId, override] of Object.entries(e.layerOverrides)) {
+        layers.add(layerId);
+        if (override.linetype && override.linetype !== 'ByLayer' && override.linetype !== 'ByBlock') {
+          linetypes.add(override.linetype);
+        }
+      }
+    }
     if (e.type === 'insert') {
       visitBlock(e.blockId);
     } else if (e.type === 'array') {
       visitBlock(e.sourceBlockId);
-    } else if (e.type === 'mleader' && e.content.type === 'block') {
-      visitBlock(e.content.blockId);
+    } else if (e.type === 'mleader') {
+      if (e.content.type === 'block') visitBlock(e.content.blockId);
+      if (e.overrides?.blockId) visitBlock(e.overrides.blockId);
     }
   };
 
@@ -315,6 +328,7 @@ export interface ComparisonMappings {
   mapTableStyle?: Map<Id, Id>;
   mapMLineStyle?: Map<Id, Id>;
   mapAsset?: Map<Id, Id>;
+  mapDynamicParams?: Map<Id, Map<Id, Id>>;
 }
 
 function cleanEntityForComparison(e: Entity, mappings?: ComparisonMappings): Record<string, unknown> {
@@ -342,6 +356,7 @@ function cleanEntityForComparison(e: Entity, mappings?: ComparisonMappings): Rec
       mapTableStyle,
       mapMLineStyle,
       mapAsset,
+      mapDynamicParams,
     } = mappings;
 
     if (mapLayer && typeof copy.layer === 'string' && mapLayer.has(copy.layer as Id)) {
@@ -381,9 +396,57 @@ function cleanEntityForComparison(e: Entity, mappings?: ComparisonMappings): Rec
       }
     }
 
+    if (copy.type === 'dimension' && copy.overrides && typeof copy.overrides === 'object') {
+      const overrides = { ...(copy.overrides as Record<string, unknown>) };
+      if (mapTextStyle && typeof overrides.textStyle === 'string' && mapTextStyle.has(overrides.textStyle as Id)) {
+        overrides.textStyle = mapTextStyle.get(overrides.textStyle as Id);
+      }
+      copy.overrides = overrides;
+    }
+
+    if (copy.type === 'mleader' && copy.overrides && typeof copy.overrides === 'object') {
+      const overrides = { ...(copy.overrides as Record<string, unknown>) };
+      if (mapTextStyle && typeof overrides.textStyle === 'string' && mapTextStyle.has(overrides.textStyle as Id)) {
+        overrides.textStyle = mapTextStyle.get(overrides.textStyle as Id);
+      }
+      if (mapBlock && typeof overrides.blockId === 'string' && mapBlock.has(overrides.blockId as Id)) {
+        overrides.blockId = mapBlock.get(overrides.blockId as Id);
+      }
+      copy.overrides = overrides;
+    }
+
+    if (copy.type === 'viewport') {
+      if (mapLayer && Array.isArray(copy.frozenLayers)) {
+        copy.frozenLayers = (copy.frozenLayers as Id[]).map((id) => mapLayer.get(id) ?? id);
+      }
+      if (copy.layerOverrides && typeof copy.layerOverrides === 'object') {
+        const overrides: Record<Id, Record<string, unknown>> = {};
+        for (const [layerId, value] of Object.entries(copy.layerOverrides as Record<Id, Record<string, unknown>>)) {
+          const mappedLayerId = mapLayer?.get(layerId) ?? layerId;
+          const mapped = { ...value };
+          if (mapLt && typeof mapped.linetype === 'string' && mapLt.has(mapped.linetype)) {
+            mapped.linetype = mapLt.get(mapped.linetype);
+          }
+          overrides[mappedLayerId] = mapped;
+        }
+        copy.layerOverrides = overrides;
+      }
+    }
+
     if (mapBlock) {
-      if (copy.type === 'insert' && typeof copy.blockId === 'string' && mapBlock.has(copy.blockId as Id)) {
-        copy.blockId = mapBlock.get(copy.blockId as Id);
+      if (copy.type === 'insert' && typeof copy.blockId === 'string') {
+        const sourceBlockId = copy.blockId as Id;
+        if (copy.dynamic && typeof copy.dynamic === 'object' && mapDynamicParams?.has(sourceBlockId)) {
+          const dynamic = structuredClone(copy.dynamic) as { values?: Record<Id, unknown> };
+          if (dynamic.values) {
+            const paramMap = mapDynamicParams.get(sourceBlockId)!;
+            dynamic.values = Object.fromEntries(
+              Object.entries(dynamic.values).map(([id, value]) => [paramMap.get(id) ?? id, value]),
+            );
+          }
+          copy.dynamic = dynamic;
+        }
+        if (mapBlock.has(sourceBlockId)) copy.blockId = mapBlock.get(sourceBlockId);
       }
       if (copy.type === 'array' && typeof copy.sourceBlockId === 'string' && mapBlock.has(copy.sourceBlockId as Id)) {
         copy.sourceBlockId = mapBlock.get(copy.sourceBlockId as Id);
@@ -494,6 +557,26 @@ function entityAssociationsMatch(
   return true;
 }
 
+/** Construye un mapa biyectivo de parámetros dinámicos por identidad semántica local (nombre + tipo). */
+function buildDynamicParamMap(
+  existingDyn: DynamicBlockDefinition,
+  pkgDyn: DynamicBlockDefinition,
+): Map<Id, Id> | null {
+  const existingParams = existingDyn.parameters ?? [];
+  const pkgParams = pkgDyn.parameters ?? [];
+  if (existingParams.length !== pkgParams.length) return null;
+
+  const used = new Set<Id>();
+  const paramMap = new Map<Id, Id>();
+  for (const p of pkgParams) {
+    const match = existingParams.find((ep) => !used.has(ep.id) && ep.name === p.name && ep.type === p.type);
+    if (!match) return null;
+    used.add(match.id);
+    paramMap.set(p.id, match.id);
+  }
+  return paramMap;
+}
+
 /** Compara si dos definiciones dinámicas de bloque son funcionalmente equivalentes. */
 function dynamicDefsMatch(
   existingDyn: DynamicBlockDefinition,
@@ -503,14 +586,8 @@ function dynamicDefsMatch(
   // 1. Mapear parámetros por tipo y nombre
   const existingParams = existingDyn.parameters ?? [];
   const pkgParams = pkgDyn.parameters ?? [];
-  if (existingParams.length !== pkgParams.length) return false;
-
-  const paramMap = new Map<Id, Id>();
-  for (const p of pkgParams) {
-    const match = existingParams.find((ep) => ep.name === p.name && ep.type === p.type);
-    if (!match) return false;
-    paramMap.set(p.id, match.id);
-  }
+  const paramMap = buildDynamicParamMap(existingDyn, pkgDyn);
+  if (!paramMap) return false;
 
   const normParams = (params: DynParam[], isPkg: boolean) => {
     return params
@@ -753,6 +830,74 @@ function remapDynamicBlockDef(dynamic: DynamicBlockDefinition, blockEntityMap: M
   return cloned;
 }
 
+function remapDynamicInstanceState(insert: InsertEntity, paramMap: Map<Id, Id> | undefined) {
+  if (!insert.dynamic || !paramMap) return;
+  insert.dynamic = {
+    ...insert.dynamic,
+    values: Object.fromEntries(
+      Object.entries(insert.dynamic.values).map(([id, value]) => [paramMap.get(id) ?? id, value]),
+    ),
+  };
+}
+
+function remapEntityOverrides(
+  entity: Entity,
+  mapTextStyle: Map<Id, Id>,
+  mapBlock: Map<Id, Id>,
+  doc: CadDocument,
+) {
+  if (entity.type === 'dimension' && entity.overrides.textStyle) {
+    const textStyle = mapTextStyle.get(entity.overrides.textStyle)
+      ?? (doc.data.textStyles.has(entity.overrides.textStyle) ? entity.overrides.textStyle : undefined);
+    const overrides = { ...entity.overrides };
+    if (textStyle) overrides.textStyle = textStyle;
+    else delete overrides.textStyle;
+    entity.overrides = overrides;
+  }
+  if (entity.type === 'mleader' && entity.overrides) {
+    const overrides = { ...entity.overrides };
+    if (overrides.textStyle) {
+      const textStyle = mapTextStyle.get(overrides.textStyle)
+        ?? (doc.data.textStyles.has(overrides.textStyle) ? overrides.textStyle : undefined);
+      if (textStyle) overrides.textStyle = textStyle;
+      else delete overrides.textStyle;
+    }
+    if (overrides.blockId) {
+      const blockId = mapBlock.get(overrides.blockId)
+        ?? (doc.data.blocks.has(overrides.blockId) ? overrides.blockId : undefined);
+      if (blockId) overrides.blockId = blockId;
+      else delete overrides.blockId;
+    }
+    entity.overrides = overrides;
+  }
+}
+
+function remapViewportReferences(
+  viewport: ViewportEntity,
+  mapLayer: Map<Id, Id>,
+  mapLt: Map<string, string>,
+  doc: CadDocument,
+) {
+  viewport.frozenLayers = viewport.frozenLayers
+    .map((id) => mapLayer.get(id) ?? (doc.data.layers.has(id) ? id : null))
+    .filter((id): id is Id => id !== null);
+
+  const overrides: ViewportEntity['layerOverrides'] = {};
+  for (const [sourceLayerId, value] of Object.entries(viewport.layerOverrides)) {
+    const layerId = mapLayer.get(sourceLayerId) ?? (doc.data.layers.has(sourceLayerId) ? sourceLayerId : undefined);
+    if (!layerId) continue;
+    const mapped = { ...value };
+    if (mapped.linetype) {
+      const linetype = mapLt.get(mapped.linetype)
+        ?? (doc.data.linetypes.has(mapped.linetype) ? mapped.linetype : undefined);
+      if (linetype) mapped.linetype = linetype;
+      else delete mapped.linetype;
+    }
+    overrides[layerId] = mapped;
+  }
+  viewport.layerOverrides = overrides;
+}
+
 /**
  * Pega un paquete de portapapeles en el documento destino dentro del espacio/propietario indicado,
  * resolviendo colisiones, remapeando identificadores y conservando dependencias de bloques,
@@ -807,6 +952,7 @@ export function pasteClipboardPackage(
     const mapMLineStyle = new Map<Id, Id>();
     const mapAsset = new Map<Id, Id>();
     const mapBlock = new Map<Id, Id>();
+    const dynamicParamMaps = new Map<Id, Map<Id, Id>>();
     const reusedBlocks = new Set<Id>();
 
     // 1. Tipos de línea
@@ -913,9 +1059,11 @@ export function pasteClipboardPackage(
 
     // 8. Recursos binarios (assets)
     for (const a of pkg.assets ?? []) {
-      const existing = [...doc.data.assets.values()].find(
-        (x) => (a.dataUrl && x.dataUrl === a.dataUrl) || (x.name === a.name && x.size === a.size),
-      );
+      const existing = [...doc.data.assets.values()].find((x) => {
+        if (a.dataUrl) return x.dataUrl === a.dataUrl;
+        if (a.path) return x.path === a.path && x.mime === a.mime && x.size === a.size;
+        return !x.dataUrl && !x.path && x.name === a.name && x.mime === a.mime && x.size === a.size;
+      });
       if (existing) {
         mapAsset.set(a.id, existing.id);
       } else {
@@ -943,6 +1091,7 @@ export function pasteClipboardPackage(
       mapTableStyle,
       mapMLineStyle,
       mapAsset,
+      mapDynamicParams: dynamicParamMaps,
     };
 
     for (const b of orderedBlocks) {
@@ -950,6 +1099,10 @@ export function pasteClipboardPackage(
       if (existing && isBlockEquivalent(doc, existing.id, b, allPkgBlockEntities, compMappings)) {
         // Bloque equivalente ya existente: reutilizar
         mapBlock.set(b.id, existing.id);
+        if (b.dynamic && existing.dynamic) {
+          const paramMap = buildDynamicParamMap(existing.dynamic, b.dynamic);
+          if (paramMap) dynamicParamMaps.set(b.id, paramMap);
+        }
         reusedBlocks.add(b.id);
       } else {
         let name = b.name;
@@ -962,6 +1115,9 @@ export function pasteClipboardPackage(
         mapBlock.set(b.id, id);
 
         const dynamicDef = b.dynamic ? remapDynamicBlockDef(b.dynamic, blockEntityMap) : undefined;
+        if (b.dynamic) {
+          dynamicParamMaps.set(b.id, new Map(b.dynamic.parameters.map((param) => [param.id, param.id])));
+        }
         tx.add('blocks', { ...structuredClone(b), id, name, dynamic: dynamicDef, revision: 1 });
       }
     }
@@ -1009,12 +1165,17 @@ export function pasteClipboardPackage(
       } else if (clone.type === 'mline') {
         clone.style = mapMLineStyle.get(clone.style) ?? (doc.data.mlineStyles.has(clone.style) ? clone.style : doc.settings.currentMLineStyle);
       } else if (clone.type === 'insert') {
-        clone.blockId = mapBlock.get(clone.blockId) ?? clone.blockId;
+        const sourceBlockId = clone.blockId;
+        remapDynamicInstanceState(clone, dynamicParamMaps.get(sourceBlockId));
+        clone.blockId = mapBlock.get(sourceBlockId) ?? sourceBlockId;
       } else if (clone.type === 'array') {
         clone.sourceBlockId = mapBlock.get(clone.sourceBlockId) ?? clone.sourceBlockId;
       } else if (clone.type === 'image' || clone.type === 'pdfunderlay') {
         clone.assetId = mapAsset.get(clone.assetId) ?? clone.assetId;
       }
+
+      remapEntityOverrides(clone, mapTextStyle, mapBlock, doc);
+      if (clone.type === 'viewport') remapViewportReferences(clone, mapLayer, mapLt, doc);
 
       // Asociatividad de cotas dentro del bloque
       if (clone.type === 'dimension' && clone.assoc) {
@@ -1095,7 +1256,9 @@ export function pasteClipboardPackage(
       } else if (clone.type === 'mline') {
         clone.style = mapMLineStyle.get(clone.style) ?? (doc.data.mlineStyles.has(clone.style) ? clone.style : doc.settings.currentMLineStyle);
       } else if (clone.type === 'insert') {
-        clone.blockId = mapBlock.get(clone.blockId) ?? clone.blockId;
+        const sourceBlockId = clone.blockId;
+        remapDynamicInstanceState(clone, dynamicParamMaps.get(sourceBlockId));
+        clone.blockId = mapBlock.get(sourceBlockId) ?? sourceBlockId;
         if (!doc.data.blocks.has(clone.blockId)) {
           warnings.push(`Definición de bloque no encontrada para inserción: ${clone.blockId}`);
         }
@@ -1110,6 +1273,9 @@ export function pasteClipboardPackage(
           warnings.push(`Recurso de imagen/PDF no encontrado: ${clone.assetId}`);
         }
       }
+
+      remapEntityOverrides(clone, mapTextStyle, mapBlock, doc);
+      if (clone.type === 'viewport') remapViewportReferences(clone, mapLayer, mapLt, doc);
 
       // Asociatividad de cotas
       if (clone.type === 'dimension' && clone.assoc) {
