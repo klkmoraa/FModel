@@ -35,6 +35,7 @@ test.describe('alineación visual con FusionStructureBrand', () => {
     await page.evaluate(() => {
       (window as any).fmodel.editor.setPrefs({ onboardingDone: true });
     });
+    await expect(page.getByRole('dialog', { name: /Bienvenido a FModel 2D CAD|Welcome to FModel 2D CAD/ })).toHaveCount(0);
 
     const origin = page.locator('.brand--btn');
     await origin.focus();
@@ -42,7 +43,7 @@ test.describe('alineación visual con FusionStructureBrand', () => {
       window.dispatchEvent(new CustomEvent('fmodel:ui', { detail: { ui: 'options' } }));
     });
 
-    const dialog = page.getByRole('dialog', { name: 'Opciones' });
+    const dialog = page.getByRole('dialog', { name: /Opciones|Options/ });
     await expect(dialog).toBeVisible();
     expect(await dialog.evaluate((element) => element.contains(document.activeElement))).toBe(true);
 
@@ -65,7 +66,7 @@ test.describe('alineación visual con FusionStructureBrand', () => {
     await page.goto('/?surface=workspace');
     await page.waitForFunction(() => !!(window as any).fmodel?.editor);
 
-    const onboarding = page.getByRole('dialog', { name: 'Bienvenido a FModel 2D CAD' });
+    const onboarding = page.getByRole('dialog', { name: /Bienvenido a FModel 2D CAD|Welcome to FModel 2D CAD/ });
     await expect(onboarding).toBeVisible();
     expect(await onboarding.evaluate((element) => element.contains(document.activeElement))).toBe(true);
 
