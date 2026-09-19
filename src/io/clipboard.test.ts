@@ -1792,4 +1792,128 @@ describe('portapapeles portable (DAT-002)', () => {
     expect(pasted.dynamic?.values).not.toHaveProperty('src_param');
   });
 
+
+  it('preserva tablas CAD cuando existen nombres iguales con contenido no equivalente', () => {
+    const srcDoc = createDocument({ title: 'Origen con colisiones de tablas' });
+    const dstDoc = createDocument({ title: 'Destino con colisiones de tablas' });
+
+    srcDoc.transact('TABLAS_ORIGEN', (tx) => {
+      tx.add('linetypes', {
+        id: 'lt_collision_src',
+        name: 'CollisionLT',
+        description: 'Patrón origen',
+        pattern: [5, -2],
+      });
+      tx.add('textStyles', {
+        id: 'ts_collision_src',
+        name: 'CollisionText',
+        font: 'SourceFont',
+        height: 0,
+        widthFactor: 0.9,
+        oblique: 0,
+        annotative: false,
+      });
+      tx.add('dimStyles', {
+        ...srcDoc.data.dimStyles.get('standard')!,
+        id: 'ds_collision_src',
+        name: 'CollisionDim',
+        textStyle: 'ts_collision_src',
+        precision: 4,
+      });
+      tx.add('layers', {
+        ...srcDoc.data.layers.get('0')!,
+        id: 'layer_collision_src',
+        name: 'CollisionLayer',
+        linetype: 'lt_collision_src',
+        order: 20,
+      });
+      tx.addEntity<TextEntity>({
+        ...entityDefaults(srcDoc),
+        id: 'text_collision_src',
+        type: 'text',
+        layer: 'layer_collision_src',
+        style: 'ts_collision_src',
+        text: 'Origen',
+        position: { x: 0, y: 0 },
+        height: 2.5,
+        rotation: 0,
+        widthFactor: 1,
+        oblique: 0,
+        halign: 'left',
+        valign: 'baseline',
+      });
+      tx.addEntity<DimensionEntity>({
+        ...entityDefaults(srcDoc),
+        id: 'dim_collision_src',
+        type: 'dimension',
+        layer: 'layer_collision_src',
+        dimType: 'linear',
+        style: 'ds_collision_src',
+        overrides: {},
+        p1: { x: 0, y: 0 },
+        p2: { x: 10, y: 0 },
+        p3: { x: 5, y: 2 },
+        rotation: 0,
+      });
+    });
+
+    dstDoc.transact('TABLAS_DESTINO', (tx) => {
+      tx.add('linetypes', {
+        id: 'lt_collision_dst',
+        name: 'CollisionLT',
+        description: 'Patrón destino',
+        pattern: [1, -1],
+      });
+      tx.add('textStyles', {
+        id: 'ts_collision_dst',
+        name: 'CollisionText',
+        font: 'DestinationFont',
+        height: 0,
+        widthFactor: 1,
+        oblique: 0,
+        annotative: false,
+      });
+      tx.add('dimStyles', {
+        ...dstDoc.data.dimStyles.get('standard')!,
+        id: 'ds_collision_dst',
+        name: 'CollisionDim',
+        textStyle: 'ts_collision_dst',
+        precision: 1,
+      });
+      tx.add('layers', {
+        ...dstDoc.data.layers.get('0')!,
+        id: 'layer_collision_dst',
+        name: 'CollisionLayer',
+        linetype: 'lt_collision_dst',
+        order: 20,
+      });
+    });
+
+    const pkg = createClipboardPackage(srcDoc, ['text_collision_src', 'dim_collision_src']);
+    const res = pasteClipboardPackage(dstDoc, pkg, MODEL_SPACE_ID, { x: 0, y: 0 });
+
+    const sourceLt = dstDoc.findByName('linetypes', 'CollisionLT (2)');
+    const sourceTextStyle = dstDoc.findByName('textStyles', 'CollisionText (2)');
+    const sourceDimStyle = dstDoc.findByName('dimStyles', 'CollisionDim (2)');
+    const sourceLayer = dstDoc.findByName('layers', 'CollisionLayer (2)');
+
+    expect(sourceLt?.pattern).toEqual([5, -2]);
+    expect(sourceTextStyle?.font).toBe('SourceFont');
+    expect(sourceDimStyle?.precision).toBe(4);
+    expect(sourceDimStyle?.textStyle).toBe(sourceTextStyle?.id);
+    expect(sourceLayer?.linetype).toBe(sourceLt?.id);
+
+    expect(dstDoc.findByName('linetypes', 'CollisionLT')?.pattern).toEqual([1, -1]);
+    expect(dstDoc.findByName('textStyles', 'CollisionText')?.font).toBe('DestinationFont');
+    expect(dstDoc.findByName('dimStyles', 'CollisionDim')?.precision).toBe(1);
+
+    const pasted = res.insertedIds.map((id) => dstDoc.entity(id)!);
+    const text = pasted.find((entity) => entity.type === 'text') as TextEntity;
+    const dimension = pasted.find((entity) => entity.type === 'dimension') as DimensionEntity;
+    expect(text.style).toBe(sourceTextStyle?.id);
+    expect(text.layer).toBe(sourceLayer?.id);
+    expect(dimension.style).toBe(sourceDimStyle?.id);
+    expect(dimension.layer).toBe(sourceLayer?.id);
+  });
+
 });
