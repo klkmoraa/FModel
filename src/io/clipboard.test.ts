@@ -1596,7 +1596,7 @@ describe('portapapeles portable (DAT-002)', () => {
         on: true,
         frozenLayers: ['layer_frozen_src'],
         layerOverrides: {
-          layer_override_src: { color: 3, linetype: 'lt_viewport_src' },
+          layer_override_src: { color: '#ff0000', linetype: 'lt_viewport_src' },
         },
       });
     });
