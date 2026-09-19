@@ -49,11 +49,15 @@ describe('saveFile', () => {
     expect(click).toHaveBeenCalledOnce();
   });
 
-  it('propaga los fallos de escritura', async () => {
+  it('propaga los fallos reales de write()', async () => {
     const selected = handle();
-    (selected.createWritable as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new DOMException('write aborted', 'AbortError'));
+    const write = vi.fn(async () => {
+      throw new DOMException('write aborted', 'AbortError');
+    });
+    (selected.createWritable as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ write, close: vi.fn(async () => undefined) });
     vi.stubGlobal('window', { showSaveFilePicker: vi.fn(async () => selected) });
 
     await expect(saveFile(blob, 'plano.fmodel', accept, 'FModel')).rejects.toThrow('write aborted');
+    expect(write).toHaveBeenCalledOnce();
   });
 });
