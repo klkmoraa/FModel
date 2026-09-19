@@ -124,7 +124,8 @@ const paths: Record<string, JSX.Element> = {
   ),
   donut: (
     <>
-      <circle cx="12" cy="12" r="7" strokeWidth="1.3" />
+      <circle cx="12" cy="12" r="8" />
+      <circle cx="12" cy="12" r="4" />
     </>
   ),
   // modificar
