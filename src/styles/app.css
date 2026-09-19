@@ -352,7 +352,7 @@ kbd {
 .tool-lg.is-active,
 .tool-sm.is-active {
   background: var(--fs-interaction-soft);
-  color: var(--fs-interaction);
+  color: var(--fs-interaction-text);
 }
 .tool-lg svg,
 .tool-sm svg {
@@ -596,7 +596,7 @@ kbd {
 }
 .kw-chip:hover {
   border-color: var(--fs-interaction);
-  color: var(--fs-interaction);
+  color: var(--fs-interaction-text);
 }
 .cmdline__input {
   flex: 1;
@@ -715,7 +715,7 @@ kbd {
   color: var(--ink);
 }
 .status-toggle.is-on {
-  color: var(--fs-interaction);
+  color: var(--fs-interaction-text);
   background: var(--fs-interaction-soft);
 }
 .status-sep {
@@ -1213,7 +1213,7 @@ table.grid tr.is-active td {
 .chip.is-on {
   border-color: transparent;
   background: var(--fs-interaction-soft);
-  color: var(--fs-interaction);
+  color: var(--fs-interaction-text);
   box-shadow: inset 0 0 0 1px var(--fs-interaction-line);
 }
 .chip--kw {
@@ -1987,7 +1987,7 @@ kbd {
      .libtree__item { display: flex; justify-content: space-between; gap: 6px; width: 100%; padding: 5px 8px; border-radius: var(--radius-xs); font: 500 12px/1.2 var(--fs-font-ui); color: var(--ink-strong); text-align: left; }
      .libtree__item:hover { background: var(--surface-hover); }
      .libtree__item--child { padding-left: 20px; font-weight: 400; color: var(--ink-secondary); }
-     .libtree__item.is-active { background: var(--fs-interaction-soft); color: var(--fs-interaction); box-shadow: inset 0 0 0 1px var(--fs-interaction-line); }
+     .libtree__item.is-active { background: var(--fs-interaction-soft); color: var(--fs-interaction-text); box-shadow: inset 0 0 0 1px var(--fs-interaction-line); }
      .libtree__count { font: 500 10.5px/1.2 var(--fs-font-data); color: var(--ink-muted); }
      .libgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; align-content: start; overflow: auto; max-height: 60vh; }
      .libcard { display: flex; flex-direction: column; gap: 4px; padding: 6px; border-radius: 12px; border: 1px solid var(--line-soft); background: var(--surface); }
