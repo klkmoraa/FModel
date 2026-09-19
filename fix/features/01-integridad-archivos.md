@@ -42,6 +42,7 @@
 
 - [x] **Estado:** Cerrada
 - **Responsable:** Codex · **Inicio:** 2026-09-18 · **Cierre:** 2026-09-18
+- **Reapertura:** 2026-09-18 · **Responsable:** Codex · **Cierre de seguimiento:** 2026-09-18
 - **Prioridad:** P1 — referencias rotas y pérdida semántica
 - **Depende de:** DAT-003
 - **Bloquea:** TST-001
@@ -75,6 +76,8 @@
 **Cierre:** 2026-09-18
 
 **Verificación:** `pnpm vitest run src/io/clipboard.test.ts` (11 pruebas focalizadas, incluyendo resolución de colisiones geométricas disímiles, remapeo de entidades dinámicas y rechazo de no finitos) y `pnpm lint && pnpm verify` (50 archivos, 391 pruebas, capas correctas, typecheck estricto y build limpio sin avisos).
+
+**Seguimiento 2026-09-18:** commit `96321a3`. La equivalencia compara las referencias asociativas después del mapeo biyectivo de entidades y respeta `propertyOrder`. Tres regresiones fallaron antes del cambio y luego pasaron; `pnpm vitest run src/io/clipboard.test.ts` cerró con 23 pruebas y `pnpm lint && pnpm verify` con 50 archivos/404 pruebas, capas, documentación, tipos y build correctos (avisos de lint preexistentes).
 
 ---
 
@@ -144,3 +147,5 @@
 - [ ] Las pruebas cubren `QuotaExceededError`, IndexedDB ausente y recuperación posterior.
 
 **Verificación:** `pnpm vitest run src/storage/persistence.test.ts && pnpm verify`
+
+**Avance relacionado 2026-09-18:** `UPDATEAPP` ya cancela la recarga si el autoguardado no puede proteger un dibujo sucio (`929fe7b`). DAT-004 permanece abierta porque aún faltan resultados discriminados, estado persistente de protección, control de cuota y recuperación posterior.

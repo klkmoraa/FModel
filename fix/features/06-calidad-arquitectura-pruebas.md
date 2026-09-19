@@ -4,6 +4,7 @@
 
 - [x] **Estado:** Cerrada
 - **Responsable:** Codex · **Inicio:** 2026-09-18 · **Cierre:** 2026-09-18
+- **Reapertura:** 2026-09-18 · **Responsable:** Codex · **Cierre de seguimiento:** 2026-09-18
 - **Prioridad:** P1 — los fallos de integración más peligrosos hoy no se ejecutan
 - **Depende de:** DAT-001, DAT-002, DAT-003
 - **Bloquea:** UI-001, UI-002, CMD-001
@@ -35,6 +36,8 @@
 - [x] Los recorridos P1 forman parte de la puerta de despliegue.
 
 **Verificación:** `pnpm test:e2e && pnpm lint && pnpm verify` (8 pruebas en navegador real pasan en 3.6s, cubriendo roundtrip completo de bloque, imagen con asset y texto, además de protección de dibujo sucio ante UPDATEAPP y soporte de WebKit para CI).
+
+**Seguimiento 2026-09-18:** commit `929fe7b`. `UPDATEAPP` cancela la recarga y muestra un aviso bilingüe cuando el autoguardado devuelve `false`. El E2E falló primero porque ejecutaba el callback y luego pasó tras reconstruir `dist`; Chromium y WebKit cerraron 16/16, y `pnpm lint && pnpm verify` pasó con 50 archivos/404 pruebas, capas, documentación, tipos y build correctos (avisos de lint preexistentes).
 
 ---
 

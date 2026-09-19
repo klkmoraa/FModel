@@ -4,6 +4,7 @@
 
 - [x] **Estado:** Cerrada
 - **Responsable:** Codex · **Inicio:** 2026-09-18 · **Cierre:** 2026-09-18
+- **Reapertura:** 2026-09-18 · **Responsable:** Codex · **Cierre de seguimiento:** 2026-09-18
 - **Prioridad:** P1 — usuarios pueden conservar recursos públicos obsoletos
 - **Depende de:** —
 - **Bloquea:** —
@@ -32,6 +33,8 @@
 **Cierre:** 2026-09-18
 
 **Verificación:** `pnpm vitest run src/pwa/serviceWorker.test.ts` (6 pruebas focalizadas) y `pnpm lint && pnpm verify` (50 archivos, 391 pruebas, capas correctas, typecheck estricto y build limpio con service worker emitido sin avisos).
+
+**Seguimiento 2026-09-18:** commit `205e63d`. Las solicitudes HTTP `Range` omiten por completo la caché y nunca reciben una respuesta 200 almacenada para la URL completa. La regresión falló primero con 200 y luego pasó con 206; `pnpm vitest run src/pwa/serviceWorker.test.ts` cerró con 7 pruebas y `pnpm lint && pnpm verify` con 50 archivos/404 pruebas, capas, documentación, tipos y build correctos (avisos de lint preexistentes).
 
 ---
 
