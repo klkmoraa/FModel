@@ -160,7 +160,7 @@
 .welcome-nav--console .welcome-nav-item.is-active {
   background: var(--surface);
   box-shadow: var(--shadow-raised);
-  color: var(--fs-interaction);
+  color: var(--fs-interaction-text);
   font-weight: 650;
 }
 .welcome-nav--console .welcome-nav-item:active {
@@ -1989,7 +1989,7 @@
     transition: background var(--fs-quick) var(--fs-ease), box-shadow var(--fs-quick) var(--fs-ease);
   }
   .welcome-nav--tabbar .welcome-nav-item.is-active {
-    color: var(--fs-interaction);
+    color: var(--fs-interaction-text);
   }
   .welcome-nav--tabbar .welcome-nav-item.is-active svg {
     background: var(--surface-sunken);
