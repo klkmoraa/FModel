@@ -133,12 +133,12 @@ export function ColorPicker({ value, onChange, lang, allowByLayer = true, mixed 
           )}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(9, 1fr)', gap: 3, marginBottom: 6 }}>
             {std.map((i) => (
-              <button key={i} title={`${colorLabel(`aci:${i}`, lang)} (${i})`} className="swatch" style={{ width: 22, height: 22, background: i === 7 ? 'linear-gradient(135deg,#fff 50%,#14171a 50%)' : aciToHex(i), outline: value === `aci:${i}` ? '2px solid var(--fm-accent)' : undefined }} onClick={() => (onChange(`aci:${i}`), setOpen(false))} />
+              <button key={i} title={`${colorLabel(`aci:${i}`, lang)} (${i})`} className="swatch" style={{ width: 22, height: 22, background: i === 7 ? 'linear-gradient(135deg,#fff 50%,#14171a 50%)' : aciToHex(i), outline: value === `aci:${i}` ? '2px solid var(--fs-interaction)' : undefined }} onClick={() => (onChange(`aci:${i}`), setOpen(false))} />
             ))}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(24, 1fr)', gap: 1, marginBottom: 6 }}>
             {Array.from({ length: 240 }, (_, k) => 10 + k).map((i) => (
-              <button key={i} title={`ACI ${i}`} style={{ height: 9, background: aciToHex(i), outline: value === `aci:${i}` ? '2px solid var(--fm-accent)' : undefined }} onClick={() => (onChange(`aci:${i}`), setOpen(false))} />
+              <button key={i} title={`ACI ${i}`} style={{ height: 9, background: aciToHex(i), outline: value === `aci:${i}` ? '2px solid var(--fs-interaction)' : undefined }} onClick={() => (onChange(`aci:${i}`), setOpen(false))} />
             ))}
           </div>
           <label className="field" style={{ gridTemplateColumns: '1fr auto' }}>
