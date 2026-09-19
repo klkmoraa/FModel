@@ -5,6 +5,7 @@ import { newId } from '../document/ids';
 import type { Editor } from '../editor/editor';
 import { MODEL_SPACE_ID } from '../document/types';
 import { useEditorEvents } from './hooks';
+import { askConfirm, askText } from './ConfirmHost';
 
 export function SpaceTabs({ editor, onUi }: { editor: Editor; onUi: (ui: string) => void }) {
   useEditorEvents(editor, ['space', 'doc']);
@@ -20,10 +21,10 @@ export function SpaceTabs({ editor, onUi }: { editor: Editor; onUi: (ui: string)
     editor.setSpace(id);
   };
 
-  const rename = (id: string) => {
+  const rename = async (id: string) => {
     const l = editor.doc.data.layouts.get(id);
     if (!l) return;
-    const name = window.prompt(lang === 'es' ? 'Nuevo nombre de la presentación' : 'New layout name', l.name);
+    const name = (await askText(lang, lang === 'es' ? 'Nuevo nombre de la presentación' : 'New layout name', l.name, { confirmLabel: lang === 'es' ? 'Renombrar' : 'Rename' }))?.trim();
     if (!name || name === l.name) return;
     if (layouts.some((x) => x.name.toLowerCase() === name.toLowerCase() && x.id !== id)) {
       editor.runner.message('error', { es: `Ya existe una presentación «${name}».`, en: `Layout "${name}" already exists.` });
@@ -96,10 +97,10 @@ export function SpaceTabs({ editor, onUi }: { editor: Editor; onUi: (ui: string)
             <button
               className="menu-item btn--danger"
               disabled={layouts.length <= 1}
-              onClick={() => {
+              onClick={async () => {
                 const id = menu.id;
                 setMenu(null);
-                if (!window.confirm(lang === 'es' ? 'Eliminar la presentación y sus objetos de papel. Se puede deshacer.' : 'Delete the layout and its paper objects. This can be undone.')) return;
+                if (!(await askConfirm(lang, lang === 'es' ? 'Eliminar presentación' : 'Delete layout', lang === 'es' ? 'Se eliminará la presentación y sus objetos de papel. Se puede deshacer.' : 'The layout and its paper objects will be deleted. This can be undone.', { confirmLabel: lang === 'es' ? 'Eliminar' : 'Delete', danger: true }))) return;
                 if (editor.space === id) editor.setSpace(MODEL_SPACE_ID);
                 editor.doc.transact('LAYOUT DELETE', (tx) => {
                   for (const e of editor.doc.entitiesOf(id)) tx.removeEntity(e.id);

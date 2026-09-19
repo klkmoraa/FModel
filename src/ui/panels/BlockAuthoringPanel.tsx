@@ -9,6 +9,7 @@ import type { Editor } from '../../editor/editor';
 import { blockThumbnail } from '../../render/thumbnail';
 import { NumberField, TextField, Toggle, tr } from '../controls';
 import { useEditorEvents, useMediaQuery } from '../hooks';
+import { askConfirm } from '../ConfirmHost';
 
 type Mutate = (label: string, fn: (d: DynamicBlockDefinition) => DynamicBlockDefinition) => void;
 
@@ -108,7 +109,7 @@ function Authoring({ editor, block, dark, lang }: { editor: Editor; block: Block
           <button className="btn btn--sm btn--primary" onClick={() => editor.command('BCLOSE', ['Save'])}>
             {tr(lang, 'Guardar y cerrar', 'Save and close')}
           </button>
-          <button className="btn btn--sm btn--danger" onClick={() => window.confirm(tr(lang, '¿Descartar todos los cambios hechos en esta sesión?', 'Discard all changes made in this session?')) && editor.command('BCLOSE', ['Discard'])}>
+          <button className="btn btn--sm btn--danger" onClick={async () => (await askConfirm(lang, tr(lang, 'Descartar cambios', 'Discard changes'), tr(lang, '¿Descartar todos los cambios hechos en esta sesión?', 'Discard all changes made in this session?'), { confirmLabel: tr(lang, 'Descartar y cerrar', 'Discard and close'), danger: true })) && void editor.command('BCLOSE', ['Discard'])}>
             {tr(lang, 'Descartar y cerrar', 'Discard and close')}
           </button>
         </div>
@@ -373,9 +374,9 @@ function ParamItem({ p, def, lang, mutate, fail, noAction, editor }: { p: DynPar
           )}
           <button
             className="btn btn--sm btn--danger"
-            onClick={() => {
+            onClick={async () => {
               const deps = actions.length;
-              if (deps && !window.confirm(tr(lang, `Se eliminarán también ${deps} acción(es) de «${p.name}».`, `${deps} action(s) of "${p.name}" will also be deleted.`))) return;
+              if (deps && !(await askConfirm(lang, tr(lang, 'Eliminar parámetro', 'Delete parameter'), tr(lang, `Se eliminarán también ${deps} acción(es) de «${p.name}».`, `${deps} action(s) of "${p.name}" will also be deleted.`), { confirmLabel: tr(lang, 'Eliminar', 'Delete'), danger: true }))) return;
               mutate('BPARAMETER DELETE', (d) => removeParameter(d, p.id));
             }}
           >

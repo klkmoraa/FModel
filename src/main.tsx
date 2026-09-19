@@ -18,7 +18,7 @@ import { App } from './ui/App';
 import { consumeLaunchQueue, registerServiceWorker } from './pwa/register';
 import { queueLaunchedFile } from './commands/file';
 import { setPendingUpdate } from './commands/utility';
-import { readPackage, writePackage } from './io/native';
+import { fromNativeFile, readPackage, writePackage } from './io/native';
 import { createClipboardPackage, parseClipboardPackage, pasteClipboardPackage } from './io/clipboard';
 import { importDxfIntoDocument } from './io/dxf/importDxf';
 import { exportSvg } from './output/plot';
@@ -107,8 +107,31 @@ consumeLaunchQueue((file) => {
   },
 };
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <App editor={editor} />
-  </StrictMode>,
-);
+/** Reabre el dibujo de la sesión anterior (recargar la página no debe perder el trabajo). */
+async function restoreSession() {
+  const rec = await persistence.loadSession();
+  if (!rec) return;
+  try {
+    const res = fromNativeFile(rec.file);
+    editor.doc.replaceData(res.data, res.documentId);
+    editor.fileName = rec.name;
+    editor.doc.dirty = rec.dirty;
+    editor.zoomExtents();
+  } catch (err) {
+    console.warn('session restore', err);
+  }
+}
+
+void restoreSession().finally(() => {
+  // a partir de aquí cada cambio (dibujar, abrir, nuevo) actualiza la sesión guardada
+  editor.doc.subscribe(() => persistence.scheduleSession());
+  window.addEventListener('pagehide', () => void persistence.flushSession());
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') void persistence.flushSession();
+  });
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <App editor={editor} />
+    </StrictMode>,
+  );
+});

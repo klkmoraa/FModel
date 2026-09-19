@@ -33,9 +33,19 @@ export function Dialog({ title, onClose, children, footer, wide, lang }: { title
   const dialogRef = useRef<HTMLDivElement>(null);
   const returnFocusRef = useContext(DialogReturnFocusContext);
   useModalFocusTrap(dialogRef, onClose, returnFocusRef ?? undefined);
+  // se cierra al completar el clic sobre el fondo: cerrar al pulsar dejaba que el clic
+  // atravesara hasta el elemento de debajo (p. ej. abría una plantilla sin querer)
+  const pressedVeil = useRef(false);
 
   return (
-    <div className="veil" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+    <div
+      className="veil"
+      onMouseDown={(event) => (pressedVeil.current = event.target === event.currentTarget)}
+      onClick={(event) => {
+        if (pressedVeil.current && event.target === event.currentTarget) onClose();
+        pressedVeil.current = false;
+      }}
+    >
       <div ref={dialogRef} className={`dialog${wide ? ' dialog--wide' : ''}`} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1}>
         <div className="dialog__head">
           <h2>{title}</h2>

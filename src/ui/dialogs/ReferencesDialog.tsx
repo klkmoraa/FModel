@@ -6,6 +6,7 @@ import { LIBRARY_PREFIX } from '../../xref/sources';
 import { Dialog } from '../Dialogs';
 import { tr } from '../controls';
 import { useEditorEvents } from '../hooks';
+import { askConfirm } from '../ConfirmHost';
 
 const STATUS: Record<XrefInfo['status'], { es: string; en: string; tone: string }> = {
   loaded: { es: 'Cargada', en: 'Loaded', tone: 'disponible' },
@@ -35,8 +36,8 @@ export function ReferencesDialog({ editor, onClose }: { editor: Editor; onClose:
     onClose();
     editor.command(cmd, args);
   };
-  const removeAsset = (a: AssetRecord) => {
-    if (!window.confirm(tr(lang, `Se eliminarán ${assetUses(a)} referencia(s) a «${a.name}». Se puede deshacer.`, `${assetUses(a)} reference(s) to "${a.name}" will be deleted. This can be undone.`))) return;
+  const removeAsset = async (a: AssetRecord) => {
+    if (!(await askConfirm(lang, tr(lang, 'Eliminar referencia', 'Delete reference'), tr(lang, `Se eliminarán ${assetUses(a)} referencia(s) a «${a.name}». Se puede deshacer.`, `${assetUses(a)} reference(s) to "${a.name}" will be deleted. This can be undone.`), { confirmLabel: tr(lang, 'Eliminar', 'Delete'), danger: true }))) return;
     doc.transact('DETACH ASSET', (tx) => {
       for (const e of entities) if ((e.type === 'image' || e.type === 'pdfunderlay') && e.assetId === a.id) tx.removeEntity(e.id);
       tx.remove('assets', a.id);
@@ -133,7 +134,7 @@ export function ReferencesDialog({ editor, onClose }: { editor: Editor; onClose:
                           <button className="btn btn--sm" disabled={b.xref.status === 'unloaded'} onClick={() => run('XBIND', [b.name])}>
                             {tr(lang, 'Unir', 'Bind')}
                           </button>
-                          <button className="btn btn--sm btn--danger" onClick={() => window.confirm(tr(lang, `¿Desenlazar «${b.name}» y borrar sus ${inserts(b.id)} inserción(es)?`, `Detach "${b.name}" and delete its ${inserts(b.id)} insertion(s)?`)) && run('XDETACH', [b.name])}>
+                          <button className="btn btn--sm btn--danger" onClick={async () => (await askConfirm(lang, tr(lang, 'Desenlazar referencia', 'Detach reference'), tr(lang, `¿Desenlazar «${b.name}» y borrar sus ${inserts(b.id)} inserción(es)?`, `Detach "${b.name}" and delete its ${inserts(b.id)} insertion(s)?`), { confirmLabel: tr(lang, 'Desenlazar', 'Detach'), danger: true })) && run('XDETACH', [b.name])}>
                             {tr(lang, 'Desenlazar', 'Detach')}
                           </button>
                         </div>

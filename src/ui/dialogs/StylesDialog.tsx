@@ -9,6 +9,7 @@ import type { Editor } from '../../editor/editor';
 import { Dialog } from '../Dialogs';
 import { ColorPicker, LinetypeSelect, LineweightSelect, NumberField, TextField, Toggle, tr } from '../controls';
 import { useEditorEvents } from '../hooks';
+import { askConfirm } from '../ConfirmHost';
 
 type Coll = 'textStyles' | 'dimStyles' | 'mleaderStyles' | 'tableStyles' | 'mlineStyles';
 type Tab = Coll | 'scales';
@@ -535,7 +536,7 @@ function ScaleList({ editor, lang, setError }: { editor: Editor; lang: Lang; set
         <button className="btn btn--sm" onClick={add}>
           <Plus size={12} /> {tr(lang, 'Añadir escala', 'Add scale')}
         </button>
-        <button className="btn btn--sm" onClick={() => window.confirm(tr(lang, '¿Restablecer la lista de escalas estándar?', 'Reset to the standard scale list?')) && save(STANDARD_SCALES)}>
+        <button className="btn btn--sm" onClick={async () => (await askConfirm(lang, tr(lang, 'Restablecer escalas', 'Reset scales'), tr(lang, '¿Restablecer la lista de escalas estándar?', 'Reset to the standard scale list?'), { confirmLabel: tr(lang, 'Restablecer', 'Reset') })) && save(STANDARD_SCALES)}>
           <RotateCcw size={12} /> {tr(lang, 'Restablecer', 'Reset')}
         </button>
       </div>

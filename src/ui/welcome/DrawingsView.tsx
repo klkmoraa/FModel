@@ -10,6 +10,7 @@ import { DrawingCard } from './DrawingCard';
 import { InlineAlert } from './InlineAlert';
 import { drawingLabel, formatBytes } from './relativeTime';
 import { matchesQuery } from './welcomeSearch';
+import { askConfirm } from '../ConfirmHost';
 
 type Sort = 'recent' | 'name';
 
@@ -39,8 +40,8 @@ export function DrawingsView({ editor, dark, onOpenWorkspace, onCreateBlank, sea
     void loadList();
   }, []);
 
-  const handleOpen = (d: StoredDrawing) => {
-    if (!confirmDiscard(editor)) return;
+  const handleOpen = async (d: StoredDrawing) => {
+    if (!(await confirmDiscard(editor))) return;
     try {
       openStoredDrawing(editor, d);
       onOpenWorkspace();
@@ -62,7 +63,7 @@ export function DrawingsView({ editor, dark, onOpenWorkspace, onCreateBlank, sea
 
   const handleDelete = async (d: StoredDrawing) => {
     const label = drawingLabel(d.name);
-    if (!window.confirm(tr(lang, `¿Eliminar «${label}» de este navegador? No se puede deshacer.`, `Delete “${label}” from this browser? This cannot be undone.`))) return;
+    if (!(await askConfirm(lang, tr(lang, 'Eliminar dibujo', 'Delete drawing'), tr(lang, `¿Eliminar «${label}» de este navegador? No se puede deshacer.`, `Delete “${label}” from this browser? This cannot be undone.`), { confirmLabel: tr(lang, 'Eliminar', 'Delete'), danger: true }))) return;
     try {
       await getServices().persistence.deleteDrawing(d.id);
       await loadList();

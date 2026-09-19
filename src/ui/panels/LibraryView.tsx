@@ -11,6 +11,7 @@ import type { Editor } from '../../editor/editor';
 import { useMediaQuery } from '../hooks';
 import { DND_MIME } from '../dnd';
 import { tr } from '../controls';
+import { askConfirm, askText } from '../ConfirmHost';
 
 const ALL = '*all';
 const PAGE_SIZE = 48;
@@ -199,12 +200,12 @@ function CategoryManager({ lang, cats, onDone }: { lang: 'es' | 'en'; cats: Libr
     await commitLibrary({ categories: [parent ? { id: newId('cat'), name: n, parent, order } : { id: newId('cat'), name: n, order }] });
     setName('');
   };
-  const rename = (c: LibraryCategory) => {
-    const n = window.prompt(tr(lang, 'Nuevo nombre', 'New name'), c.name)?.trim();
+  const rename = async (c: LibraryCategory) => {
+    const n = (await askText(lang, tr(lang, 'Renombrar categoría', 'Rename category'), c.name, { confirmLabel: tr(lang, 'Renombrar', 'Rename') }))?.trim();
     if (n) void commitLibrary({ categories: [{ ...c, name: n }] });
   };
-  const remove = (c: LibraryCategory) => {
-    if (window.confirm(tr(lang, `¿Borrar «${c.name}»? Sus bloques pasan a «Sin clasificar».`, `Delete "${c.name}"? Its blocks move to "Unclassified".`))) void commitLibrary({ removeCategories: [c.id] });
+  const remove = async (c: LibraryCategory) => {
+    if (await askConfirm(lang, tr(lang, 'Borrar categoría', 'Delete category'), tr(lang, `¿Borrar «${c.name}»? Sus bloques pasan a «Sin clasificar».`, `Delete "${c.name}"? Its blocks move to "Unclassified".`), { confirmLabel: tr(lang, 'Borrar', 'Delete'), danger: true })) void commitLibrary({ removeCategories: [c.id] });
   };
   return (
     <div className="libedit">

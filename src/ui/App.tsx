@@ -21,6 +21,7 @@ import { Docks } from './Docks';
 import { Dialogs, type DialogState } from './Dialogs';
 import { MobileBar, TouchHud } from './MobileBar';
 import { WelcomeScreen } from './welcome/WelcomeScreen';
+import { ConfirmHost } from './ConfirmHost';
 
 export function App({ editor }: { editor: Editor }) {
   useEditorEvents(editor, ['prefs', 'command', 'space']);
@@ -160,7 +161,12 @@ export function App({ editor }: { editor: Editor }) {
   };
 
   if (surface === 'welcome') {
-    return <WelcomeScreen editor={editor} dark={dark} onOpenWorkspace={() => setSurface('workspace')} />;
+    return (
+      <>
+        <WelcomeScreen editor={editor} dark={dark} onOpenWorkspace={() => setSurface('workspace')} />
+        <ConfirmHost lang={lang} />
+      </>
+    );
   }
 
   return (
@@ -246,6 +252,7 @@ export function App({ editor }: { editor: Editor }) {
       {palette && <CommandPalette editor={editor} onClose={() => setPalette(false)} onRun={(n) => runCommand(n)} />}
       <Dialogs editor={editor} state={dialog} returnFocusRef={dialogReturnFocusRef} onClose={() => setDialog(null)} onUi={openUi} />
       {!editor.prefs.onboardingDone && !dialog && <Onboarding editor={editor} />}
+      <ConfirmHost lang={lang} />
     </div>
   );
 }

@@ -55,8 +55,8 @@ export function FModelHome({
   const blockCount = [...editor.doc.data.blocks.values()].filter((b) => b.kind === 'normal').length;
   const hasContent = entityCount > 0;
 
-  const openFeatured = (tpl: TemplateDefinition) => {
-    if (!confirmDiscard(editor)) return;
+  const openFeatured = async (tpl: TemplateDefinition) => {
+    if (!(await confirmDiscard(editor))) return;
     openTemplate(editor, tpl);
     onContinue();
   };
