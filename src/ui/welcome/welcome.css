@@ -422,7 +422,7 @@
   border: 1px solid var(--fm-accent-line);
   border-radius: var(--radius-pill);
   background: var(--fm-accent-soft);
-  color: var(--fm-accent);
+  color: var(--fs-interaction-text);
 }
 .fmodel-hero__eyebrow b {
   font-weight: 400;
