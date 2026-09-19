@@ -124,7 +124,7 @@ const paths: Record<string, JSX.Element> = {
   ),
   donut: (
     <>
-      <circle cx="12" cy="12" r="7" strokeWidth="4" />
+      <circle cx="12" cy="12" r="7" strokeWidth="1.3" />
     </>
   ),
   // modificar
@@ -482,11 +482,12 @@ const paths: Record<string, JSX.Element> = {
   ),
 };
 
+/** Glifos de dominio: master 48u; la geometría 24u se escala 2× y 1.3×2 produce trazo visual 2.6u. */
 export function CadIcon({ name, size = 20, title }: { name: string; size?: number; title?: string }) {
   const body = paths[name] ?? paths.line;
   return (
-    <svg className="cad-icon" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" role={title ? 'img' : undefined} aria-label={title} aria-hidden={title ? undefined : true}>
-      {body}
+    <svg className="cad-icon" width={size} height={size} viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth={1.3} strokeLinecap="round" strokeLinejoin="round" role={title ? 'img' : undefined} aria-label={title} aria-hidden={title ? undefined : true}>
+      <g transform="scale(2)">{body}</g>
     </svg>
   );
 }
