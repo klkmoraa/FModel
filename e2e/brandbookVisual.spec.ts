@@ -156,6 +156,11 @@ test.describe('alineación visual con FusionStructureBrand', () => {
     }));
     expect(colors.token).toBe('#5b3fc0');
     expect(colors.text).toBe('rgb(91, 63, 192)');
+
+    await page.goto('/?surface=welcome');
+    const eyebrow = page.locator('.fmodel-hero__eyebrow');
+    await expect(eyebrow).toBeVisible();
+    await expect(eyebrow).toHaveCSS('color', 'rgb(91, 63, 192)');
   });
 
   test('el onboarding aplica el mismo contrato modal de teclado', async ({ page }) => {
