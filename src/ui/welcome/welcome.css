@@ -538,7 +538,7 @@
   border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--surface) 88%, transparent);
   box-shadow: var(--shadow-chip);
-  color: var(--fm-accent);
+  color: var(--fs-interaction-text);
   font: var(--wl-label);
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -1381,7 +1381,7 @@
 .welcome-block-card__tag {
   top: 8px;
   left: 8px;
-  color: var(--fm-accent);
+  color: var(--fs-interaction-text);
 }
 .welcome-block-card__info {
   display: flex;
@@ -1405,12 +1405,6 @@
   color: var(--fm-accent);
   font-size: 12px;
   font-weight: 650;
-  opacity: 0.75;
-  transition: opacity var(--fs-quick) var(--fs-ease);
-}
-.welcome-block-card:hover .welcome-block-card__insert,
-.welcome-block-card:focus-visible .welcome-block-card__insert {
-  opacity: 1;
 }
 
 /* Miniaturas de bloque: trazo negro sobre transparente → en noche se invierten sin girar el tono */
