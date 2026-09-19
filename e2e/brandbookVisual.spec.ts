@@ -62,6 +62,45 @@ test.describe('alineación visual con FusionStructureBrand', () => {
     await expect(origin).toBeFocused();
   });
 
+  test('respeta autofocus en Ayuda y restaura el foco al cerrarla', async ({ page }) => {
+    await page.goto('/?surface=workspace');
+    await page.waitForFunction(() => !!(window as any).fmodel?.editor);
+    await page.evaluate(() => {
+      (window as any).fmodel.editor.setPrefs({ onboardingDone: true });
+    });
+
+    const origin = page.locator('.brand--btn');
+    await origin.focus();
+    await page.evaluate(() => {
+      window.dispatchEvent(new CustomEvent('fmodel:ui', { detail: { ui: 'help' } }));
+    });
+
+    const dialog = page.getByRole('dialog', { name: /Ayuda de FModel 2D CAD|FModel 2D CAD help/ });
+    const search = dialog.getByRole('textbox', { name: /Buscar comandos|Search commands/ });
+    await expect(dialog).toBeVisible();
+    await expect(search).toBeFocused();
+
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    await expect(origin).toBeFocused();
+  });
+
+  test('las etiquetas activas pequeñas usan el morado de alto contraste', async ({ page }) => {
+    await page.goto('/?surface=workspace');
+    await page.waitForFunction(() => !!(window as any).fmodel?.editor);
+    await page.evaluate(() => {
+      (window as any).fmodel.editor.setPrefs({ onboardingDone: true });
+    });
+
+    const active = page.locator('.status-toggle.is-on').first();
+    const colors = await active.evaluate((element) => ({
+      text: getComputedStyle(element).color,
+      token: getComputedStyle(document.documentElement).getPropertyValue('--fs-interaction-text').trim(),
+    }));
+    expect(colors.token).toBe('#5b3fc0');
+    expect(colors.text).toBe('rgb(91, 63, 192)');
+  });
+
   test('el onboarding aplica el mismo contrato modal de teclado', async ({ page }) => {
     await page.goto('/?surface=workspace');
     await page.waitForFunction(() => !!(window as any).fmodel?.editor);
@@ -81,24 +120,52 @@ test.describe('alineación visual con FusionStructureBrand', () => {
   });
 
   for (const viewport of VIEWPORTS) {
-    test(`sin desbordes horizontales a ${viewport.width}px`, async ({ page }) => {
+    test(`layout crítico estable a ${viewport.width}px`, async ({ page }) => {
       await page.setViewportSize(viewport);
 
-      for (const surface of ['welcome', 'workspace'] as const) {
-        await page.goto(surface === 'workspace' ? '/?surface=workspace' : '/?surface=welcome');
-        if (surface === 'workspace') {
-          await page.waitForFunction(() => !!(window as any).fmodel?.editor);
-        } else {
-          await page.waitForSelector('.welcome-screen');
-        }
+      await page.goto('/?surface=welcome');
+      await page.waitForSelector('.welcome-screen');
+      const welcomeMetrics = await page.evaluate(() => ({
+        viewport: document.documentElement.clientWidth,
+        scroll: document.documentElement.scrollWidth,
+        bodyScroll: document.body.scrollWidth,
+      }));
+      expect(welcomeMetrics.scroll).toBeLessThanOrEqual(welcomeMetrics.viewport + 1);
+      expect(welcomeMetrics.bodyScroll).toBeLessThanOrEqual(welcomeMetrics.viewport + 1);
+      const consoleBox = await page.locator('.welcome-console').boundingBox();
+      expect(consoleBox).not.toBeNull();
+      expect(consoleBox!.x).toBeGreaterThanOrEqual(-1);
+      expect(consoleBox!.x + consoleBox!.width).toBeLessThanOrEqual(viewport.width + 1);
 
-        const metrics = await page.evaluate(() => ({
-          viewport: document.documentElement.clientWidth,
-          scroll: document.documentElement.scrollWidth,
-          bodyScroll: document.body.scrollWidth,
-        }));
-        expect(metrics.scroll).toBeLessThanOrEqual(metrics.viewport + 1);
-        expect(metrics.bodyScroll).toBeLessThanOrEqual(metrics.viewport + 1);
+      await page.goto('/?surface=workspace');
+      await page.waitForFunction(() => !!(window as any).fmodel?.editor);
+      await page.evaluate(() => {
+        (window as any).fmodel.editor.setPrefs({ onboardingDone: true });
+      });
+
+      const workspaceMetrics = await page.evaluate(() => ({
+        viewport: document.documentElement.clientWidth,
+        scroll: document.documentElement.scrollWidth,
+        bodyScroll: document.body.scrollWidth,
+      }));
+      expect(workspaceMetrics.scroll).toBeLessThanOrEqual(workspaceMetrics.viewport + 1);
+      expect(workspaceMetrics.bodyScroll).toBeLessThanOrEqual(workspaceMetrics.viewport + 1);
+
+      const stageBox = await page.locator('.stage__canvas').boundingBox();
+      expect(stageBox).not.toBeNull();
+      expect(stageBox!.width).toBeGreaterThan(200);
+      expect(stageBox!.height).toBeGreaterThan(180);
+      expect(stageBox!.x).toBeGreaterThanOrEqual(-1);
+      expect(stageBox!.x + stageBox!.width).toBeLessThanOrEqual(viewport.width + 1);
+
+      if (viewport.width <= 820) {
+        await expect(page.locator('.ribbon')).toBeHidden();
+        await expect(page.locator('.statusbar')).toBeHidden();
+        await expect(page.locator('.mbar')).toBeVisible();
+      } else {
+        await expect(page.locator('.ribbon')).toBeVisible();
+        await expect(page.locator('.statusbar')).toBeVisible();
+        await expect(page.locator('.mbar')).toHaveCount(0);
       }
     });
   }
