@@ -100,7 +100,7 @@ La evidencia histórica de otros recorridos no se reutiliza como cierre: esta ta
 
 **Cierre:** 2026-09-19
 
-**Verificación:** puertas locales completas ejecutadas: lint, typecheck, layers, features, test (63 archivos/582 pruebas), coverage, build y E2E; todos pasan.
+**Verificación:** puertas locales completas ejecutadas: lint, typecheck, layers, features, test (63 archivos/582 pruebas), coverage, build y E2E; todos pasan. El CI remoto del PR #3 también terminó `success` sobre el commit publicado.
 
 ---
 

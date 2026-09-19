@@ -150,4 +150,4 @@
 
 **Cierre:** 2026-09-19
 
-**Verificación:** puertas locales completas pasan; la verificación remota de GitHub Actions del commit final queda registrada al cerrar la tarea.
+**Verificación:** puertas locales completas pasan y el workflow `CI` del PR #3 terminó `success` sobre el commit publicado, confirmando la misma toolchain en GitHub Actions.
