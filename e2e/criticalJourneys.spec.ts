@@ -457,6 +457,31 @@ test.describe('Recorridos críticos E2E en navegador real (TST-001)', () => {
     expect(updateResult.warnMessage).toContain('cambios sin guardar');
     expect(updateResult.hasRecovery).toBe(true);
 
+    const failedUpdate = await page.evaluate(async () => {
+      const { editor, persistence, setPendingUpdate } = (window as any).fmodel;
+      const originalAutosave = persistence.autosave;
+      const warnings: string[] = [];
+      let applied = false;
+      editor.runner.message = (kind: string, msg: any) => {
+        if (kind === 'warning' || kind === 'warn') warnings.push(typeof msg === 'string' ? msg : (msg?.es ?? ''));
+      };
+      persistence.autosave = async () => false;
+      setPendingUpdate(() => {
+        applied = true;
+      });
+
+      try {
+        await editor.command('UPDATEAPP');
+      } finally {
+        persistence.autosave = originalAutosave;
+      }
+
+      return { applied, warnings };
+    });
+
+    expect(failedUpdate.applied).toBe(false);
+    expect(failedUpdate.warnings.some((message) => message.includes('actualización fue cancelada'))).toBe(true);
+
     // El dibujo abierto sigue intacto con sus cambios
     expect(await page.evaluate(() => (window as any).fmodel.doc.data.entities.has('e2e_sw_l1'))).toBe(true);
     expect(await page.evaluate(() => (window as any).fmodel.doc.dirty)).toBe(true);

@@ -461,12 +461,14 @@ const UPDATEAPP: CommandDef = {
   description: L('Aplica la versión nueva de FModel ya descargada (recarga la página).', 'Applies the already downloaded new FModel version (reloads the page).'),
   async run(api) {
     if (!pendingUpdate) return api.info(L('Ya tienes la versión más reciente.', 'You already have the latest version.'));
-    if (api.editor.doc.dirty) api.warn(L('Hay cambios sin guardar: se conservan en el autoguardado y puedes recuperarlos con RECOVER.', 'There are unsaved changes: they are kept in autosave and can be recovered with RECOVER.'));
-    try {
-      await getServices().persistence.autosave();
-    } finally {
-      pendingUpdate?.();
+    if (api.editor.doc.dirty) {
+      api.warn(L('Hay cambios sin guardar: se conservan en el autoguardado y puedes recuperarlos con RECOVER.', 'There are unsaved changes: they are kept in autosave and can be recovered with RECOVER.'));
+      const protectedDrawing = await getServices().persistence.autosave();
+      if (!protectedDrawing) {
+        return api.warn(L('No se pudo crear la copia de recuperación; la actualización fue cancelada para proteger el dibujo.', 'The recovery copy could not be created; the update was cancelled to protect the drawing.'));
+      }
     }
+    pendingUpdate?.();
   },
 };
 
