@@ -28,11 +28,11 @@
   --fm-accent-soft: color-mix(in srgb, var(--fm-accent) 12%, transparent);
   --fm-accent-line: color-mix(in srgb, var(--fm-accent) 45%, transparent);
 
-  /* interacción compartida: marca madre para navegación, foco y controles activos */
-  --fs-interaction: var(--fs-brand-accent);
+  /* FModel: la familia Modelo gobierna también navegación, foco y controles activos */
+  --fs-interaction: var(--fm-accent);
   --fs-interaction-soft: color-mix(in srgb, var(--fs-interaction) 12%, transparent);
   --fs-interaction-line: color-mix(in srgb, var(--fs-interaction) 45%, transparent);
-  --fs-interaction-ink: #0e1113;
+  --fs-interaction-ink: var(--fm-accent-ink);
 
   /* neutros día */
   --n-000: #fffefa;
