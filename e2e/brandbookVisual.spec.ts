@@ -14,6 +14,7 @@ test.describe('alineación visual con FusionStructureBrand', () => {
     await page.evaluate(() => {
       (window as any).fmodel.editor.setPrefs({ onboardingDone: true });
     });
+    await expect(page.getByRole('dialog', { name: /Bienvenido a FModel 2D CAD|Welcome to FModel 2D CAD/ })).toHaveCount(0);
 
     const brandButton = page.locator('.brand--btn');
     await brandButton.focus();
