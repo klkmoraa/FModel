@@ -11,6 +11,9 @@ test.describe('alineación visual con FusionStructureBrand', () => {
   test('la interacción de FModel usa morado Modelo y los glifos CAD exponen master 48u', async ({ page }) => {
     await page.goto('/?surface=workspace');
     await page.waitForFunction(() => !!(window as any).fmodel?.editor);
+    await page.evaluate(() => {
+      (window as any).fmodel.editor.setPrefs({ onboardingDone: true });
+    });
 
     const brandButton = page.locator('.brand--btn');
     await brandButton.focus();
