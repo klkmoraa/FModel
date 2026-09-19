@@ -1,5 +1,5 @@
 import { X } from 'lucide-react';
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useRef, type ReactNode } from 'react';
 import type { Editor } from '../editor/editor';
 import { DraftingSettings } from './dialogs/DraftingSettings';
 import { FileMenu } from './dialogs/FileMenu';
@@ -18,6 +18,7 @@ import { ReferencesDialog } from './dialogs/ReferencesDialog';
 import { LibraryImportDialog } from './dialogs/LibraryImportDialog';
 import type { LibraryImportSession } from '../blocks/libraryImport';
 import { tr } from './controls';
+import { useModalFocusTrap } from './modalFocus';
 
 export interface DialogState {
   id: string;
@@ -26,65 +27,9 @@ export interface DialogState {
   payload?: unknown;
 }
 
-const DIALOG_FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
-
 export function Dialog({ title, onClose, children, footer, wide, lang }: { title: string; onClose: () => void; children: ReactNode; footer?: ReactNode; wide?: boolean; lang: 'es' | 'en' }) {
   const dialogRef = useRef<HTMLDivElement>(null);
-  const previousFocusRef = useRef<HTMLElement | null>(null);
-
-  useEffect(() => {
-    previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-
-    const focusableElements = () =>
-      Array.from(dialog.querySelectorAll<HTMLElement>(DIALOG_FOCUSABLE)).filter(
-        (element) => element.getAttribute('aria-hidden') !== 'true' && !element.hasAttribute('disabled'),
-      );
-
-    const first = focusableElements()[0];
-    (first ?? dialog).focus({ preventScroll: true });
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        event.stopPropagation();
-        onClose();
-        return;
-      }
-      if (event.key !== 'Tab') return;
-
-      const focusable = focusableElements();
-      if (focusable.length === 0) {
-        event.preventDefault();
-        event.stopPropagation();
-        dialog.focus({ preventScroll: true });
-        return;
-      }
-
-      const firstFocusable = focusable[0]!;
-      const lastFocusable = focusable[focusable.length - 1]!;
-      const active = document.activeElement;
-
-      if (event.shiftKey && (active === firstFocusable || !dialog.contains(active))) {
-        event.preventDefault();
-        event.stopPropagation();
-        lastFocusable.focus({ preventScroll: true });
-      } else if (!event.shiftKey && (active === lastFocusable || !dialog.contains(active))) {
-        event.preventDefault();
-        event.stopPropagation();
-        firstFocusable.focus({ preventScroll: true });
-      }
-    };
-
-    // Captura nativa: el modal conserva Escape/Tab aunque un control hijo detenga bubbling.
-    document.addEventListener('keydown', handleKeyDown, true);
-
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown, true);
-      previousFocusRef.current?.focus({ preventScroll: true });
-    };
-  }, [onClose]);
+  useModalFocusTrap(dialogRef, onClose);
 
   return (
     <div className="veil" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
