@@ -19,7 +19,7 @@ import { DrawingsView } from './DrawingsView';
 import { LibraryCatalogView } from './LibraryCatalogView';
 import { ImportCenterView } from './ImportCenterView';
 import { SearchResults } from './SearchResults';
-import { confirmDiscard } from './actions';
+import { confirmDiscard, createBlankDrawing } from './actions';
 import { tr } from '../controls';
 import './welcome.css';
 
@@ -57,9 +57,9 @@ export function WelcomeScreen({ editor, dark, onOpenWorkspace }: WelcomeScreenPr
     homeRef.current?.scrollTo({ top: 0 });
   };
 
-  const handleCreateBlank = () => {
-    if (!confirmDiscard(editor)) return;
-    editor.command('NEW');
+  const handleCreateBlank = async () => {
+    if (!(await confirmDiscard(editor))) return;
+    createBlankDrawing(editor);
     onOpenWorkspace();
   };
 

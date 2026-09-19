@@ -5,6 +5,7 @@ export const STORES = ['drawings', 'versions', 'recovery', 'meta', 'library', 'l
 export type StoreName = (typeof STORES)[number];
 
 let dbPromise: Promise<IDBDatabase> | null = null;
+let openedDb: IDBDatabase | null = null;
 
 export function openDb(): Promise<IDBDatabase> {
   if (dbPromise) return dbPromise;
@@ -18,7 +19,10 @@ export function openDb(): Promise<IDBDatabase> {
       const db = req.result;
       for (const s of STORES) if (!db.objectStoreNames.contains(s)) db.createObjectStore(s, { keyPath: 'id' });
     };
-    req.onsuccess = () => resolve(req.result);
+    req.onsuccess = () => {
+      openedDb = req.result;
+      resolve(req.result);
+    };
     req.onerror = () => reject(req.error);
   });
   dbPromise.catch(() => (dbPromise = null));
@@ -41,6 +45,23 @@ export const idbPut = <T extends { id: string }>(store: StoreName, value: T) => 
 export const idbGet = <T>(store: StoreName, id: string) => tx<T | undefined>(store, 'readonly', (s) => s.get(id) as IDBRequest<T | undefined>);
 export const idbDelete = (store: StoreName, id: string) => tx(store, 'readwrite', (s) => s.delete(id));
 export const idbAll = <T>(store: StoreName) => tx<T[]>(store, 'readonly', (s) => s.getAll() as IDBRequest<T[]>);
+
+/**
+ * Escritura que empieza en el mismo instante (sin esperar a una promesa) si la base ya
+ * está abierta: al cerrar o recargar la página no queda tiempo para microtareas.
+ * Devuelve false si no pudo iniciarse.
+ */
+export function idbPutNow<T extends { id: string }>(store: StoreName, value: T): boolean {
+  if (!openedDb) return false;
+  try {
+    const t = openedDb.transaction(store, 'readwrite');
+    t.objectStore(store).put(value);
+    t.commit?.();
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 /** Varias escrituras en una sola transacción: o se guardan todas o ninguna. */
 export function idbWrite(stores: StoreName[], fn: (get: (s: StoreName) => IDBObjectStore) => void): Promise<void> {

@@ -7,6 +7,7 @@ import { canDeleteLayer, captureLayerState, createLayer, isolateLayers, layerMat
 import { newId } from '../../document/ids';
 import { useEditorEvents } from '../hooks';
 import { ColorPicker, LinetypeSelect, LineweightSelect, tr } from '../controls';
+import { askText } from '../ConfirmHost';
 
 type SortKey = 'name' | 'color' | 'used' | 'order';
 
@@ -146,8 +147,8 @@ export function LayersPanel({ editor }: { editor: Editor }) {
           className="btn btn--sm"
           title={tr(lang, 'Guardar filtro con la búsqueda actual', 'Save filter from current search')}
           disabled={!search}
-          onClick={() => {
-            const name = window.prompt(tr(lang, 'Nombre del filtro', 'Filter name'), search);
+          onClick={async () => {
+            const name = (await askText(lang, tr(lang, 'Nombre del filtro', 'Filter name'), search, { confirmLabel: tr(lang, 'Guardar', 'Save') }))?.trim();
             if (name) doc.transact('LAYER FILTER', (tx) => tx.add('layerFilters', { id: newId('lfilter'), name, rule: { name: search.includes('*') ? search : `*${search}*` } }));
           }}
         >
@@ -292,8 +293,8 @@ function LayerStates({ editor }: { editor: Editor }) {
       </button>
       <button
         className="btn btn--sm"
-        onClick={() => {
-          const name = window.prompt(tr(lang, 'Nombre del estado de capas', 'Layer state name'));
+        onClick={async () => {
+          const name = (await askText(lang, tr(lang, 'Nombre del estado de capas', 'Layer state name'), '', { confirmLabel: tr(lang, 'Guardar', 'Save') }))?.trim();
           if (!name) return;
           const existing = states.find((s) => s.name.toLowerCase() === name.toLowerCase());
           doc.transact('LAYERSTATE SAVE', (tx) => tx.put('layerStates', { ...captureLayerState(doc, name), id: existing?.id ?? newId('lstate') }));

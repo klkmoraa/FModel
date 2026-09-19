@@ -44,8 +44,8 @@ export function SearchResults({ editor, dark, query, onOpenWorkspace, onSeeAll }
     [query, lang, drawings, blocks],
   );
 
-  const run = (action: () => void, needsDiscard: boolean) => {
-    if (needsDiscard && !confirmDiscard(editor)) return;
+  const run = async (action: () => void, needsDiscard: boolean) => {
+    if (needsDiscard && !(await confirmDiscard(editor))) return;
     try {
       action();
       onOpenWorkspace();

@@ -24,8 +24,8 @@ export function TemplatesView({ editor, dark, onOpenWorkspace, searchFilter = ''
     return matchesSearch && matchesCat;
   });
 
-  const handleOpenTemplate = (tpl: TemplateDefinition) => {
-    if (!confirmDiscard(editor)) return;
+  const handleOpenTemplate = async (tpl: TemplateDefinition) => {
+    if (!(await confirmDiscard(editor))) return;
     openTemplate(editor, tpl);
     onOpenWorkspace();
   };

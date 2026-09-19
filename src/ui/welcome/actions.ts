@@ -4,15 +4,29 @@ import type { StoredDrawing } from '../../storage/persistence';
 import type { LibraryBlock } from '../../blocks/library';
 import { insertLibraryBlock } from '../../blocks/library';
 import { readPackage } from '../../io/native';
+import { createDocumentData } from '../../document/defaults';
 import { getServices } from '../../app/services';
 import { tr } from '../controls';
+import { askConfirm } from '../ConfirmHost';
 
-/** Pide confirmación si el dibujo activo tiene cambios sin guardar. Devuelve true si se puede continuar. */
-export function confirmDiscard(editor: Editor): boolean {
+/** Pide confirmación si el dibujo activo tiene cambios sin guardar. Resuelve true si se puede continuar. */
+export async function confirmDiscard(editor: Editor): Promise<boolean> {
   if (!editor.doc.dirty) return true;
-  return window.confirm(
-    tr(editor.lang, 'Hay cambios sin guardar en el dibujo actual. ¿Descartarlos?', 'Unsaved changes in current drawing. Discard them?'),
+  const lang = editor.lang;
+  return askConfirm(
+    lang,
+    tr(lang, 'Cambios sin guardar', 'Unsaved changes'),
+    tr(lang, 'El dibujo actual tiene cambios sin guardar. Si continúas, se descartarán.', 'The current drawing has unsaved changes. If you continue, they will be discarded.'),
+    { confirmLabel: tr(lang, 'Descartar y continuar', 'Discard and continue') },
   );
+}
+
+/** Sustituye el dibujo activo por uno vacío en milímetros (sin preguntar de nuevo en la línea de comandos). */
+export function createBlankDrawing(editor: Editor): void {
+  editor.doc.replaceData(createDocumentData({ units: 'mm', title: tr(editor.lang, 'Sin título', 'Untitled') }));
+  editor.fileName = '';
+  getServices().fileHandle = null;
+  editor.emit('doc');
 }
 
 /** Carga un dibujo guardado en el navegador. Lanza si el paquete está dañado. */
