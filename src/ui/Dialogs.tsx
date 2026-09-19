@@ -1,5 +1,5 @@
 import { X } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type KeyboardEvent, type ReactNode } from 'react';
 import type { Editor } from '../editor/editor';
 import { DraftingSettings } from './dialogs/DraftingSettings';
 import { FileMenu } from './dialogs/FileMenu';
@@ -26,13 +26,65 @@ export interface DialogState {
   payload?: unknown;
 }
 
+const DIALOG_FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
 export function Dialog({ title, onClose, children, footer, wide, lang }: { title: string; onClose: () => void; children: ReactNode; footer?: ReactNode; wide?: boolean; lang: 'es' | 'en' }) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
+    const first = dialog.querySelector<HTMLElement>(DIALOG_FOCUSABLE);
+    (first ?? dialog).focus({ preventScroll: true });
+
+    return () => {
+      previousFocusRef.current?.focus({ preventScroll: true });
+    };
+  }, []);
+
+  const onDialogKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    event.stopPropagation();
+
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      onClose();
+      return;
+    }
+    if (event.key !== 'Tab') return;
+
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(DIALOG_FOCUSABLE)).filter(
+      (element) => element.getAttribute('aria-hidden') !== 'true' && !element.hasAttribute('disabled'),
+    );
+
+    if (focusable.length === 0) {
+      event.preventDefault();
+      dialog.focus({ preventScroll: true });
+      return;
+    }
+
+    const first = focusable[0]!;
+    const last = focusable[focusable.length - 1]!;
+    const active = document.activeElement;
+    if (event.shiftKey && (active === first || !dialog.contains(active))) {
+      event.preventDefault();
+      last.focus({ preventScroll: true });
+    } else if (!event.shiftKey && active === last) {
+      event.preventDefault();
+      first.focus({ preventScroll: true });
+    }
+  };
+
   return (
-    <div className="veil" onMouseDown={(e) => e.target === e.currentTarget && onClose()} onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Escape') onClose(); }}>
-      <div className={`dialog${wide ? ' dialog--wide' : ''}`} role="dialog" aria-modal="true" aria-label={title}>
+    <div className="veil" onMouseDown={(event) => event.target === event.currentTarget && onClose()} onKeyDown={onDialogKeyDown}>
+      <div ref={dialogRef} className={`dialog${wide ? ' dialog--wide' : ''}`} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1}>
         <div className="dialog__head">
           <h2>{title}</h2>
-          <button className="icon-btn" onClick={onClose} aria-label={tr(lang, 'Cerrar', 'Close')} autoFocus>
+          <button className="icon-btn" onClick={onClose} aria-label={tr(lang, 'Cerrar', 'Close')}>
             <X size={18} />
           </button>
         </div>
