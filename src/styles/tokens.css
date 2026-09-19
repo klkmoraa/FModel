@@ -32,6 +32,7 @@
   --fs-interaction: var(--fm-accent);
   --fs-interaction-soft: color-mix(in srgb, var(--fs-interaction) 12%, transparent);
   --fs-interaction-line: color-mix(in srgb, var(--fs-interaction) 45%, transparent);
+  --fs-interaction-text: #5b3fc0;
   --fs-interaction-ink: var(--fm-accent-ink);
 
   /* neutros día */
@@ -143,6 +144,7 @@
     --fs-family-interop: #72a1ff;
     --fs-family-aprendizaje: #f07db5;
     --fm-accent-ink: #0e1113;
+    --fs-interaction-text: #c9bbff;
     --fs-signal-axial: #63c5ff;
     --fs-signal-moment: #ff8e80;
     --fs-signal-shear: #55c990;
@@ -183,6 +185,7 @@
   --fs-family-interop: #72a1ff;
   --fs-family-aprendizaje: #f07db5;
   --fm-accent-ink: #0e1113;
+  --fs-interaction-text: #c9bbff;
   --fs-signal-axial: #63c5ff;
   --fs-signal-moment: #ff8e80;
   --fs-signal-shear: #55c990;
