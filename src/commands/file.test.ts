@@ -173,14 +173,19 @@ describe('QSAVE y SAVEAS', () => {
     expect(info).toHaveBeenCalledWith(expect.objectContaining({ es: expect.stringContaining('Guardado') }));
   });
 
-  it('propaga un error de escritura y conserva el documento sucio', async () => {
+  it('propaga un error real de write() y conserva el documento sucio', async () => {
     const existing = services.fileHandle!;
-    (existing.createWritable as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('disk full'));
+    const write = vi.fn(async () => {
+      throw new Error('disk full');
+    });
+    (existing.createWritable as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ write, close: vi.fn(async () => undefined) });
 
     const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     await editor.runner.execute('QSAVE');
 
+    expect(write).toHaveBeenCalledOnce();
     expect(editor.doc.dirty).toBe(true);
+    expect(persistence.storeDrawing).not.toHaveBeenCalled();
     expect(persistence.saveVersion).not.toHaveBeenCalled();
     expect(editor.runner.log.at(-1)).toMatchObject({ kind: 'error', text: expect.stringContaining('disk full') });
     error.mockRestore();
