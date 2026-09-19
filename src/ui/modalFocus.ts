@@ -10,7 +10,7 @@ const MODAL_FOCUSABLE =
  * - cierra con Escape incluso si un control hijo detiene bubbling,
  * - devuelve el foco al origen al desmontar.
  */
-export function useModalFocusTrap(dialogRef: RefObject<HTMLElement | null>, onClose: () => void) {
+export function useModalFocusTrap(dialogRef: RefObject<HTMLElement | null>, onClose: () => void, returnFocusRef?: RefObject<HTMLElement | null>) {
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
 
@@ -18,14 +18,18 @@ export function useModalFocusTrap(dialogRef: RefObject<HTMLElement | null>, onCl
     const dialog = dialogRef.current;
     if (!dialog) return;
 
-    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const activeOnMount = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousFocus = returnFocusRef?.current ?? (activeOnMount && !dialog.contains(activeOnMount) ? activeOnMount : null);
     const focusableElements = () =>
       Array.from(dialog.querySelectorAll<HTMLElement>(MODAL_FOCUSABLE)).filter(
         (element) => element.getAttribute('aria-hidden') !== 'true' && !element.hasAttribute('disabled'),
       );
 
-    const first = focusableElements()[0];
-    (first ?? dialog).focus({ preventScroll: true });
+    if (!(activeOnMount && dialog.contains(activeOnMount))) {
+      const preferred = dialog.querySelector<HTMLElement>('[autofocus]');
+      const first = focusableElements()[0];
+      (preferred ?? first ?? dialog).focus({ preventScroll: true });
+    }
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -62,7 +66,7 @@ export function useModalFocusTrap(dialogRef: RefObject<HTMLElement | null>, onCl
     document.addEventListener('keydown', handleKeyDown, true);
     return () => {
       document.removeEventListener('keydown', handleKeyDown, true);
-      previousFocus?.focus({ preventScroll: true });
+      if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true });
     };
-  }, [dialogRef]);
+  }, [dialogRef, returnFocusRef]);
 }
