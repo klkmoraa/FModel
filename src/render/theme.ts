@@ -61,6 +61,8 @@ const FS = {
   },
 } as const;
 
+const FM_DOCUMENT_PAPER = '#ffffff';
+
 /** Estados exclusivos del canvas: no se promueven a tokens globales de FusionStructure. */
 const FM_CANVAS = {
   day: {
@@ -95,7 +97,7 @@ export const THEME_NIGHT: RenderTheme = {
   dark: true,
   background: FS.night.n000,
   paperBackground: FS.night.n200,
-  sheet: FS.day.n000,
+  sheet: FM_DOCUMENT_PAPER,
   sheetShadow: 'rgba(0,0,0,0.55)',
   gridMinor: 'rgba(242,244,243,0.05)',
   gridMajor: 'rgba(242,244,243,0.11)',
@@ -128,7 +130,7 @@ export const THEME_DAY: RenderTheme = {
   dark: false,
   background: FS.day.n050,
   paperBackground: FS.day.n200,
-  sheet: FS.day.n000,
+  sheet: FM_DOCUMENT_PAPER,
   sheetShadow: 'rgba(20,23,26,0.22)',
   gridMinor: 'rgba(20,23,26,0.05)',
   gridMajor: 'rgba(20,23,26,0.1)',
