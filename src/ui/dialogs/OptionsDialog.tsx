@@ -242,6 +242,7 @@ export function OptionsDialog({ editor, onClose, initialTab }: { editor: Editor;
             <input
               autoFocus
               className="input input--mono"
+              data-modal-escape="consume"
               readOnly
               value={capture}
               placeholder={tr(lang, 'Pulsa Ctrl/Alt/Mayús + tecla o una tecla de función', 'Press Ctrl/Alt/Shift + key or a function key')}

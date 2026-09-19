@@ -31,6 +31,7 @@ export function App({ editor }: { editor: Editor }) {
   const [palette, setPalette] = useState(false);
   const [clean, setClean] = useState(false);
   const [dialog, setDialog] = useState<DialogState | null>(null);
+  const dialogReturnFocusRef = useRef<HTMLElement | null>(null);
   const [mobileSheet, setMobileSheet] = useState<string | null>(null);
   // en el teléfono la línea de comandos solo ocupa lienzo cuando hace falta: con comando en marcha o al pedirla
   const [cmdOpen, setCmdOpen] = useState(false);
@@ -82,6 +83,8 @@ export function App({ editor }: { editor: Editor }) {
       window.dispatchEvent(new CustomEvent('fmodel:panel', { detail: ui.slice(6) }));
       return;
     }
+    const active = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    if (!active?.closest('[role="dialog"][aria-modal="true"]')) dialogReturnFocusRef.current = active;
     setDialog({ id: ui, cmd, payload });
   }, [editor, isMobile]);
 
@@ -102,12 +105,12 @@ export function App({ editor }: { editor: Editor }) {
       const target = e.target as HTMLElement;
       const inField = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable);
       const combo = comboOf(e);
-      if (combo === 'Ctrl+K' || (combo === 'Ctrl+Shift+P')) {
+      if (palette || dialog || !editor.prefs.onboardingDone) return;
+      if (combo === 'Ctrl+K' || combo === 'Ctrl+Shift+P') {
         e.preventDefault();
         setPalette(true);
         return;
       }
-      if (palette || dialog || !editor.prefs.onboardingDone) return;
       if (inField && !target.classList.contains('cmdline__input')) return;
       editor.shiftDown = e.shiftKey;
       // atajos configurables
@@ -241,7 +244,7 @@ export function App({ editor }: { editor: Editor }) {
         <StatusBar editor={editor} onOpenSettings={() => openUi('drafting-settings')} fullscreen={clean} onFullscreen={toggleFullscreen} />
       )}
       {palette && <CommandPalette editor={editor} onClose={() => setPalette(false)} onRun={(n) => runCommand(n)} />}
-      <Dialogs editor={editor} state={dialog} onClose={() => setDialog(null)} onUi={openUi} />
+      <Dialogs editor={editor} state={dialog} returnFocusRef={dialogReturnFocusRef} onClose={() => setDialog(null)} onUi={openUi} />
       {!editor.prefs.onboardingDone && !dialog && <Onboarding editor={editor} />}
     </div>
   );

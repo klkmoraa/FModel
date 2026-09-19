@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { Editor } from '../editor/editor';
 import { tr } from './controls';
 import { BrandMark } from './icons';
+import { useModalFocusTrap } from './modalFocus';
 
 interface Step {
   title: [string, string];
@@ -44,9 +45,11 @@ export function Onboarding({ editor }: { editor: Editor }) {
   const step = STEPS[i];
   const finish = () => editor.setPrefs({ onboardingDone: true });
   const last = i === STEPS.length - 1;
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useModalFocusTrap(dialogRef, finish);
   return (
-    <div className="veil" onKeyDown={(e) => (e.stopPropagation(), e.key === 'Escape' && finish())}>
-      <div className="dialog onboarding" role="dialog" aria-modal="true" aria-labelledby="onboarding-title">
+    <div className="veil">
+      <div ref={dialogRef} className="dialog onboarding" role="dialog" aria-modal="true" aria-labelledby="onboarding-title" tabIndex={-1}>
         <div className="dialog__body">
           {i === 0 && (
             <div className="onboarding__mark">

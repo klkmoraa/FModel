@@ -152,12 +152,12 @@ export function ColorPicker({ value, onChange, lang, allowByLayer = true, mixed 
           )}
           <div role="grid" aria-label={tr(lang, 'Colores ACI básicos', 'Basic ACI colors')} style={{ display: 'grid', gridTemplateColumns: 'repeat(9, 1fr)', gap: 3, marginBottom: 6 }}>
             {std.map((i) => (
-              <button type="button" role="gridcell" aria-selected={selectedAci === i} data-aci={i} tabIndex={selectedAci >= 1 && selectedAci <= 9 ? (selectedAci === i ? 0 : -1) : (i === 1 ? 0 : -1)} key={i} title={`${colorLabel(`aci:${i}`, lang)} (${i})`} className="swatch" style={{ width: 22, height: 22, background: i === 7 ? 'linear-gradient(135deg,#fff 50%,#14171a 50%)' : aciToHex(i), outline: value === `aci:${i}` ? '2px solid var(--fm-accent)' : undefined }} onKeyDown={(event) => moveAci(event, i, 9, 1, 9)} onClick={() => (onChange(`aci:${i}`), setOpen(false))} />
+              <button type="button" role="gridcell" aria-selected={selectedAci === i} data-aci={i} tabIndex={selectedAci >= 1 && selectedAci <= 9 ? (selectedAci === i ? 0 : -1) : (i === 1 ? 0 : -1)} key={i} title={`${colorLabel(`aci:${i}`, lang)} (${i})`} className="swatch" style={{ width: 22, height: 22, background: i === 7 ? 'linear-gradient(135deg,#fff 50%,#14171a 50%)' : aciToHex(i), outline: value === `aci:${i}` ? '2px solid var(--fs-interaction)' : undefined }} onKeyDown={(event) => moveAci(event, i, 9, 1, 9)} onClick={() => (onChange(`aci:${i}`), setOpen(false))} />
             ))}
           </div>
           <div role="grid" aria-label={tr(lang, 'Colores ACI ampliados', 'Extended ACI colors')} style={{ display: 'grid', gridTemplateColumns: 'repeat(24, 1fr)', gap: 1, marginBottom: 6 }}>
             {Array.from({ length: 240 }, (_, k) => 10 + k).map((i) => (
-              <button type="button" role="gridcell" aria-selected={selectedAci === i} data-aci={i} tabIndex={selectedAci >= 10 ? (selectedAci === i ? 0 : -1) : (i === 10 ? 0 : -1)} key={i} title={`ACI ${i}`} style={{ height: 9, background: aciToHex(i), outline: value === `aci:${i}` ? '2px solid var(--fm-accent)' : undefined }} onKeyDown={(event) => moveAci(event, i, 24, 10, 249)} onClick={() => (onChange(`aci:${i}`), setOpen(false))} />
+              <button type="button" role="gridcell" aria-selected={selectedAci === i} data-aci={i} tabIndex={selectedAci >= 10 ? (selectedAci === i ? 0 : -1) : (i === 10 ? 0 : -1)} key={i} title={`ACI ${i}`} style={{ height: 9, background: aciToHex(i), outline: value === `aci:${i}` ? '2px solid var(--fs-interaction)' : undefined }} onKeyDown={(event) => moveAci(event, i, 24, 10, 249)} onClick={() => (onChange(`aci:${i}`), setOpen(false))} />
             ))}
           </div>
           <label className="field" style={{ gridTemplateColumns: '1fr auto' }}>

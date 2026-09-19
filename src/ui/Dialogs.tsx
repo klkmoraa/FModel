@@ -1,5 +1,5 @@
 import { X } from 'lucide-react';
-import { useEffect, useRef, type ReactNode } from 'react';
+import { createContext, useContext, useRef, type ReactNode, type RefObject } from 'react';
 import type { Editor } from '../editor/editor';
 import { DraftingSettings } from './dialogs/DraftingSettings';
 import { FileMenu } from './dialogs/FileMenu';
@@ -18,6 +18,9 @@ import { ReferencesDialog } from './dialogs/ReferencesDialog';
 import { LibraryImportDialog } from './dialogs/LibraryImportDialog';
 import type { LibraryImportSession } from '../blocks/libraryImport';
 import { tr } from './controls';
+import { useModalFocusTrap } from './modalFocus';
+
+const DialogReturnFocusContext = createContext<RefObject<HTMLElement | null> | null>(null);
 
 export interface DialogState {
   id: string;
@@ -28,45 +31,15 @@ export interface DialogState {
 
 export function Dialog({ title, onClose, children, footer, wide, lang }: { title: string; onClose: () => void; children: ReactNode; footer?: ReactNode; wide?: boolean; lang: 'es' | 'en' }) {
   const dialogRef = useRef<HTMLDivElement>(null);
-  const previousFocus = useRef<HTMLElement | null>(null);
-
-  useEffect(() => {
-    previousFocus.current = document.activeElement as HTMLElement | null;
-    return () => {
-      previousFocus.current?.focus();
-    };
-  }, []);
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    e.stopPropagation();
-    if (e.key === 'Escape') {
-      onClose();
-      return;
-    }
-    if (e.key === 'Tab' && dialogRef.current) {
-      const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
-        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-      );
-      if (focusable.length === 0) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-
-      if (e.shiftKey && document.activeElement === first) {
-        last.focus();
-        e.preventDefault();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        first.focus();
-        e.preventDefault();
-      }
-    }
-  };
+  const returnFocusRef = useContext(DialogReturnFocusContext);
+  useModalFocusTrap(dialogRef, onClose, returnFocusRef ?? undefined);
 
   return (
-    <div className="veil" onMouseDown={(e) => e.target === e.currentTarget && onClose()} onKeyDown={handleKeyDown}>
-      <div ref={dialogRef} className={`dialog${wide ? ' dialog--wide' : ''}`} role="dialog" aria-modal="true" aria-label={title}>
+    <div className="veil" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+      <div ref={dialogRef} className={`dialog${wide ? ' dialog--wide' : ''}`} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1}>
         <div className="dialog__head">
           <h2>{title}</h2>
-          <button className="icon-btn" onClick={onClose} aria-label={tr(lang, 'Cerrar', 'Close')} autoFocus>
+          <button className="icon-btn" onClick={onClose} aria-label={tr(lang, 'Cerrar', 'Close')}>
             <X size={18} />
           </button>
         </div>
@@ -112,9 +85,9 @@ export function registerDialog(id: string, render: DialogRenderer) {
   DIALOGS[id] = render;
 }
 
-export function Dialogs({ editor, state, onClose, onUi }: { editor: Editor; state: DialogState | null; onClose: () => void; onUi: (ui: string, cmd?: string, payload?: unknown) => void }) {
+export function Dialogs({ editor, state, returnFocusRef, onClose, onUi }: { editor: Editor; state: DialogState | null; returnFocusRef: RefObject<HTMLElement | null>; onClose: () => void; onUi: (ui: string, cmd?: string, payload?: unknown) => void }) {
   if (!state) return null;
   const render = DIALOGS[state.id];
   if (!render) return null;
-  return <>{render(editor, onClose, onUi, state)}</>;
+  return <DialogReturnFocusContext.Provider value={returnFocusRef}>{render(editor, onClose, onUi, state)}</DialogReturnFocusContext.Provider>;
 }

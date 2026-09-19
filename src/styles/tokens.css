@@ -8,6 +8,7 @@
 :root {
   /* tipografía */
   --fs-font-display: 'Space Grotesk Variable', 'Space Grotesk', 'Inter Variable', Inter, ui-sans-serif, system-ui, sans-serif;
+  --fs-font-editorial: 'Plus Jakarta Sans Variable', 'Plus Jakarta Sans', 'Inter Variable', Inter, ui-sans-serif, system-ui, sans-serif;
   --fs-font-ui: 'Inter Variable', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --fs-font-data: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', 'Cascadia Code', monospace;
 
@@ -26,6 +27,13 @@
   --fm-accent-ink: #ffffff;
   --fm-accent-soft: color-mix(in srgb, var(--fm-accent) 12%, transparent);
   --fm-accent-line: color-mix(in srgb, var(--fm-accent) 45%, transparent);
+
+  /* FModel: la familia Modelo gobierna también navegación, foco y controles activos */
+  --fs-interaction: var(--fm-accent);
+  --fs-interaction-soft: color-mix(in srgb, var(--fs-interaction) 12%, transparent);
+  --fs-interaction-line: color-mix(in srgb, var(--fs-interaction) 45%, transparent);
+  --fs-interaction-text: #5b3fc0;
+  --fs-interaction-ink: var(--fm-accent-ink);
 
   /* neutros día */
   --n-000: #fffefa;
@@ -57,6 +65,7 @@
   --fs-signal-moment: #ed4b46;
   --fs-signal-shear: #468c09;
   --fs-signal-deformed: #8b5cf6;
+  --fs-signal-yield: #d85ac9;
   --fs-signal-attention: #d9720a;
 
   /* estados */
@@ -72,6 +81,7 @@
   --radius-md: 18px;
   --radius-lg: 24px;
   --radius-pill: 999px;
+  --fm-document-paper: #ffffff; /* papel físico/impresión, no superficie UI */
   --clay-light: rgb(255 255 255 / 85%);
   --clay-dark: rgb(20 23 26 / 14%);
   --clay-dark-soft: rgb(20 23 26 / 8%);
@@ -84,7 +94,10 @@
   --fs-quick: 140ms;
   --fs-bridge: 200ms;
   --fs-reveal: 280ms;
+  --fs-trace: 520ms;
+  --fs-pulse: 1400ms;
   --fs-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --fs-ease-in: cubic-bezier(0.5, 0, 0.75, 0);
   --fs-ease-firm: cubic-bezier(0.65, 0, 0.35, 1);
 
   /* densidad CAD */
@@ -103,8 +116,9 @@
   --shadow-float: 4px 8px 14px -2px var(--clay-dark-strong), 1px 2px 4px var(--clay-dark), inset 1.5px 1.5px 2px var(--clay-light), inset -2px -2px 4px var(--clay-dark-soft);
   --shadow-lifted: 5px 10px 16px -2px var(--clay-dark-strong), 2px 3px 5px var(--clay-dark), inset 2px 2px 3px var(--clay-light);
   --shadow-inset: inset 2px 2.5px 5px var(--clay-dark), inset -1.5px -1.5px 3px var(--clay-light);
-  --shadow-selected: inset 2px 2.5px 5px var(--clay-dark), inset -1px -1px 2px var(--clay-light), 0 0 0 1.5px var(--fm-accent);
+  --shadow-selected: inset 2px 2.5px 5px var(--clay-dark), inset -1px -1px 2px var(--clay-light), 0 0 0 1.5px var(--fs-interaction);
   --shadow-sheet: 0 -6px 12px -2px var(--clay-dark-strong), inset 1px 1px 2px var(--clay-light);
+  --shadow-veil: 0 0 0 2000px var(--clay-veil);
   --shadow-chip: 1px 2px 4px -1px var(--clay-dark), inset 1px 1px 1.5px var(--clay-light), inset -1px -1px 2px var(--clay-dark-soft);
 }
 
@@ -130,9 +144,12 @@
     --fs-family-interop: #72a1ff;
     --fs-family-aprendizaje: #f07db5;
     --fm-accent-ink: #0e1113;
+    --fs-interaction-text: #c9bbff;
     --fs-signal-axial: #63c5ff;
     --fs-signal-moment: #ff8e80;
     --fs-signal-shear: #55c990;
+    --fs-signal-deformed: #9b87ff;
+    --fs-signal-yield: #ef7ab9;
     --fs-signal-attention: #f3c553;
     --fs-status-disponible: #55c990;
     --fs-status-experimental: #f3c553;
@@ -168,9 +185,12 @@
   --fs-family-interop: #72a1ff;
   --fs-family-aprendizaje: #f07db5;
   --fm-accent-ink: #0e1113;
+  --fs-interaction-text: #c9bbff;
   --fs-signal-axial: #63c5ff;
   --fs-signal-moment: #ff8e80;
   --fs-signal-shear: #55c990;
+  --fs-signal-deformed: #9b87ff;
+  --fs-signal-yield: #ef7ab9;
   --fs-signal-attention: #f3c553;
   --fs-status-disponible: #55c990;
   --fs-status-experimental: #f3c553;
@@ -190,5 +210,7 @@
     --fs-quick: 0ms;
     --fs-bridge: 0ms;
     --fs-reveal: 0ms;
+    --fs-trace: 0ms;
+    --fs-pulse: 0ms;
   }
 }
