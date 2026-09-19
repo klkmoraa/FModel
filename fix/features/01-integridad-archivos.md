@@ -79,6 +79,8 @@
 
 **Seguimiento 2026-09-18:** commit `96321a3`. La equivalencia compara las referencias asociativas después del mapeo biyectivo de entidades y respeta `propertyOrder`. Tres regresiones fallaron antes del cambio y luego pasaron; `pnpm vitest run src/io/clipboard.test.ts` cerró con 23 pruebas y `pnpm lint && pnpm verify` con 50 archivos/404 pruebas, capas, documentación, tipos y build correctos (avisos de lint preexistentes).
 
+**Seguimiento de auditoría 2026-09-19:** PR #2. La reapertura detectó cuatro huecos reproducibles: assets embebidos distintos con igual nombre+tamaño se deduplicaban incorrectamente; los viewports no transportaban/remapeaban `frozenLayers` ni `layerOverrides`; los overrides de cota/directriz podían conservar `textStyle`/`blockId` del origen; y `InsertEntity.dynamic.values` conservaba IDs de parámetros del origen al reutilizar un bloque dinámico equivalente. La fase roja confirmó 4 fallos de 29 pruebas de clipboard (409/413 globales). El cambio mínimo añadió cierre/remapeo tipado para esas referencias, deduplicación de assets por contenido y mapa biyectivo de parámetros dinámicos. CI #41 cerró `src/io/clipboard.test.ts` 29/29, suite 413/413, typecheck, lint, capas, features, build y 8/8 E2E en verde.
+
 ---
 
 ## DAT-003 — Validar archivos y aplicar límites de recursos
@@ -120,32 +122,44 @@
 
 ## DAT-004 — Informar fallos de persistencia y cuota
 
-- [ ] **Estado:** Abierta
+- [x] **Estado:** Cerrada
+- **Responsable:** Antigravity
+- **Inicio:** 2026-09-18
 - **Prioridad:** P2 — autoguardado/versiones pueden fallar silenciosamente
 - **Depende de:** DAT-001
 - **Bloquea:** —
 
-**Evidencia:** `src/storage/persistence.ts` devuelve `false` y solo escribe en consola cuando falla el autoguardado. `src/commands/file.ts:101-103` descarta fallos de biblioteca local y versión con `.catch(() => undefined)`.
+**Evidencia inicial:** `src/storage/persistence.ts` devolvía `false` indistintamente por no-op o fallo de IndexedDB y silenciaba errores con `console.warn`. `src/commands/file.ts` descartaba fallos de almacenamiento local con `.catch(() => undefined)` reportando éxito completo aunque la copia local fallase. `VersionsDialog.tsx` silenciaba errores de lectura como si fuera una lista vacía y no ofrecía acción para liberar cuota.
 
 **Archivos previstos:**
 
-- Modificar: `src/storage/persistence.ts`, `src/commands/file.ts`, `src/app/services.ts`
-- Modificar: `src/ui/dialogs/VersionsDialog.tsx`
-- Ampliar: `src/storage/persistence.test.ts`
+- Modificar: `src/storage/persistence.ts`, `src/commands/file.ts`, `src/commands/utility.ts`, `src/styles/app.css`, `src/ui/StatusBar.tsx`, `src/ui/MobileBar.tsx`, `src/ui/dialogs/VersionsDialog.tsx`, `src/main.tsx`
+- Ampliar/crear: `src/storage/persistence.test.ts`, `src/commands/file.test.ts`, `src/ui/dialogs/versionsDialog.test.ts`
 
 **Implementación:**
 
-- [ ] Modelar resultados `ok`, `quota-exceeded`, `unavailable` y `unknown-error`.
-- [ ] Mostrar una notificación persistente si el autoguardado deja de proteger el dibujo.
-- [ ] Diferenciar “archivo guardado” de “copia/versiones locales no guardadas”.
-- [ ] Añadir una acción para limpiar versiones automáticas o descargar una copia cuando no haya cuota.
+- [x] Modelar resultados `not-needed`, `saved` y `failed` discriminados con clasificación tipada de errores (`classifyStorageError`: `quota`, `unavailable`, `unknown`) detectando errores de disco lleno y `NotAllowedError`.
+- [x] Introducir `PersistenceHealth` independiente de React con estados `protected`, `degraded`, `unavailable`, marcas temporales, operaciones granulares y notificación deduplicada.
+- [x] Mostrar indicador de estado persistente en la barra de estado (`StatusBar`) y en la barra móvil (`MobileBar`) ante degradación o falta de almacenamiento local con acceso al diálogo de versiones.
+- [x] Diferenciar “archivo guardado” de “copia/versiones locales no guardadas”; `save()` mantiene `dirty=false` tras guardar en disco/descarga y emite advertencia explicativa sobre el fallo de la copia local.
+- [x] Conectar la operación atómica multi-store `storeDrawingAndVersion` en `save()` con reutilización de bytes precomputados para eliminar serializaciones redundantes, más método de purga controlada `purgeAutoVersions` atómico por lotes que no borra versiones manuales ni transiciona salud en vano.
+- [x] Adaptar `VersionsDialog` para diferenciar explícitamente errores de almacenamiento de listas vacías, con botón de reintento y acción para purgar versiones automáticas disponible tanto en el diálogo principal como en el estado de error de carga.
+- [x] Controlar errores de persistencia en `RECOVER` evitando mensajes engañosos de "no hay borradores" ante fallos de lectura en IndexedDB.
 
 **Criterios de aceptación:**
 
-- [ ] El usuario nunca recibe confirmación completa si falló una parte declarada del guardado.
-- [ ] Un fallo repetido no inunda la UI; el estado de protección permanece visible.
-- [ ] Las pruebas cubren `QuotaExceededError`, IndexedDB ausente y recuperación posterior.
+- [x] El usuario nunca recibe confirmación completa si falló una parte declarada del guardado.
+- [x] Un fallo repetido no inunda la UI; el estado de protección permanece visible en la barra de estado y en móviles, y las advertencias se deduplican.
+- [x] Las pruebas cubren `QuotaExceededError`, IndexedDB ausente, fallos transitorios con recuperación posterior y preservación estricta de versiones manuales.
+- [x] La suite existente de recovery, versiones, comandos de archivo y recorridos críticos E2E sigue pasando.
 
-**Verificación:** `pnpm vitest run src/storage/persistence.test.ts && pnpm verify`
+**Cierre:** 2026-09-19 · commit `DAT-004`
 
-**Avance relacionado 2026-09-18:** `UPDATEAPP` ya cancela la recarga si el autoguardado no puede proteger un dibujo sucio (`929fe7b`). DAT-004 permanece abierta porque aún faltan resultados discriminados, estado persistente de protección, control de cuota y recuperación posterior.
+**Evidencia:**
+- `pnpm vitest run src/storage/persistence.test.ts src/commands/file.test.ts src/ui/dialogs/versionsDialog.test.ts`: 3 archivos, 43 pruebas pasando (23 en persistence, 15 en file, 5 en versionsDialog).
+- `pnpm test`: 52 archivos de prueba, 447 pruebas pasando en 4.12s.
+- `pnpm lint`: 0 errores (30 advertencias preexistentes en otros subsistemas).
+- `pnpm check:layers`: 544 importaciones revisadas, arquitectura por capas íntegra.
+- `pnpm check:features`: documentación al día.
+- `pnpm build`: compilación de producción exitosa en 1.67s.
+- `pnpm test:e2e`: 8/8 recorridos críticos en navegador real Chromium pasando en 4.4s.

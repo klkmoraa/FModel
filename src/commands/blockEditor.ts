@@ -25,6 +25,7 @@ import { MODEL_SPACE_ID } from '../document/types';
 import { ACTION_COMPAT, emptyDynamic, SELF_ACTING_PARAMS } from '../blocks/authoring';
 import { validateDynamicBlock } from '../blocks/dynamic';
 import { insertBlock, validateBlockName } from '../blocks/blockOps';
+import { remapDynamicBlockDef } from '../blocks/remap';
 import { kindOf } from '../model/registry';
 import { selectInBox } from '../selection/pick';
 import { K, L } from './helpers';
@@ -205,7 +206,7 @@ const BSAVEAS: CommandDef = {
     const map = new Map<Id, Id>();
     api.apply('BSAVEAS', (tx) => {
       for (const e of doc.entitiesOf(b.id)) map.set(e.id, newId());
-      const dyn = b.dynamic ? JSON.parse(JSON.stringify(b.dynamic).replace(/"([^"]+)"/g, (m, s: string) => (map.has(s) ? `"${map.get(s)}"` : m))) : undefined;
+      const dyn = b.dynamic ? remapDynamicBlockDef(b.dynamic, map) : undefined;
       tx.add('blocks', { ...structuredClone(b), id, name: n.value.trim(), revision: 1, dynamic: dyn, favorite: false });
       for (const e of doc.entitiesOf(b.id)) {
         const { order: _o, ...rest } = structuredClone(e);

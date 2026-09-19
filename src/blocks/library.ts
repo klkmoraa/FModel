@@ -2,6 +2,7 @@ import type { CadDocument } from '../document/document';
 import { LAYER0_ID } from '../document/defaults';
 import { newId } from '../document/ids';
 import type { BlockRecord, Entity, Id, LayerRecord, LinetypeRecord, TextStyleRecord } from '../document/types';
+import { remapDynamicBlockDef } from './remap';
 
 /**
  * Paquetes de bloque de la biblioteca (entre dibujos del mismo navegador). Cada paquete
@@ -164,8 +165,8 @@ export function importBlockPackage(doc: CadDocument, pkg: BlockPackage): string 
     for (const b of pkg.blocks) {
       const nb = doc.data.blocks.get(idMap.get(b.id)!);
       if (nb?.dynamic) {
-        const json = JSON.stringify(nb.dynamic).replace(/"([^"]+)"/g, (m, s: string) => (entityMap.has(s) ? `"${entityMap.get(s)}"` : m));
-        tx.update('blocks', nb.id, { dynamic: JSON.parse(json) });
+        const dyn = remapDynamicBlockDef(nb.dynamic, entityMap);
+        tx.update('blocks', nb.id, { dynamic: dyn });
       }
     }
     for (const e of pkg.entities) {

@@ -13,7 +13,7 @@ import { registerAllCommands } from './commands';
 import { createDocument } from './document/defaults';
 import { Editor } from './editor/editor';
 import { PdfGeometryCache } from './render/pdfGeometry';
-import { Persistence } from './storage/persistence';
+import { Persistence, type PersistenceHealthStatus } from './storage/persistence';
 import { App } from './ui/App';
 import { consumeLaunchQueue, registerServiceWorker } from './pwa/register';
 import { queueLaunchedFile } from './commands/file';
@@ -42,6 +42,29 @@ const persistence = new Persistence(
 );
 persistence.start(editor.prefs.autosaveMinutes);
 editor.on('prefs', () => persistence.start(editor.prefs.autosaveMinutes));
+
+let previousHealthStatus: PersistenceHealthStatus = 'protected';
+persistence.onHealthChange((health) => {
+  if (health.status === previousHealthStatus) return;
+  const prev = previousHealthStatus;
+  previousHealthStatus = health.status;
+  if (health.status === 'degraded' || health.status === 'unavailable') {
+    const isQuota = health.lastError?.kind === 'quota';
+    editor.runner.message('warn', {
+      es: isQuota
+        ? 'Almacenamiento local agotado (cuota excedida). Tu dibujo no se guardará automáticamente hasta liberar espacio o guardarlo en archivo.'
+        : 'Almacenamiento local degradado o no disponible. Los cambios no se guardan automáticamente.',
+      en: isQuota
+        ? 'Local storage full (quota exceeded). Your drawing will not autosave until space is freed or saved to a file.'
+        : 'Local storage degraded or unavailable. Changes are not autosaved.',
+    });
+  } else if (prev !== 'protected' && health.status === 'protected') {
+    editor.runner.message('info', {
+      es: 'Almacenamiento local restablecido: el autoguardado vuelve a estar activo.',
+      en: 'Local storage restored: autosave is active again.',
+    });
+  }
+});
 
 setServices({
   editor,

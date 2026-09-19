@@ -33,37 +33,39 @@ export function SpaceTabs({ editor, onUi }: { editor: Editor; onUi: (ui: string)
   };
 
   return (
-    <div className="space-tabs" role="tablist" aria-label={lang === 'es' ? 'Espacios' : 'Spaces'}>
-      {blockEdit ? (
-        <button className="space-tab is-active" role="tab" aria-selected>
-          {lang === 'es' ? 'Editor de bloques' : 'Block editor'}: {editor.doc.data.blocks.get(blockEdit.blockId)?.name}
-        </button>
-      ) : (
-        <>
-          <button role="tab" aria-selected={editor.space === MODEL_SPACE_ID} className={`space-tab${editor.space === MODEL_SPACE_ID ? ' is-active' : ''}`} onClick={() => editor.setSpace(MODEL_SPACE_ID)}>
-            {lang === 'es' ? 'Modelo' : 'Model'}
+    <div className="space-tabs">
+      <div className="space-tab-list" role="tablist" aria-label={lang === 'es' ? 'Espacios' : 'Spaces'}>
+        {blockEdit ? (
+          <button className="space-tab is-active" role="tab" aria-selected>
+            {lang === 'es' ? 'Editor de bloques' : 'Block editor'}: {editor.doc.data.blocks.get(blockEdit.blockId)?.name}
           </button>
-          {layouts.map((l) => (
-            <button
-              key={l.id}
-              role="tab"
-              aria-selected={editor.space === l.id}
-              className={`space-tab${editor.space === l.id ? ' is-active' : ''}`}
-              onClick={() => editor.setSpace(l.id)}
-              onDoubleClick={() => rename(l.id)}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                setMenu({ id: l.id, x: e.clientX, y: e.clientY });
-              }}
-            >
-              {l.name}
+        ) : (
+          <>
+            <button role="tab" aria-selected={editor.space === MODEL_SPACE_ID} className={`space-tab${editor.space === MODEL_SPACE_ID ? ' is-active' : ''}`} onClick={() => editor.setSpace(MODEL_SPACE_ID)}>
+              {lang === 'es' ? 'Modelo' : 'Model'}
             </button>
-          ))}
-          <button className="icon-btn" style={{ width: 24, height: 24 }} onClick={addLayout} title={lang === 'es' ? 'Nueva presentación' : 'New layout'}>
-            <Plus size={14} />
-          </button>
-        </>
-      )}
+            {layouts.map((l) => (
+              <button
+                key={l.id}
+                role="tab"
+                aria-selected={editor.space === l.id}
+                className={`space-tab${editor.space === l.id ? ' is-active' : ''}`}
+                onClick={() => editor.setSpace(l.id)}
+                onDoubleClick={() => rename(l.id)}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setMenu({ id: l.id, x: e.clientX, y: e.clientY });
+                }}
+              >
+                {l.name}
+              </button>
+            ))}
+          </>
+        )}
+      </div>
+      {!blockEdit && <button className="icon-btn" style={{ width: 24, height: 24 }} onClick={addLayout} title={lang === 'es' ? 'Nueva presentación' : 'New layout'} aria-label={lang === 'es' ? 'Nueva presentación' : 'New layout'}>
+        <Plus size={14} />
+      </button>}
       {menu && (
         <div className="veil" style={{ background: 'transparent' }} onMouseDown={() => setMenu(null)}>
           <div className="popover" style={{ position: 'fixed', left: menu.x, top: menu.y - 170 }} onMouseDown={(e) => e.stopPropagation()}>

@@ -402,6 +402,11 @@ kbd {
   padding: 6px 6px 0;
   border-bottom: 1px solid var(--line-soft);
 }
+.dock__tab-list,
+.space-tab-list {
+  display: flex;
+  gap: 2px;
+}
 .dock__tab {
   display: inline-flex;
   align-items: center;
@@ -431,9 +436,8 @@ kbd {
 .dock--collapsed .dock__tab span {
   display: none;
 }
-.dock--collapsed .dock__tabs {
+.dock--collapsed .dock__tab-list {
   flex-direction: column;
-  border: 0;
 }
 
 .stage {
@@ -709,6 +713,11 @@ kbd {
 .status-toggle.is-on {
   color: var(--fm-accent);
   background: var(--fm-accent-soft);
+}
+.status-toggle.is-warn,
+.mbar__act.is-warn {
+  color: var(--fm-danger);
+  background: color-mix(in srgb, var(--fm-danger) 15%, transparent);
 }
 .status-sep {
   width: 1px;
@@ -992,12 +1001,23 @@ kbd {
 }
 .palette__item {
   display: grid;
-  grid-template-columns: 26px 1fr auto;
+  grid-template-columns: 1fr auto;
   align-items: center;
   gap: 10px;
   width: 100%;
   padding: 8px 10px;
   border-radius: 10px;
+  text-align: left;
+}
+.palette__command {
+  display: grid;
+  grid-template-columns: 26px 1fr;
+  align-items: center;
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
   text-align: left;
 }
 .palette__item.is-active {

@@ -1,9 +1,11 @@
 import 'fake-indexeddb/auto';
+import { strToU8, zipSync } from 'fflate';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createDocument } from '../document/defaults';
 import { installDynamicSamples } from './samples';
 import { insertLibraryBlock, makeLibraryBlock, packageBlock } from './library';
-import { UNCLASSIFIED } from './libraryCategories';
+import { readLibraryArchive } from './libraryArchive';
+import { DEFAULT_CATEGORIES, UNCLASSIFIED } from './libraryCategories';
 import { commitLibrary, LEGACY_KEY, loadCategories, loadLibrary, resetLibraryForTests } from './libraryStore';
 
 const mem = new Map<string, string>();
@@ -65,5 +67,57 @@ describe('almacén de la biblioteca', () => {
     expect(doc.findByName('blocks', n1)?.dynamic).toBeTruthy();
     const n3 = insertLibraryBlock(doc, { ...item, savedAt: item.savedAt + 1 });
     expect(n3).not.toBe(n1);
+  });
+
+  it('la instalación es atómica: un archivo con varios bloques donde el último es inválido no modifica la base de datos persistida', async () => {
+    const { pkg } = samplePkg();
+    const initial = makeLibraryBlock(pkg, { name: 'Bloque inicial', categoryId: 'cat-arq', tags: ['base'] });
+    await commitLibrary({ put: [initial] });
+    const before = await loadLibrary();
+    expect(before).toHaveLength(1);
+    expect(before[0].name).toBe('Bloque inicial');
+
+    const validNew = makeLibraryBlock(pkg, { name: 'Bloque nuevo', categoryId: 'cat-arq', tags: ['nuevo'] });
+    const invalidNew = structuredClone(validNew);
+    invalidNew.id = 'lib-bad';
+    invalidNew.package.entities[0].layer = 'layer-fantasma';
+
+    const badArchiveBytes = zipSync({
+      'manifest.json': strToU8(JSON.stringify({
+        format: 'fmodel-library',
+        version: 1,
+        categories: DEFAULT_CATEGORIES,
+        blocks: [
+          { id: validNew.id, name: validNew.name, file: `blocks/${validNew.id}.json` },
+          { id: invalidNew.id, name: invalidNew.name, file: `blocks/${invalidNew.id}.json` },
+        ],
+      })),
+      [`blocks/${validNew.id}.json`]: strToU8(JSON.stringify(validNew)),
+      [`blocks/${invalidNew.id}.json`]: strToU8(JSON.stringify(invalidNew)),
+    });
+
+    // 1. La lectura del archivo (.fmodellib) falla atómicamente antes de preparar o escribir nada
+    expect(() => readLibraryArchive(badArchiveBytes)).toThrow(/capa inexistente|missing layer/i);
+
+    // 2. Intentar llamar commitLibrary directamente con un lote que incluye un bloque inválido falla sin escribir nada
+    await expect(commitLibrary({ put: [validNew, invalidNew] })).rejects.toThrow(/capa inexistente|missing layer/i);
+
+    // 3. La base de datos persistida permanece intacta sin modificaciones parciales
+    const after = await loadLibrary();
+    expect(after).toEqual(before);
+  });
+
+  it('asigna bloques con categoría desconocida a Sin clasificar sin fallar la persistencia', async () => {
+    const { pkg } = samplePkg();
+    const blockWithUnknownCat = makeLibraryBlock(pkg, {
+      name: 'Bloque con categoría huérfana',
+      categoryId: 'cat-inexistente-pero-valida',
+      tags: ['test'],
+    });
+    await commitLibrary({ put: [blockWithUnknownCat] });
+    const items = await loadLibrary();
+    const stored = items.find((b) => b.name === 'Bloque con categoría huérfana');
+    expect(stored).toBeDefined();
+    expect(stored?.categoryId).toBe(UNCLASSIFIED);
   });
 });

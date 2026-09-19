@@ -38,9 +38,9 @@ export function findSpan(s: SplineData, u: number): number {
 }
 
 function basisFuns(span: number, u: number, p: number, U: number[]): number[] {
-  const N = new Array<number>(p + 1).fill(0);
-  const left = new Array<number>(p + 1).fill(0);
-  const right = new Array<number>(p + 1).fill(0);
+  const N = Array.from<number>({ length: p + 1 }).fill(0);
+  const left = Array.from<number>({ length: p + 1 }).fill(0);
+  const right = Array.from<number>({ length: p + 1 }).fill(0);
   N[0] = 1;
   for (let j = 1; j <= p; j++) {
     left[j] = u - U[span + 1 - j];
@@ -125,7 +125,7 @@ export function splineThroughPoints(fit: Vec2[], degree = 3): SplineData {
   const params = [0];
   for (let i = 1; i <= n; i++) params.push(params[i - 1] + dist(pts[i], pts[i - 1]) / d);
   params[n] = 1;
-  const knots: number[] = new Array(n + p + 2).fill(0);
+  const knots: number[] = Array.from<number>({ length: n + p + 2 }).fill(0);
   for (let i = 0; i <= p; i++) {
     knots[i] = 0;
     knots[n + p + 1 - i] = 1;

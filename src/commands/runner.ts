@@ -191,7 +191,6 @@ export class CommandRunner {
 
   private api(active: ActiveCommand): CommandApi {
     const editor = this.editor;
-    const runner = this;
     const request = (req: InputRequest) =>
       new Promise<InputResponse>((resolve, reject) => {
         if (active.abort.signal.aborted) {
@@ -199,9 +198,9 @@ export class CommandRunner {
           return;
         }
         active.pending = { req, resolve, reject };
-        runner.pushLog('prompt', runner.promptText(req));
+        this.pushLog('prompt', this.promptText(req));
         editor.onRequest(req);
-        runner.emit();
+        this.emit();
       }).finally(() => {
         if (active.pending?.req === req) active.pending = null;
       });
@@ -237,10 +236,10 @@ export class CommandRunner {
       },
       getEntity: async (r) => (await request({ ...r, kind: 'entity' })) as never,
       setPreview: (p: PreviewSpec | null) => editor.setPreview(p),
-      info: (m) => runner.message('info', m),
-      warn: (m) => runner.message('warn', m),
+      info: (m) => this.message('info', m),
+      warn: (m) => this.message('warn', m),
       get lastPoint() {
-        return active.lastPoint ?? runner.lastPoint;
+        return active.lastPoint ?? this.lastPoint;
       },
       set lastPoint(p: Vec2 | null) {
         active.lastPoint = p;

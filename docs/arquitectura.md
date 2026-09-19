@@ -57,7 +57,7 @@ Las inserciones de bloque no duplican geometría: la lista de visualización con
 - **Nativo** (`io/native.ts`): `fmodel-2dcad` versionado con migraciones; paquete ZIP (`document.json` + recursos) o JSON.
 - **PDF/SVG** (`output/`): un sumidero vectorial común convierte arcos y elipses en Bézier cúbicas exactas bajo cualquier transformación afín, traduce grosores y patrones a milímetros y aplica recortes de viewport; backends SVG (unidades en mm) y PDF (pdf-lib, cargado solo al exportar). La vista previa del diálogo de trazado es el mismo SVG que se exporta.
 - **DXF** (`io/dxf/`): importador propio con informe de conversión y escritor R2010 auditado con ezdxf (`scripts/audit-dxf.py`); ver `docs/dxf-compatibilidad.md`.
-- **DWG** (`io/dwg/`, solo lectura): LibreDWG (WebAssembly, GPL-3.0) convierte el DWG a DXF dentro del Web Worker; `importDxfFile` lo importa como cualquier DXF tras corregir capas y tablas con los datos del propio DWG. El `.wasm` se emite como recurso aparte y no entra en la precarga del service worker.
+- **DWG** (`io/dwg/`, solo lectura experimental): el lector integrado convierte el DWG a DXF dentro del Web Worker; `importDxfFile` lo importa como cualquier DXF tras corregir capas y tablas con los datos del propio DWG. El `.wasm` se emite como recurso aparte y no entra en la precarga del service worker.
 - **Referencias externas** (`xref/`): el contenido referenciado se copia en una definición `xref` (el dibujo se comparte sin archivos sueltos) y se actualiza al recargar desde el identificador de archivo recordado o la biblioteca local.
 
 ## Segundo plano y uso sin conexión

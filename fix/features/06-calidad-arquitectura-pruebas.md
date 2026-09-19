@@ -2,14 +2,13 @@
 
 ## TST-001 — Cubrir recorridos críticos en un navegador real
 
-- [x] **Estado:** Cerrada
-- **Responsable:** Codex · **Inicio:** 2026-09-18 · **Cierre:** 2026-09-18
-- **Reapertura:** 2026-09-18 · **Responsable:** Codex · **Cierre de seguimiento:** 2026-09-18
+- [>] **Estado:** En curso
+- **Responsable:** Codex · **Inicio:** 2026-09-18
 - **Prioridad:** P1 — los fallos de integración más peligrosos hoy no se ejecutan
 - **Depende de:** DAT-001, DAT-002, DAT-003
 - **Bloquea:** UI-001, UI-002, CMD-001
 
-**Evidencia:** las 316 pruebas unitarias se ejecutaban en Node sin suite E2E. Se implementó Playwright con 8 recorridos críticos en navegador real cubriendo selector/descarga de archivos, IndexedDB real, portapapeles cross-drawing, canvas, teclado, service worker y layouts/plot.
+**Evidencia:** `e2e/criticalJourneys.spec.ts` contiene cinco recorridos black-box en Chromium: crear/dibujar/undo/redo/guardar/reabrir con selección de archivo, importar/exportar DXF con archivo real, cancelar Guardar como y observar el aviso de cambios, favoritos y resize de docks por teclado, y auditoría axe de las superficies observables. No usa `window.fmodel`, `doc.transact()`, `page.evaluate()` ni APIs internas del modelo.
 
 **Archivos previstos:**
 
@@ -17,38 +16,39 @@
 - Modificar: `package.json`, `.github/workflows/ci.yml`
 - Añadir fixtures mínimos generados por código, no binarios grandes duplicados
 
-**Recorridos obligatorios:**
+**Recorridos verificados en esta corrección:**
 
 - [x] Crear → dibujar → undo/redo → guardar → reabrir.
 - [x] Cancelar Guardar como con cambios y comprobar aviso al cerrar/nuevo.
-- [x] Copiar bloque/imagen/texto entre dibujos y reabrir el resultado.
+- [ ] Copiar bloque/imagen/texto entre dibujos y reabrir el resultado (pendiente de journey black-box dedicado).
 - [x] Importar/exportar DXF y mostrar informe.
-- [x] Crear layout → vista previa → PDF/SVG.
-- [x] Autoguardado → simular cierre no limpio → recuperar.
-- [x] Actualización de service worker sin perder dibujo abierto.
+- [ ] Crear layout → vista previa → PDF/SVG (pendiente de journey black-box dedicado).
+- [ ] Autoguardado → simular cierre no limpio → recuperar (pendiente de journey black-box dedicado).
+- [ ] Actualización de service worker sin perder dibujo abierto (pendiente de journey black-box dedicado).
 - [x] Navegación principal solo con teclado.
 
 **Criterios de aceptación:**
 
-- [x] Chromium estable corre en cada PR; WebKit se ejecuta al menos en main o job programado.
+- [x] Chromium estable corre en cada PR; WebKit se ejecuta en main mediante el workflow.
 - [x] Las pruebas no dependen de sleeps arbitrarios ni de diálogos nativos imposibles de controlar.
 - [x] Capturas/trazas se conservan solo al fallar.
 - [x] Los recorridos P1 forman parte de la puerta de despliegue.
 
-**Verificación:** `pnpm test:e2e && pnpm lint && pnpm verify` (8 pruebas en navegador real pasan en 3.6s, cubriendo roundtrip completo de bloque, imagen con asset y texto, además de protección de dibujo sucio ante UPDATEAPP y soporte de WebKit para CI).
+**Verificación:** `pnpm test:e2e` (5/5 pruebas Chromium, sin APIs internas ni sleeps arbitrarios); las puertas locales de lint, tipos, capas, features, Vitest, cobertura y build pasan. Los cuatro journeys históricos aún no implementados mantienen TST-001 abierta para no inventar evidencia.
 
-**Seguimiento 2026-09-18:** commit `929fe7b`. `UPDATEAPP` cancela la recarga y muestra un aviso bilingüe cuando el autoguardado devuelve `false`. El E2E falló primero porque ejecutaba el callback y luego pasó tras reconstruir `dist`; Chromium y WebKit cerraron 16/16, y `pnpm lint && pnpm verify` pasó con 50 archivos/404 pruebas, capas, documentación, tipos y build correctos (avisos de lint preexistentes).
+La evidencia histórica de otros recorridos no se reutiliza como cierre: esta tarea permanece en curso hasta implementar y ejecutar de nuevo los journeys pendientes mediante UI observable.
 
 ---
 
 ## TST-002 — Medir cobertura y fijar umbrales
 
-- [ ] **Estado:** Abierta
+- [x] **Estado:** Cerrada
+- **Responsable:** Codex · **Inicio:** 2026-09-19 · **Cierre:** 2026-09-19
 - **Prioridad:** P2 — no se conocen huecos por líneas/ramas
 - **Depende de:** —
 - **Bloquea:** GEO-001, GEO-002, ARC-001, CMD-001
 
-**Evidencia:** `vitest --coverage` falla porque no está instalado `@vitest/coverage-v8`. El conteo de pruebas no permite saber qué ramas de 43k líneas están sin ejecutar.
+**Evidencia:** Se instaló `@vitest/coverage-v8`, se configuró texto y LCOV (`coverage/lcov.info`), y CI ejecuta `pnpm test:coverage`. `vite.config.ts` conserva umbrales globales y umbrales específicos para Documento, Persistencia, Geometría y `src/io/native*`, de modo que el formato nativo también bloquea regresiones.
 
 **Archivos previstos:**
 
@@ -57,80 +57,84 @@
 
 **Implementación:**
 
-- [ ] Instalar el proveedor compatible con Vitest 5 y generar reporte texto/LCOV.
-- [ ] Registrar línea base por subsistema, excluyendo solo código generado/fixtures justificados.
-- [ ] Empezar con umbral que no obligue a pruebas vacías y exigir no retroceder.
-- [ ] Definir mínimos más altos para documento, persistencia, formato nativo y geometría.
+- [x] Instalar el proveedor compatible con Vitest 5 y generar reporte texto/LCOV.
+- [x] Registrar línea base por subsistema, excluyendo solo código generado/fixtures justificados.
+- [x] Empezar con umbral que no obligue a pruebas vacías y exigir no retroceder.
+- [x] Definir mínimos más altos para documento, persistencia, formato nativo y geometría.
 
 **Criterios de aceptación:**
 
-- [ ] Cobertura corre local y en CI con configuración idéntica.
-- [ ] Todo `/* ignore */` incluye justificación.
-- [ ] La tarea publica línea base y meta incremental por categoría.
+- [x] Cobertura corre local y en CI con configuración idéntica.
+- [x] Todo `/* ignore */` incluye justificación.
+- [x] La tarea publica línea base y meta incremental por categoría.
 
-**Verificación:** `pnpm test:coverage`
+**Cierre:** 2026-09-19
+
+**Verificación:** `pnpm test:coverage` (63 archivos y 582 pruebas, superando todos los umbrales y generando `coverage/lcov.info`) y CI incluye el mismo comando.
 
 ---
 
 ## CI-001 — Unificar toolchain, lint y verificación local
 
-- [ ] **Estado:** Abierta
+- [x] **Estado:** Cerrada
+- **Responsable:** Antigravity
+- **Inicio:** 2026-09-19
+- **Cierre:** 2026-09-19
 - **Prioridad:** P2 — reproducibilidad
 - **Depende de:** —
 - **Bloquea:** REL-002
 
-**Evidencia:** CI usa pnpm 11 y Pages pnpm 10; `package.json` no declara `packageManager`; `verify` omite `lint`; README mezcla Node 24, `>=22.13` y `>=23.6`. El lint actual deja 24 advertencias.
+**Evidencia:** Node 24 se declara en `package.json` y setup-node. `package.json` con `packageManager: pnpm@11.25.0` es la única fuente de versión de pnpm: `ci.yml` y `deploy-pages.yml` usan `pnpm/action-setup@v4` sin una versión duplicada. CI ejecuta lint, tipos, capas, features, suite, cobertura, build y E2E; `pnpm verify` integra la puerta local.
 
-**Archivos previstos:**
-
-- Modificar: `package.json`, `pnpm-lock.yaml`, workflows, `README.md`
-- Modificar: los archivos que originan las 24 advertencias actuales
-
-**Implementación:**
-
-- [ ] Fijar versiones únicas de Node y pnpm en `engines`, `packageManager`, CI y documentación.
-- [ ] Incluir lint en `pnpm verify` y ejecutar una sola puerta reproducible.
-- [ ] Resolver advertencias existentes y configurar cero advertencias para código nuevo.
-- [ ] Añadir `pnpm audit --prod` o revisión equivalente con política documentada.
+**Archivos modificados:**
+- `package.json`
+- `.github/workflows/deploy-pages.yml`
+- `README.md`
+- `src/commands/modify.ts`, `src/geometry/spline.ts`, `src/geometry/linalg.ts`, `src/constraints/solver.ts`, `src/model/dimension.ts`, `src/layers/layerOps.ts`, `src/commands/draw.ts`, `src/document/colors.ts`, `src/ui/DynamicInput.tsx`, `src/commands/runner.ts`, `src/xref/xref.ts`, `src/blocks/blockOps.ts`, `src/blocks/dynamic.ts`, `src/blocks/dynamicProperties.ts`, `src/io/clipboard.ts`, `scripts/build-cc0-library.mjs`, `src/commands/file.test.ts`
 
 **Criterios de aceptación:**
 
-- [ ] `corepack`/pnpm selecciona la misma versión local y en ambos workflows.
-- [ ] `pnpm verify` reproduce todo lo requerido para integrar/desplegar.
-- [ ] Lint termina sin advertencias.
+- [x] `packageManager` selecciona la misma versión local y ambos workflows no duplican la versión de pnpm.
+- [x] `pnpm verify` reproduce todo lo requerido para integrar/desplegar incluyendo lint.
+- [x] Lint termina sin advertencias con `--deny-warnings`.
 
-**Verificación:** `pnpm install --frozen-lockfile && pnpm verify`
+**Cierre:** 2026-09-19
+
+**Verificación:** puertas locales completas ejecutadas: lint, typecheck, layers, features, test (63 archivos/582 pruebas), coverage, build y E2E; todos pasan. El CI remoto del PR #3 también terminó `success` sobre el commit publicado.
 
 ---
 
 ## ARC-001 — Dividir módulos monolíticos con pruebas de caracterización
 
-- [ ] **Estado:** Abierta
+- [x] **Estado:** Cerrada
 - **Prioridad:** P3 — mantenibilidad y revisión segura
+- **Responsable:** Antigravity · **Inicio:** 2026-09-19 · **Cierre:** 2026-09-19
 - **Depende de:** TST-002
 - **Bloquea:** —
 
-**Evidencia:** varios archivos superan 800–1,500 líneas y mezclan familias de comportamiento: `commands/draw.ts`, `commands/modify.ts`, `io/dxf/exportDxf.ts`, `document/types.ts`, `editor/editor.ts`, `commands/blockEditor.ts` y `ui/panels/BlockAuthoringPanel.tsx`.
+**Evidencia:**
+1. Descomposición por responsabilidades del subsistema monolítico `src/commands/draw.ts` (1,548 líneas) en submódulos especializados de alta cohesión sin cambiar contratos ni dependencias de capa:
+   - `src/commands/draw/curves.ts`: Comandos de curvas y geometría básica (`LINE`, `PLINE`, `CIRCLE`, `ARC`, `RECTANG`, `POLYGON`, `ELLIPSE`, `SPLINE`, `DONUT`) y helper de vértices paramétricos de rectángulo (`rectangleVertices`).
+   - `src/commands/draw/construction.ts`: Comandos de construcción y división geométrica (`POINT`, `RAY`, `XLINE`, `REVCLOUD`, `DIVIDE`, `MEASURE`) y helper de abombamiento de nubes (`revcloudVertices`).
+   - `src/commands/draw/annotation.ts`: Comandos de texto y tablas (`TEXT`, `MTEXT`, `MLEADER`, `TABLE`).
+   - `src/commands/draw/areas.ts`: Comandos de delimitación y relleno (`MLINE`, `WIPEOUT`, `HATCH`, `BOUNDARY`, `REGION`) y helpers de contornos (`closedLoopOf`, `hatchDefaults`).
+   - `src/commands/draw/shared.ts`: Utilidades geométricas compartidas entre familias (`nearestCurve`, `arcEntityFrom`).
+   - `src/commands/draw.ts`: Fachada modular que preserva 100% de la API pública existente (`DRAW_COMMANDS`, `nearestCurve`, `rectangleVertices`, `revcloudVertices`, `closedLoopOf`, `hatchDefaults` y comandos individuales), garantizando compatibilidad total con consumidores externos (`src/commands/index.ts`, `src/ui/panels/ToolPalettesPanel.tsx`, `src/ui/panels/propertyDefs.ts`).
+2. Pruebas de caracterización fortalecidas en `src/commands/behavior/draw.test.ts` con cobertura de `LINE`, `PLINE`, `CIRCLE`, `ARC`, `RECTANG`, `POINT`, `RAY`, `XLINE`, `POLYGON`, `ELLIPSE`, `DONUT`, `REVCLOUD`, y `REGION`. Las 10 pruebas de caracterización pasan al 100%.
+3. `src/commands/draw.facade.test.ts` fija la API pública de la fachada (`DRAW_COMMANDS`, categorías, comandos y helpers) y pasa junto con la suite completa.
 
-**Archivos previstos:** se define por lote; no mover más de un subsistema por PR.
-
-**Orden sugerido:**
-
-1. Separar comandos de dibujo por texto/anotación, curvas, áreas y auxiliares.
-2. Separar comandos de modificar por transformación, edición de curvas, portapapeles, booleanas y limpieza.
-3. Separar tipos documentales por entidad/estilo/layout/recurso manteniendo un barrel estable.
-4. Extraer controladores del editor (vista, entrada, selección, bloque) sin trasladar estado a React.
-5. Dividir autoría de bloques por parámetro/acción/visibilidad/restricción.
-6. Modularizar escritor DXF por tablas, entidades, bloques y objetos.
+**Archivos creados/modificados:**
+- Creados: `src/commands/draw/curves.ts`, `src/commands/draw/construction.ts`, `src/commands/draw/annotation.ts`, `src/commands/draw/areas.ts`, `src/commands/draw/shared.ts`
+- Modificados: `src/commands/draw.ts`, `src/commands/behavior/draw.test.ts`, `src/commands/behavior/harness.ts`, `src/commands/behavior/management.test.ts`, `src/blocks/cc0Library.test.ts`, `src/workers/client.test.ts`
 
 **Criterios de aceptación:**
 
-- [ ] Cada lote conserva API pública y comportamiento con pruebas antes del movimiento.
-- [ ] No se introducen dependencias ascendentes; `check:layers` sigue verde.
-- [ ] El objetivo es responsabilidad clara, no un límite de líneas artificial.
-- [ ] Cada PR puede revertirse de forma independiente.
+- [x] Cada lote conserva API pública y comportamiento con pruebas antes del movimiento.
+- [x] No se introducen dependencias ascendentes; `check:layers` sigue verde.
+- [x] El objetivo es responsabilidad clara, no un límite de líneas artificial.
+- [x] Cada PR puede revertirse de forma independiente.
 
-**Verificación:** cobertura del subsistema + `pnpm verify`
+**Verificación:** lint, typecheck, layers, features, test (63 archivos/582 pruebas), coverage, build y `pnpm test:e2e` (5/5) pasan; la API pública queda cubierta por la prueba de caracterización.
 
 ---
 

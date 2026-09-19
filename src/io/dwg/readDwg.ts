@@ -5,7 +5,7 @@ import { parseDxf } from '../dxf/parser';
 import { applyDwgFixes } from './dwgToDxf';
 
 /**
- * Lee un DWG con LibreDWG (WebAssembly, GPL-3.0): su conversor nativo escribe el DXF, que pasa
+ * Lee un DWG con el conversor WebAssembly integrado: escribe un DXF, que pasa
  * por el mismo analizador e importador que cualquier DXF, y se corrigen las capas y las tablas
  * con los datos leídos del propio DWG (`applyDwgFixes`). La biblioteca se carga solo al abrir un
  * DWG y se reutiliza. En el navegador se pasa la URL del `.wasm` compilado (`wasmFile`); en
@@ -15,7 +15,7 @@ let instance: Promise<LibreDwg> | null = null;
 
 function libredwg(where: { wasmFile?: string; wasmDir?: string }): Promise<LibreDwg> {
   instance ??= import('@mlightcad/libredwg-web').then(({ LibreDwg }) =>
-    // LibreDWG pide «<carpeta>/libredwg-web.wasm»: con «?» tras la URL exacta del archivo
+    // El runtime pide «<carpeta>/libredwg-web.wasm»: con «?» tras la URL exacta del archivo
     // compilado (con hash), el nombre que añade queda como parámetro inofensivo.
     LibreDwg.create(where.wasmFile ? `${where.wasmFile}?` : where.wasmDir),
   );
@@ -33,9 +33,9 @@ export async function readDwgFile(bytes: Uint8Array, where: { wasmFile?: string;
   try {
     text = lib.dwg_write_dxf(buffer());
   } catch (err) {
-    throw new Error(`LibreDWG no pudo leer el archivo (${err instanceof Error ? err.message : String(err)}). / LibreDWG could not read the file.`);
+    throw new Error(`El lector DWG no pudo leer el archivo (${err instanceof Error ? err.message : String(err)}). / The DWG reader could not read the file.`);
   }
-  if (!text?.length) throw new Error('LibreDWG no pudo leer el archivo: versión no admitida o archivo dañado. / Unsupported version or damaged file.');
+  if (!text?.length) throw new Error('El lector DWG no pudo leer el archivo: versión no admitida o archivo dañado. / The DWG reader could not read the file: unsupported version or damaged file.');
   const dxf = parseDxf(decodeDxfBytes(text));
   const dwg = lib.dwg_read_data(buffer(), Dwg_File_Type.DWG);
   if (dwg) {

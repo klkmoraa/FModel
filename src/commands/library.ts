@@ -15,6 +15,7 @@ import { createDocument } from '../document/defaults';
 import type { Id } from '../document/types';
 import { decodeDxfBytes, importDxfFile, importDxfIntoDocument } from '../io/dxf/importDxf';
 import { assertInputBytes } from '../io/limits';
+import { taskManager } from '../app/tasks';
 import { runHeavy } from '../workers/client';
 import { createContext } from '../model/context';
 import { blockThumbnailOf } from '../render/thumbnail';
@@ -46,7 +47,16 @@ export async function buildImportSession(file: { name: string; bytes: Uint8Array
     const doc = createDocument({ title: file.name });
     const ctx = createContext(doc);
     installDynamicBlocks(ctx);
-    const report = importDxfFile(doc, await runHeavy('parseDwg', { bytes: file.bytes }), { format: 'DWG' });
+    const transfer = file.bytes.buffer instanceof ArrayBuffer && file.bytes.byteOffset === 0 && file.bytes.byteLength === file.bytes.buffer.byteLength
+      ? [file.bytes.buffer]
+      : undefined;
+    const dxf = await taskManager.runTask(
+      'library-parse-dwg',
+      { es: `Leyendo DWG: ${file.name}`, en: `Reading DWG: ${file.name}` },
+      async (ctx2) => runHeavy('parseDwg', { bytes: file.bytes }, { signal: ctx2.signal, transfer }),
+      { retryable: true },
+    );
+    const report = importDxfFile(doc, dxf, { format: 'DWG' });
     const candidates = candidatesFromDocument(doc, ctx, cats, { file: file.name, thumb: (id) => thumb(doc, ctx, id) });
     return { mode: 'import', source: { kind: 'dwg', file: file.name }, candidates, categories: cats, report };
   }
@@ -114,7 +124,7 @@ const WBLOCK: CommandDef = {
     const b = api.editor.doc.findByName('blocks', name);
     if (!b) throw new CommandError(L(`No existe el bloque «${name}».`, `Block "${name}" not found.`));
     const cats = await loadCategories();
-    const candidate = { key: b.id, name: b.name, description: b.description, pkg: packageBlock(api.editor.doc, b.id), dynamic: !!b.dynamic, thumbnail: blockThumbnailOf(api.editor.doc, api.editor.ctx, b.id, 64) ?? undefined, categoryId: suggestCategory(`${b.name} ${b.description}`, cats), tags: [], selected: true };
+    const candidate = { key: b.id, name: b.name, description: b.description, pkg: packageBlock(api.editor.doc, b.id), dynamic: !!b.dynamic, thumbnail: blockThumbnailOf(api.editor.doc, api.editor.ctx, b.id, 64) ?? undefined, categoryId: suggestCategory(`${b.name} ${b.description}`, cats), tags: [], selected: true, units: b.units };
     if (typeof window === 'undefined') {
       await commitLibrary({ put: [makeLibraryBlock(candidate.pkg, { ...candidate, source: { kind: 'fmodel', importedAt: Date.now() } })] });
       api.info(L(`«${b.name}» guardado en la biblioteca.`, `"${b.name}" saved to the library.`));

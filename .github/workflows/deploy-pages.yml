@@ -23,8 +23,6 @@ jobs:
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -35,7 +33,13 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build
+      - name: Verify
+        run: pnpm verify
+
+      - name: Coverage
+        run: pnpm test:coverage
+
+      - name: Build deployment artifact
         env:
           FMODEL_BASE: /${{ github.event.repository.name }}/
         run: pnpm build

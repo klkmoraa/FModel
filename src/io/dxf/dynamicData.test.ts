@@ -34,6 +34,63 @@ describe('datos dinámicos FModel en DXF', () => {
     expect((back.lookups[0] as unknown as { rows: { inputs: string[] }[] }).rows[0].inputs).toEqual(['600', 'BEEF']);
   });
 
+  it('DXF encode/decode remapea handles sin tocar valores de tabla que parezcan IDs o handles', () => {
+    const tableDef = {
+      parameters: [
+        { id: 'p1', type: 'linear', name: 'e1' },
+      ],
+      actions: [
+        { id: 'a1', type: 'stretch', paramId: 'p1', selection: ['e1'] },
+      ],
+      constraints: [
+        {
+          id: 'c1',
+          kind: 'geometric',
+          type: 'coincident',
+          enabled: true,
+          refs: [{ entityId: 'e1', part: 'start' }],
+        },
+      ],
+      lookups: [
+        {
+          id: 'l1',
+          name: 'e1',
+          inputs: ['p1'],
+          lookupName: 'e1',
+          rows: [
+            { label: 'e1', inputs: ['e1', '@H:A1', '600'] },
+          ],
+          reverse: false,
+        },
+      ],
+      variables: [
+        { name: 'e1', expression: 'e1 + 10', exposed: true, readOnly: false, description: 'e1' },
+      ],
+      propertyOrder: ['p1'],
+    } as unknown as DynamicBlockDefinition;
+
+    // e1 -> handle A1
+    const json = encodeDefinition(tableDef, (id) => (id === 'e1' ? 'A1' : undefined));
+    expect(json).toContain('"@H:A1"');
+
+    // A1 -> nuevo ID n1
+    const { def: back, missing } = decodeDefinition(json, (h) => (h === 'A1' ? 'n1' : undefined));
+    expect(missing).toBe(0);
+
+    // Solo selection y constraint ref cambian:
+    expect((back.actions[0] as { selection: string[] }).selection).toEqual(['n1']);
+    expect(back.constraints[0].refs[0].entityId).toBe('n1');
+
+    // El resto de cadenas coincidentes permanece idéntico:
+    expect(back.parameters[0].name).toBe('e1');
+    expect(back.lookups[0].name).toBe('e1');
+    expect(back.lookups[0].rows[0].label).toBe('e1');
+    expect(back.lookups[0].rows[0].inputs).toEqual(['e1', '@H:A1', '600']);
+    expect(back.variables[0].name).toBe('e1');
+    expect(back.variables[0].expression).toBe('e1 + 10');
+    expect(back.variables[0].description).toBe('e1');
+  });
+
   it('XRECORD: ida y vuelta, y rechazo de versión desconocida o JSON dañado', () => {
     const json = JSON.stringify(def).repeat(1);
     const rec = { type: 'XRECORD', pairs: [[5, '1F'], [330, '1E'], [100, 'AcDbXrecord'], ...xrecordBody('Puerta', json)] as [number, string][] };

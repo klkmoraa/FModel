@@ -642,7 +642,7 @@ async function arrayCommand(api: CommandApi, kind: 'rect' | 'polar' | 'path') {
   const src = makeArraySource(api, ids, basePoint);
   const arr = api.apply('ARRAY', (tx) =>
     tx.addEntity<ArrayEntity>({
-      ...(doc.entity(ids[0]) ?? {}),
+      ...doc.entity(ids[0]),
       type: 'array',
       owner: api.editor.inputOwner,
       layer: src.layer,

@@ -1,4 +1,5 @@
 import type { DynamicBlockDefinition, DynamicInstanceState } from '../../document/types';
+import { remapDynamicBlockDef } from '../../blocks/remap';
 import type { DxfRecord, Pair } from './parser';
 
 /**
@@ -34,10 +35,15 @@ export function remapStrings<T>(value: T, map: (s: string) => string | undefined
 
 export function encodeDefinition(def: DynamicBlockDefinition, idToHandle: (id: string) => string | undefined): string {
   const { validation: _v, ...rest } = def;
-  return JSON.stringify(remapStrings(rest, (id) => {
-    const h = idToHandle(id);
-    return h ? `${HANDLE_PREFIX}${h}` : undefined;
-  }));
+  const remapped = remapDynamicBlockDef(
+    rest,
+    (id) => {
+      const h = idToHandle(id);
+      return h ? `${HANDLE_PREFIX}${h}` : undefined;
+    },
+    { missingPolicy: 'keep' },
+  );
+  return JSON.stringify(remapped);
 }
 
 /**
@@ -46,22 +52,22 @@ export function encodeDefinition(def: DynamicBlockDefinition, idToHandle: (id: s
  */
 export function decodeDefinition(json: string, handleToId: (h: string) => string | undefined): { def: DynamicBlockDefinition; missing: number } {
   let missing = 0;
-  const resolve = (s: string) => (s.startsWith(HANDLE_PREFIX) ? (handleToId(s.slice(HANDLE_PREFIX.length)) ?? null) : s);
-  const walk = (v: unknown): unknown => {
-    if (typeof v === 'string') {
-      const r = resolve(v);
-      if (r === null) missing++;
-      return r ?? '';
-    }
-    if (Array.isArray(v)) {
-      return v
-        .filter((x) => !(typeof x === 'string' && resolve(x) === null && ++missing))
-        .map(walk);
-    }
-    if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, walk(x)]));
-    return v;
-  };
-  return { def: walk(JSON.parse(json)) as DynamicBlockDefinition, missing };
+  const parsed = JSON.parse(json) as DynamicBlockDefinition;
+  const def = remapDynamicBlockDef(
+    parsed,
+    (ref) => {
+      if (!ref.startsWith(HANDLE_PREFIX)) return ref;
+      const h = ref.slice(HANDLE_PREFIX.length);
+      return handleToId(h);
+    },
+    {
+      missingPolicy: 'omit',
+      onMissing: () => {
+        missing++;
+      },
+    },
+  );
+  return { def, missing };
 }
 
 export function xrecordBody(blockName: string, json: string): Pair[] {

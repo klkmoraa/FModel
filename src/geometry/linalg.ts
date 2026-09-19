@@ -3,7 +3,7 @@
 export type Matrix = number[][];
 
 export function zeros(rows: number, cols: number): Matrix {
-  return Array.from({ length: rows }, () => new Array<number>(cols).fill(0));
+  return Array.from({ length: rows }, () => Array.from<number>({ length: cols }).fill(0));
 }
 
 /** Resuelve A·x = b por eliminación gaussiana con pivoteo parcial. Devuelve null si es singular. */
@@ -30,7 +30,7 @@ export function solveLinear(A: Matrix, b: number[]): number[] | null {
       for (let c = col; c <= n; c++) row[c] -= f * pivRow[c];
     }
   }
-  const x = new Array<number>(n).fill(0);
+  const x = Array.from<number>({ length: n }).fill(0);
   for (let r = n - 1; r >= 0; r--) {
     let s = M[r][n];
     for (let c = r + 1; c < n; c++) s -= M[r][c] * x[c];

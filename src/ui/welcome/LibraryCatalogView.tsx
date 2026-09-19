@@ -188,10 +188,12 @@ function LibraryHead({ lang, total, dynamic, onImport }: { lang: 'es' | 'en'; to
             : tr(lang, 'Bloques reutilizables guardados en este navegador.', 'Reusable blocks saved in this browser.')}
         </p>
       </div>
-      <button type="button" className="welcome-action-btn" onClick={onImport}>
-        <FolderInput size={16} aria-hidden="true" />
-        <span>{tr(lang, 'Importar bloques', 'Import blocks')}</span>
-      </button>
+      <div className="welcome-empty__actions">
+        <button type="button" className="welcome-action-btn" onClick={onImport}>
+          <FolderInput size={16} aria-hidden="true" />
+          <span>{tr(lang, 'Importar bloques', 'Import blocks')}</span>
+        </button>
+      </div>
     </header>
   );
 }

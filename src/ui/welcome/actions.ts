@@ -4,6 +4,7 @@ import type { StoredDrawing } from '../../storage/persistence';
 import type { LibraryBlock } from '../../blocks/library';
 import { insertLibraryBlock } from '../../blocks/library';
 import { readPackage } from '../../io/native';
+import { getServices } from '../../app/services';
 import { tr } from '../controls';
 
 /** Pide confirmación si el dibujo activo tiene cambios sin guardar. Devuelve true si se puede continuar. */
@@ -19,12 +20,17 @@ export function openStoredDrawing(editor: Editor, drawing: StoredDrawing): void 
   const res = readPackage(drawing.bytes);
   editor.doc.replaceData(res.data, res.documentId);
   editor.fileName = drawing.name.replace(/\.fmodel$/i, '');
+  editor.ctx.fileName = drawing.name;
+  getServices().fileHandle = null;
   editor.zoomExtents();
 }
 
 export function openTemplate(editor: Editor, tpl: TemplateDefinition): void {
   editor.doc.replaceData(tpl.createDocument());
-  editor.fileName = tpl.name[editor.lang];
+  const name = tpl.name[editor.lang];
+  editor.fileName = name;
+  editor.ctx.fileName = name;
+  getServices().fileHandle = null;
   editor.zoomExtents();
 }
 

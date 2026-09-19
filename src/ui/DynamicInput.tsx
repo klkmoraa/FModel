@@ -61,7 +61,7 @@ export const DynamicInput = forwardRef<DynamicInputHandle, { editor: Editor }>(f
     key(e: KeyboardEvent) {
       if (!on || !pointLike) return false;
       const k = e.key;
-      if (/^[0-9.\-]$/.test(k) || (k === ',' && !base)) {
+      if (/^[0-9.-]$/.test(k) || (k === ',' && !base)) {
         if (k === ',') {
           setF((s) => ({ ...s, idx: 1 }));
           return true;
