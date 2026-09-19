@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, createElement } from 'react';
+import { act, createElement, Fragment } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setServices } from '../../app/services';
@@ -7,9 +7,13 @@ import { createDocument } from '../../document/defaults';
 import { Editor } from '../../editor/editor';
 import type { Persistence, VersionRecord } from '../../storage/persistence';
 import { VersionsDialog } from './VersionsDialog';
+import { ConfirmHost } from '../ConfirmHost';
 
 // Habilita el entorno act para React 19 en jsdom
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+const withConfirm = (el: ReturnType<typeof createElement>) => createElement(Fragment, null, el, createElement(ConfirmHost, { lang: 'es' }));
+const findButton = (root: ParentNode, text: string) => Array.from(root.querySelectorAll('button')).find((b) => b.textContent?.includes(text));
 
 describe('VersionsDialog: diferenciación entre lista vacía y error', () => {
   let container: HTMLDivElement;
@@ -61,7 +65,7 @@ describe('VersionsDialog: diferenciación entre lista vacía y error', () => {
     versionsMock.mockResolvedValueOnce([]);
 
     await act(async () => {
-      root.render(createElement(VersionsDialog, { editor, onClose: vi.fn(), onUi: vi.fn() }));
+      root.render(withConfirm(createElement(VersionsDialog, { editor, onClose: vi.fn(), onUi: vi.fn() })));
     });
 
     expect(container.textContent).toContain('Todavía no hay versiones de este dibujo');
@@ -73,7 +77,7 @@ describe('VersionsDialog: diferenciación entre lista vacía y error', () => {
     versionsMock.mockRejectedValueOnce(new Error('IndexedDB storage quota reached'));
 
     await act(async () => {
-      root.render(createElement(VersionsDialog, { editor, onClose: vi.fn(), onUi: vi.fn() }));
+      root.render(withConfirm(createElement(VersionsDialog, { editor, onClose: vi.fn(), onUi: vi.fn() })));
     });
 
     expect(container.textContent).toContain('Error al cargar el historial de versiones: IndexedDB storage quota reached');
@@ -104,10 +108,9 @@ describe('VersionsDialog: diferenciación entre lista vacía y error', () => {
       bytes: new Uint8Array(),
     };
     versionsMock.mockResolvedValueOnce([autoVer]);
-    vi.stubGlobal('confirm', () => true);
 
     await act(async () => {
-      root.render(createElement(VersionsDialog, { editor, onClose: vi.fn(), onUi: vi.fn() }));
+      root.render(withConfirm(createElement(VersionsDialog, { editor, onClose: vi.fn(), onUi: vi.fn() })));
     });
 
     expect(container.textContent).toContain('Auto 1');
@@ -118,16 +121,20 @@ describe('VersionsDialog: diferenciación entre lista vacía y error', () => {
     await act(async () => {
       purgeBtn?.click();
     });
+    // la purga espera a la confirmación del diálogo propio (no a window.confirm)
+    expect(purgeAutoVersionsMock).not.toHaveBeenCalled();
+    await act(async () => {
+      findButton(container, 'Eliminar automáticas')?.click();
+    });
 
     expect(purgeAutoVersionsMock).toHaveBeenCalledWith(0, editor.doc.id);
   });
 
   it('permite purgar versiones automáticas directamente desde el estado de error de carga', async () => {
     versionsMock.mockRejectedValueOnce(new Error('Quota full'));
-    vi.stubGlobal('confirm', () => true);
 
     await act(async () => {
-      root.render(createElement(VersionsDialog, { editor, onClose: vi.fn(), onUi: vi.fn() }));
+      root.render(withConfirm(createElement(VersionsDialog, { editor, onClose: vi.fn(), onUi: vi.fn() })));
     });
 
     expect(container.textContent).toContain('Error al cargar el historial de versiones: Quota full');
@@ -137,6 +144,11 @@ describe('VersionsDialog: diferenciación entre lista vacía y error', () => {
     versionsMock.mockResolvedValueOnce([]);
     await act(async () => {
       purgeBtn?.click();
+    });
+    // la purga espera a la confirmación del diálogo propio (no a window.confirm)
+    expect(purgeAutoVersionsMock).not.toHaveBeenCalled();
+    await act(async () => {
+      findButton(container, 'Eliminar automáticas')?.click();
     });
 
     expect(purgeAutoVersionsMock).toHaveBeenCalledWith(0, editor.doc.id);
@@ -174,11 +186,27 @@ describe('VersionsDialog: diferenciación entre lista vacía y error', () => {
     });
 
     await act(async () => {
-      root.render(createElement(VersionsDialog, { editor, onClose: vi.fn(), onUi: vi.fn() }));
+      root.render(withConfirm(createElement(VersionsDialog, { editor, onClose: vi.fn(), onUi: vi.fn() })));
     });
 
     expect(container.textContent).toContain('Manual 1');
     const purgeBtn = Array.from(container.querySelectorAll('button')).find((b) => b.textContent?.includes('Limpiar automáticas'));
     expect(purgeBtn).toBeDefined();
+  });
+
+  it('cancelar la confirmación no purga nada', async () => {
+    versionsMock.mockRejectedValueOnce(new Error('Quota full'));
+
+    await act(async () => {
+      root.render(withConfirm(createElement(VersionsDialog, { editor, onClose: vi.fn(), onUi: vi.fn() })));
+    });
+    await act(async () => {
+      findButton(container, 'Limpiar automáticas')?.click();
+    });
+    await act(async () => {
+      findButton(container, 'Cancelar')?.click();
+    });
+
+    expect(purgeAutoVersionsMock).not.toHaveBeenCalled();
   });
 });

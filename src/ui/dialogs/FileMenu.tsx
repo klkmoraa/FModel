@@ -5,6 +5,8 @@ import type { StoredDrawing } from '../../storage/persistence';
 import { readPackage } from '../../io/native';
 import { Dialog } from '../Dialogs';
 import { tr } from '../controls';
+import { askConfirm } from '../ConfirmHost';
+import { confirmDiscard } from '../welcome/actions';
 
 export function FileMenu({ editor, onClose, onUi }: { editor: Editor; onClose: () => void; onUi: (ui: string, cmd?: string) => void }) {
   const lang = editor.lang;
@@ -75,8 +77,8 @@ export function FileMenu({ editor, onClose, onUi }: { editor: Editor; onClose: (
               <button
                 className="menu-item"
                 style={{ flex: 1 }}
-                onClick={() => {
-                  if (editor.doc.dirty && !window.confirm(tr(lang, 'Hay cambios sin guardar. ¿Descartarlos?', 'Unsaved changes. Discard them?'))) return;
+                onClick={async () => {
+                  if (!(await confirmDiscard(editor))) return;
                   const res = readPackage(d.bytes);
                   editor.doc.replaceData(res.data, res.documentId);
                   editor.fileName = d.name.replace(/\.fmodel$/, '');
@@ -87,7 +89,16 @@ export function FileMenu({ editor, onClose, onUi }: { editor: Editor; onClose: (
                 <span>{d.name}</span>
                 <small style={{ marginLeft: 'auto', color: 'var(--ink-muted)' }}>{new Date(d.savedAt).toLocaleString()}</small>
               </button>
-              <button className="btn btn--sm btn--danger" onClick={() => void getServices().persistence.deleteDrawing(d.id).then(() => getServices().persistence.drawings().then(setDrawings))}>
+              <button
+                className="btn btn--sm btn--danger"
+                aria-label={tr(lang, `Eliminar «${d.name}»`, `Delete “${d.name}”`)}
+                onClick={async () => {
+                  const ok = await askConfirm(lang, tr(lang, 'Eliminar dibujo', 'Delete drawing'), tr(lang, `¿Eliminar «${d.name}» de este navegador? No se puede deshacer.`, `Delete “${d.name}” from this browser? This cannot be undone.`), { confirmLabel: tr(lang, 'Eliminar', 'Delete'), danger: true });
+                  if (!ok) return;
+                  await getServices().persistence.deleteDrawing(d.id);
+                  setDrawings(await getServices().persistence.drawings());
+                }}
+              >
                 ×
               </button>
             </div>

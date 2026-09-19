@@ -32,6 +32,10 @@ export function useModalFocusTrap(dialogRef: RefObject<HTMLElement | null>, onCl
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      // con modales apilados (p. ej. una confirmación sobre otro diálogo) solo responde el de
+      // encima: si no, Escape cerraría ambos y Tab devolvería el foco al de debajo
+      const modals = document.querySelectorAll('[aria-modal="true"]');
+      if (modals.length > 1 && modals[modals.length - 1] !== dialog) return;
       if (event.key === 'Escape') {
         const target = event.target instanceof Element ? event.target : null;
         if (target?.closest('[data-modal-escape="consume"]')) return;

@@ -39,8 +39,8 @@ export function RecentDrawings({ editor, dark, onOpened, onSeeAll }: RecentDrawi
     };
   }, []);
 
-  const open = (d: StoredDrawing) => {
-    if (!confirmDiscard(editor)) return;
+  const open = async (d: StoredDrawing) => {
+    if (!(await confirmDiscard(editor))) return;
     try {
       openStoredDrawing(editor, d);
       onOpened();

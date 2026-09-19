@@ -33,6 +33,16 @@ export interface RecoveryRecord {
   cleanExit: boolean;
 }
 
+/** Estado del dibujo abierto, para reabrirlo tal cual al recargar la página. */
+export interface SessionRecord {
+  id: 'session';
+  documentId: Id;
+  name: string;
+  savedAt: number;
+  file: NativeFile;
+  dirty: boolean;
+}
+
 export type StorageErrorKind = 'quota' | 'unavailable' | 'unknown';
 
 export interface ClassifiedStorageError {
@@ -55,6 +65,7 @@ export type PersistenceOp =
   | 'deleteDrawing'
   | 'recovery'
   | 'cleanExit'
+  | 'session'
   | 'purge';
 
 export interface PersistenceHealth {
@@ -184,6 +195,7 @@ export class Persistence {
   private timer = 0;
   private lastVersionAt = 0;
   private unloadHandler = () => void this.markCleanExit();
+  private sessionTimer = 0;
   private healthListeners = new Set<(health: PersistenceHealth) => void>();
 
   private _health: PersistenceHealth = {
@@ -350,6 +362,58 @@ export class Persistence {
     } catch (err) {
       this.recordFailure('recovery', err);
       throw err;
+    }
+  }
+
+  /** Programa el guardado de la sesión tras una breve pausa sin cambios. */
+  scheduleSession(delayMs = 600) {
+    clearTimeout(this.sessionTimer);
+    this.sessionTimer = setTimeout(() => {
+      this.sessionTimer = 0;
+      void this.saveSession();
+    }, delayMs) as unknown as number;
+  }
+
+  /**
+   * Escribe ya la sesión pendiente (al ocultar, cerrar o recargar la página). La
+   * transacción se inicia de forma síncrona para que el navegador la complete aunque
+   * la página se descargue a continuación.
+   */
+  async flushSession(): Promise<boolean> {
+    if (!this.sessionTimer) return false;
+    clearTimeout(this.sessionTimer);
+    this.sessionTimer = 0;
+    try {
+      if (idb.idbPutNow('recovery', this.sessionRecord())) return true;
+    } catch (err) {
+      this.recordFailure('session', err);
+    }
+    return this.saveSession();
+  }
+
+  private sessionRecord(): SessionRecord {
+    const doc = this.getDoc();
+    return { id: 'session', documentId: doc.id, name: this.getName(), savedAt: Date.now(), file: toNativeFile(doc.data, doc.id, { embedAssets: true }), dirty: doc.dirty };
+  }
+
+  async saveSession(): Promise<boolean> {
+    try {
+      await idb.idbPut('recovery', this.sessionRecord());
+      this.recordSuccess('session');
+      return true;
+    } catch (err) {
+      this.recordFailure('session', err);
+      return false;
+    }
+  }
+
+  async loadSession(): Promise<SessionRecord | null> {
+    try {
+      const rec = await idb.idbGet<SessionRecord>('recovery', 'session');
+      return rec ?? null;
+    } catch (err) {
+      this.recordFailure('session', err);
+      return null;
     }
   }
 

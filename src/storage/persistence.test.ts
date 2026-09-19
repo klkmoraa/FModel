@@ -244,6 +244,44 @@ describe('purga controlada de versiones automáticas (purgeAutoVersions)', () =>
   });
 });
 
+describe('sesión restaurable al recargar', () => {
+  it('guarda la sesión aunque el dibujo no esté «sucio» y la restaura con su estado', async () => {
+    newLine(doc, 3);
+    await persistence.saveSession();
+    const rec = await persistence.loadSession();
+    expect(rec?.documentId).toBe(doc.id);
+    expect(rec?.name).toBe('Plano');
+    expect(rec?.dirty).toBe(true);
+    expect(rec?.file.collections.entities).toHaveLength(1);
+  });
+
+  it('los cambios programados se escriben al forzar el volcado', async () => {
+    persistence.scheduleSession();
+    newLine(doc, 4);
+    persistence.scheduleSession();
+    await persistence.flushSession();
+    expect((await persistence.loadSession())?.file.collections.entities).toHaveLength(1);
+  });
+
+  it('un dibujo nuevo sustituye a la sesión anterior', async () => {
+    newLine(doc, 5);
+    await persistence.saveSession();
+    doc.replaceData(createDocument({ title: 'Nuevo' }).data);
+    await persistence.saveSession();
+    const rec = await persistence.loadSession();
+    expect(rec?.documentId).toBe(doc.id);
+    expect(rec?.dirty).toBe(false);
+    expect(rec?.file.collections.entities).toHaveLength(0);
+  });
+
+  it('un fallo al guardar la sesión degrada la salud en vez de pasar desapercibido', async () => {
+    vi.spyOn(idb, 'idbPut').mockRejectedValueOnce(new DOMException('Storage quota exceeded', 'QuotaExceededError'));
+    expect(await persistence.saveSession()).toBe(false);
+    expect(persistence.health.status).toBe('degraded');
+    expect(persistence.health.lastOp).toBe('session');
+  });
+});
+
 describe('versiones e informe de errores', () => {
   it('guarda, lista y reabre una versión con su contenido', async () => {
     newLine(doc, 1);

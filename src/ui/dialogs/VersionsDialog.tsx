@@ -6,6 +6,7 @@ import type { Editor } from '../../editor/editor';
 import type { VersionRecord } from '../../storage/persistence';
 import { Dialog } from '../Dialogs';
 import { tr } from '../controls';
+import { askConfirm } from '../ConfirmHost';
 
 /** Historial local de versiones del dibujo actual (IndexedDB, sin salir del navegador). */
 export function VersionsDialog({ editor, onClose, onUi }: { editor: Editor; onClose: () => void; onUi: (ui: string) => void }) {
@@ -46,7 +47,7 @@ export function VersionsDialog({ editor, onClose, onUi }: { editor: Editor; onCl
   const hasAutos = Boolean(versions?.some((v) => v.auto));
   const showPurge = hasAutos || (persistence?.health?.status !== 'protected');
   const purgeAutos = async () => {
-    if (!window.confirm(tr(lang, '¿Eliminar versiones automáticas para liberar espacio? Las versiones manuales se conservarán intactas.', 'Delete automatic versions to free space? Manual versions will be kept intact.'))) return;
+    if (!(await askConfirm(lang, tr(lang, 'Liberar espacio', 'Free space'), tr(lang, '¿Eliminar versiones automáticas para liberar espacio? Las versiones manuales se conservarán intactas.', 'Delete automatic versions to free space? Manual versions will be kept intact.'), { confirmLabel: tr(lang, 'Eliminar automáticas', 'Delete automatic'), danger: true }))) return;
     try {
       let deleted = await persistence.purgeAutoVersions(0, editor.doc.id);
       if (deleted === 0) {
@@ -70,9 +71,9 @@ export function VersionsDialog({ editor, onClose, onUi }: { editor: Editor; onCl
     }
   };
 
-  const restore = (v: VersionRecord) => {
+  const restore = async (v: VersionRecord) => {
     const msg = editor.doc.dirty ? tr(lang, 'Hay cambios sin guardar como versión. ¿Restaurar igualmente? (Se guarda antes una versión automática del estado actual.)', 'There are changes not saved as a version. Restore anyway? (An automatic version of the current state is saved first.)') : tr(lang, `¿Restaurar «${v.label}»?`, `Restore "${v.label}"?`);
-    if (!window.confirm(msg)) return;
+    if (!(await askConfirm(lang, tr(lang, 'Restaurar versión', 'Restore version'), msg, { confirmLabel: tr(lang, 'Restaurar', 'Restore') }))) return;
     void (async () => {
       await persistence.saveVersion(tr(lang, 'Antes de restaurar', 'Before restore'), true).catch(() => undefined);
       const res = persistence.loadVersion(v);
@@ -168,8 +169,8 @@ export function VersionsDialog({ editor, onClose, onUi }: { editor: Editor; onCl
                       <button
                         className="icon-btn"
                         aria-label={tr(lang, 'Eliminar versión', 'Delete version')}
-                        onClick={() => {
-                          if (!window.confirm(tr(lang, `¿Eliminar la versión «${v.label}»? No se puede deshacer.`, `Delete version "${v.label}"? This cannot be undone.`))) return;
+                        onClick={async () => {
+                          if (!(await askConfirm(lang, tr(lang, 'Eliminar versión', 'Delete version'), tr(lang, `¿Eliminar la versión «${v.label}»? No se puede deshacer.`, `Delete version "${v.label}"? This cannot be undone.`), { confirmLabel: tr(lang, 'Eliminar', 'Delete'), danger: true }))) return;
                           void persistence.deleteVersion(v.id).then(refresh);
                         }}
                       >
