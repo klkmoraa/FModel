@@ -7,7 +7,7 @@ const MODAL_FOCUSABLE =
  * Contrato de teclado para superficies aria-modal:
  * - mueve el foco dentro al montar,
  * - cicla Tab/Shift+Tab,
- * - cierra con Escape incluso si un control hijo detiene bubbling,
+ * - cierra con Escape salvo cuando un control declara que lo consume,
  * - devuelve el foco al origen al desmontar.
  */
 export function useModalFocusTrap(dialogRef: RefObject<HTMLElement | null>, onClose: () => void, returnFocusRef?: RefObject<HTMLElement | null>) {
@@ -33,6 +33,8 @@ export function useModalFocusTrap(dialogRef: RefObject<HTMLElement | null>, onCl
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
+        const target = event.target instanceof Element ? event.target : null;
+        if (target?.closest('[data-modal-escape="consume"]')) return;
         event.preventDefault();
         event.stopPropagation();
         onCloseRef.current();
