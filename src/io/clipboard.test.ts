@@ -11,7 +11,9 @@ import type {
   LineEntity,
   MLeaderEntity,
   MLineEntity,
+  PdfUnderlayEntity,
   TextEntity,
+  ViewportEntity,
 } from '../document/types';
 import { MODEL_SPACE_ID } from '../document/types';
 import {
@@ -1437,4 +1439,357 @@ describe('portapapeles portable (DAT-002)', () => {
 
     expect(dstDoc.findByName('blocks', 'MuebleOrdenado (2)')).toBeDefined();
   });
+
+  it('resuelve colisión de ID de entidad sin sobrescribir el contenido existente', () => {
+    const srcDoc = createDocument();
+    const dstDoc = createDocument();
+
+    dstDoc.transact('DESTINO_ID', (tx) => {
+      tx.addEntity<LineEntity>({
+        ...entityDefaults(dstDoc),
+        id: 'shared_entity_id',
+        type: 'line',
+        start: { x: 0, y: 0 },
+        end: { x: 1, y: 1 },
+      });
+    });
+    srcDoc.transact('ORIGEN_ID', (tx) => {
+      tx.addEntity<LineEntity>({
+        ...entityDefaults(srcDoc),
+        id: 'shared_entity_id',
+        type: 'line',
+        start: { x: 10, y: 10 },
+        end: { x: 20, y: 20 },
+      });
+    });
+
+    const pkg = createClipboardPackage(srcDoc, ['shared_entity_id']);
+    const res = pasteClipboardPackage(dstDoc, pkg, MODEL_SPACE_ID, { x: 10, y: 10 });
+
+    expect(res.insertedIds[0]).not.toBe('shared_entity_id');
+    expect((dstDoc.entity('shared_entity_id') as LineEntity).end).toEqual({ x: 1, y: 1 });
+    expect(dstDoc.entity(res.insertedIds[0])?.type).toBe('line');
+  });
+
+  it('copia PDF underlay con su asset embebido y no depende del documento origen', () => {
+    const srcDoc = createDocument();
+    const dstDoc = createDocument();
+    const pdfData = 'data:application/pdf;base64,JVBERi0xLjQK';
+
+    srcDoc.transact('CREA_PDF', (tx) => {
+      tx.add('assets', {
+        id: 'ast_pdf',
+        name: 'detalle.pdf',
+        mime: 'application/pdf',
+        size: 16,
+        dataUrl: pdfData,
+        pages: 1,
+      });
+      tx.addEntity<PdfUnderlayEntity>({
+        ...entityDefaults(srcDoc),
+        id: 'pdf_1',
+        type: 'pdfunderlay',
+        assetId: 'ast_pdf',
+        page: 1,
+        position: { x: 0, y: 0 },
+        scale: 1,
+        rotation: 0,
+        clipEnabled: false,
+        opacity: 1,
+        fade: 0,
+        monochrome: false,
+      });
+    });
+
+    const pkg = createClipboardPackage(srcDoc, ['pdf_1']);
+    expect(pkg.assets?.[0]?.dataUrl).toBe(pdfData);
+
+    const res = pasteClipboardPackage(dstDoc, pkg, MODEL_SPACE_ID, { x: 20, y: 20 });
+    const pasted = dstDoc.entity(res.insertedIds[0]) as PdfUnderlayEntity;
+    expect(dstDoc.data.assets.get(pasted.assetId)?.dataUrl).toBe(pdfData);
+    expect(pasted.assetId).not.toBe('ast_pdf');
+  });
+
+  it('no mezcla assets distintos aunque tengan el mismo nombre y tamaño', () => {
+    const srcDoc = createDocument();
+    const dstDoc = createDocument();
+    const sourceData = 'data:image/png;base64,AAAA';
+    const destinationData = 'data:image/png;base64,BBBB';
+
+    dstDoc.transact('ASSET_DESTINO', (tx) => {
+      tx.add('assets', {
+        id: 'asset_destino',
+        name: 'logo.png',
+        mime: 'image/png',
+        size: 4,
+        dataUrl: destinationData,
+      });
+    });
+    srcDoc.transact('ASSET_ORIGEN', (tx) => {
+      tx.add('assets', {
+        id: 'asset_origen',
+        name: 'logo.png',
+        mime: 'image/png',
+        size: 4,
+        dataUrl: sourceData,
+      });
+      tx.addEntity<ImageEntity>({
+        ...entityDefaults(srcDoc),
+        id: 'img_asset_collision',
+        type: 'image',
+        assetId: 'asset_origen',
+        position: { x: 0, y: 0 },
+        u: { x: 1, y: 0 },
+        v: { x: 0, y: 1 },
+        clipEnabled: false,
+        opacity: 1,
+        fade: 0,
+        brightness: 50,
+        contrast: 50,
+      });
+    });
+
+    const pkg = createClipboardPackage(srcDoc, ['img_asset_collision']);
+    const res = pasteClipboardPackage(dstDoc, pkg, MODEL_SPACE_ID, { x: 0, y: 0 });
+    const pasted = dstDoc.entity(res.insertedIds[0]) as ImageEntity;
+
+    expect(pasted.assetId).not.toBe('asset_destino');
+    expect(dstDoc.data.assets.get(pasted.assetId)?.dataUrl).toBe(sourceData);
+    expect(dstDoc.data.assets.get('asset_destino')?.dataUrl).toBe(destinationData);
+  });
+
+  it('transporta y remapea frozenLayers y layerOverrides de viewports', () => {
+    const srcDoc = createDocument();
+    const dstDoc = createDocument();
+
+    srcDoc.transact('VIEWPORT_DEPS', (tx) => {
+      tx.add('linetypes', {
+        id: 'lt_viewport_src',
+        name: 'VP_DASHED',
+        description: 'Tipo de línea de override de viewport',
+        pattern: [3, -1],
+      });
+      const baseLayer = srcDoc.data.layers.get('0')!;
+      tx.add('layers', {
+        ...baseLayer,
+        id: 'layer_frozen_src',
+        name: 'VP Congelada',
+        order: 10,
+      });
+      tx.add('layers', {
+        ...baseLayer,
+        id: 'layer_override_src',
+        name: 'VP Override',
+        order: 11,
+      });
+      tx.addEntity<ViewportEntity>({
+        ...entityDefaults(srcDoc),
+        id: 'vp_portable',
+        type: 'viewport',
+        center: { x: 50, y: 40 },
+        width: 100,
+        height: 80,
+        viewCenter: { x: 0, y: 0 },
+        scale: 0.02,
+        viewTwist: 0,
+        displayLocked: false,
+        on: true,
+        frozenLayers: ['layer_frozen_src'],
+        layerOverrides: {
+          layer_override_src: { color: 3, linetype: 'lt_viewport_src' },
+        },
+      });
+    });
+
+    const pkg = createClipboardPackage(srcDoc, ['vp_portable']);
+    expect(pkg.layers?.some((layer) => layer.name === 'VP Congelada')).toBe(true);
+    expect(pkg.layers?.some((layer) => layer.name === 'VP Override')).toBe(true);
+    expect(pkg.linetypes?.some((lt) => lt.name === 'VP_DASHED')).toBe(true);
+
+    const res = pasteClipboardPackage(dstDoc, pkg, MODEL_SPACE_ID, { x: 50, y: 40 });
+    const pasted = dstDoc.entity(res.insertedIds[0]) as ViewportEntity;
+    const frozen = dstDoc.findByName('layers', 'VP Congelada')!;
+    const overrideLayer = dstDoc.findByName('layers', 'VP Override')!;
+    const overrideLt = dstDoc.findByName('linetypes', 'VP_DASHED')!;
+
+    expect(pasted.frozenLayers).toEqual([frozen.id]);
+    expect(pasted.frozenLayers).not.toContain('layer_frozen_src');
+    expect(Object.keys(pasted.layerOverrides)).toEqual([overrideLayer.id]);
+    expect(pasted.layerOverrides[overrideLayer.id]?.linetype).toBe(overrideLt.id);
+    expect(pasted.layerOverrides).not.toHaveProperty('layer_override_src');
+  });
+
+  it('incluye y remapea referencias de textStyle y blockId dentro de overrides', () => {
+    const srcDoc = createDocument();
+    const dstDoc = createDocument();
+
+    srcDoc.transact('OVERRIDE_DEPS', (tx) => {
+      tx.add('textStyles', {
+        id: 'ts_override_src',
+        name: 'OverridePortable',
+        font: 'Inter',
+        height: 0,
+        widthFactor: 0.8,
+        oblique: 0,
+        annotative: false,
+      });
+      tx.add('blocks', {
+        id: 'blk_override_src',
+        name: 'OverrideBlock',
+        kind: 'normal',
+        basePoint: { x: 0, y: 0 },
+        description: 'Bloque usado por override',
+        units: 'unitless',
+        explodable: true,
+        scaleUniformly: true,
+        annotative: false,
+        revision: 1,
+      });
+      tx.addEntity<LineEntity>({
+        ...entityDefaults(srcDoc),
+        id: 'override_block_line',
+        type: 'line',
+        owner: 'blk_override_src',
+        start: { x: 0, y: 0 },
+        end: { x: 5, y: 0 },
+      });
+      tx.addEntity<DimensionEntity>({
+        ...entityDefaults(srcDoc),
+        id: 'dim_override',
+        type: 'dimension',
+        dimType: 'linear',
+        style: srcDoc.settings.currentDimStyle,
+        overrides: { textStyle: 'ts_override_src' },
+        p1: { x: 0, y: 0 },
+        p2: { x: 10, y: 0 },
+        p3: { x: 5, y: 2 },
+        rotation: 0,
+      });
+      tx.addEntity<MLeaderEntity>({
+        ...entityDefaults(srcDoc),
+        id: 'mleader_override',
+        type: 'mleader',
+        style: srcDoc.settings.currentMLeaderStyle,
+        leaders: [{ vertices: [{ x: 0, y: 0 }, { x: 10, y: 10 }] }],
+        landing: { x: 10, y: 10 },
+        doglegLength: 5,
+        direction: 1,
+        content: { type: 'block', blockId: 'blk_override_src', scale: 1, rotation: 0, attributes: {} },
+        overrides: { textStyle: 'ts_override_src', blockId: 'blk_override_src' },
+      });
+    });
+
+    const pkg = createClipboardPackage(srcDoc, ['dim_override', 'mleader_override']);
+    expect(pkg.textStyles?.some((style) => style.id === 'ts_override_src')).toBe(true);
+    expect(pkg.blocks?.some((block) => block.id === 'blk_override_src')).toBe(true);
+
+    const res = pasteClipboardPackage(dstDoc, pkg, MODEL_SPACE_ID, { x: 20, y: 20 });
+    const pastedEntities = res.insertedIds.map((id) => dstDoc.entity(id)!);
+    const dim = pastedEntities.find((entity) => entity.type === 'dimension') as DimensionEntity;
+    const mleader = pastedEntities.find((entity) => entity.type === 'mleader') as MLeaderEntity;
+    const textStyle = dstDoc.findByName('textStyles', 'OverridePortable')!;
+    const block = dstDoc.findByName('blocks', 'OverrideBlock')!;
+
+    expect(dim.overrides.textStyle).toBe(textStyle.id);
+    expect(dim.overrides.textStyle).not.toBe('ts_override_src');
+    expect(mleader.overrides?.textStyle).toBe(textStyle.id);
+    expect(mleader.overrides?.blockId).toBe(block.id);
+    expect(mleader.overrides?.blockId).not.toBe('blk_override_src');
+  });
+
+  it('remapea DynamicInstanceState.values al reutilizar un bloque equivalente con IDs de parámetro distintos', () => {
+    const srcDoc = createDocument();
+    const dstDoc = createDocument();
+
+    srcDoc.transact('DYN_SOURCE', (tx) => {
+      tx.add('blocks', {
+        id: 'blk_dyn_source',
+        name: 'PuertaParamMap',
+        kind: 'normal',
+        basePoint: { x: 0, y: 0 },
+        description: 'Origen',
+        units: 'unitless',
+        explodable: true,
+        scaleUniformly: true,
+        annotative: false,
+        revision: 1,
+        dynamic: {
+          parameters: [
+            { id: 'src_param', name: 'Longitud', type: 'linear', base: { x: 0, y: 0 }, end: { x: 80, y: 0 }, baseLocation: 'start', valueSet: { kind: 'none' } } as any,
+          ],
+          actions: [
+            { id: 'src_action', type: 'stretch', name: 'Estirar', paramId: 'src_param', paramPoint: 'end', frame: [], selection: ['src_line'], axis: 'xy', distanceMultiplier: 1, angleOffset: 0 },
+          ],
+          constraints: [],
+          lookups: [],
+          variables: [],
+          propertyOrder: ['src_param'],
+        },
+      });
+      tx.addEntity<LineEntity>({
+        ...entityDefaults(srcDoc),
+        id: 'src_line',
+        type: 'line',
+        owner: 'blk_dyn_source',
+        start: { x: 0, y: 0 },
+        end: { x: 80, y: 0 },
+      });
+      tx.addEntity<InsertEntity>({
+        ...entityDefaults(srcDoc),
+        id: 'src_insert',
+        type: 'insert',
+        blockId: 'blk_dyn_source',
+        position: { x: 0, y: 0 },
+        scale: { x: 1, y: 1 },
+        rotation: 0,
+        attributes: [],
+        dynamic: { values: { src_param: 42 } },
+      });
+    });
+
+    dstDoc.transact('DYN_DEST', (tx) => {
+      tx.add('blocks', {
+        id: 'blk_dyn_dest',
+        name: 'PuertaParamMap',
+        kind: 'normal',
+        basePoint: { x: 0, y: 0 },
+        description: 'Destino',
+        units: 'unitless',
+        explodable: true,
+        scaleUniformly: true,
+        annotative: false,
+        revision: 1,
+        dynamic: {
+          parameters: [
+            { id: 'dst_param', name: 'Longitud', type: 'linear', base: { x: 0, y: 0 }, end: { x: 80, y: 0 }, baseLocation: 'start', valueSet: { kind: 'none' } } as any,
+          ],
+          actions: [
+            { id: 'dst_action', type: 'stretch', name: 'Estirar', paramId: 'dst_param', paramPoint: 'end', frame: [], selection: ['dst_line'], axis: 'xy', distanceMultiplier: 1, angleOffset: 0 },
+          ],
+          constraints: [],
+          lookups: [],
+          variables: [],
+          propertyOrder: ['dst_param'],
+        },
+      });
+      tx.addEntity<LineEntity>({
+        ...entityDefaults(dstDoc),
+        id: 'dst_line',
+        type: 'line',
+        owner: 'blk_dyn_dest',
+        start: { x: 0, y: 0 },
+        end: { x: 80, y: 0 },
+      });
+    });
+
+    const pkg = createClipboardPackage(srcDoc, ['src_insert']);
+    const res = pasteClipboardPackage(dstDoc, pkg, MODEL_SPACE_ID, { x: 0, y: 0 });
+    const pasted = dstDoc.entity(res.insertedIds[0]) as InsertEntity;
+
+    expect(dstDoc.findByName('blocks', 'PuertaParamMap (2)')).toBeUndefined();
+    expect(pasted.blockId).toBe('blk_dyn_dest');
+    expect(pasted.dynamic?.values).toEqual({ dst_param: 42 });
+    expect(pasted.dynamic?.values).not.toHaveProperty('src_param');
+  });
+
 });
