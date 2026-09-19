@@ -57,6 +57,13 @@ test.describe('alineación visual con FusionStructureBrand', () => {
     await page.keyboard.press('Shift+Tab');
     expect(await dialog.evaluate((element) => element.contains(document.activeElement))).toBe(true);
 
+    await dialog.focus();
+    await page.keyboard.press('Shift+Tab');
+    const lastFocusable = dialog
+      .locator('a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')
+      .last();
+    await expect(lastFocusable).toBeFocused();
+
     await page.keyboard.press('Escape');
     await expect(dialog).toHaveCount(0);
     await expect(origin).toBeFocused();
@@ -82,6 +89,30 @@ test.describe('alineación visual con FusionStructureBrand', () => {
 
     await page.keyboard.press('Escape');
     await expect(dialog).toHaveCount(0);
+    await expect(origin).toBeFocused();
+  });
+
+  test('las transiciones entre diálogos conservan el opener externo', async ({ page }) => {
+    await page.goto('/?surface=workspace');
+    await page.waitForFunction(() => !!(window as any).fmodel?.editor);
+    await page.evaluate(() => {
+      (window as any).fmodel.editor.setPrefs({ onboardingDone: true });
+    });
+
+    const origin = page.locator('.brand--btn');
+    await origin.focus();
+    await page.evaluate(() => {
+      window.dispatchEvent(new CustomEvent('fmodel:ui', { detail: { ui: 'file-menu' } }));
+    });
+
+    const fileDialog = page.getByRole('dialog', { name: /Archivo|File/ });
+    await expect(fileDialog).toBeVisible();
+    await fileDialog.getByRole('button', { name: /Opciones, alias y atajos|Options, aliases & shortcuts/ }).click();
+
+    const optionsDialog = page.getByRole('dialog', { name: /Opciones|Options/ });
+    await expect(optionsDialog).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(optionsDialog).toHaveCount(0);
     await expect(origin).toBeFocused();
   });
 
