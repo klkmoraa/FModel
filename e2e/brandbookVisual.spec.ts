@@ -8,7 +8,7 @@ const VIEWPORTS = [
 ] as const;
 
 test.describe('alineación visual con FusionStructureBrand', () => {
-  test('la interacción compartida usa verde de marca y los glifos CAD exponen master 48u', async ({ page }) => {
+  test('la interacción de FModel usa morado Modelo y los glifos CAD exponen master 48u', async ({ page }) => {
     await page.goto('/?surface=workspace');
     await page.waitForFunction(() => !!(window as any).fmodel?.editor);
 
@@ -21,8 +21,8 @@ test.describe('alineación visual con FusionStructureBrand', () => {
         interaction: getComputedStyle(document.documentElement).getPropertyValue('--fs-interaction').trim(),
       };
     });
-    expect(focus.interaction).toBe('#1aa57a');
-    expect(focus.outline).toBe('rgb(26, 165, 122)');
+    expect(focus.interaction).toBe('#7657d5');
+    expect(focus.outline).toBe('rgb(118, 87, 213)');
 
     const glyph = page.locator('svg.cad-icon').first();
     await expect(glyph).toHaveAttribute('viewBox', '0 0 48 48');
