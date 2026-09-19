@@ -29,7 +29,8 @@ export interface DialogState {
 
 export function Dialog({ title, onClose, children, footer, wide, lang }: { title: string; onClose: () => void; children: ReactNode; footer?: ReactNode; wide?: boolean; lang: 'es' | 'en' }) {
   const dialogRef = useRef<HTMLDivElement>(null);
-  useModalFocusTrap(dialogRef, onClose);
+  const returnFocusRef = useRef<HTMLElement | null>(document.activeElement instanceof HTMLElement ? document.activeElement : null);
+  useModalFocusTrap(dialogRef, onClose, returnFocusRef);
 
   return (
     <div className="veil" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
