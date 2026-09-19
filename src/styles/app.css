@@ -549,7 +549,7 @@ kbd {
   color: var(--ink-secondary);
 }
 .log--input {
-  color: var(--fm-accent);
+  color: var(--fs-interaction-text);
 }
 .log--warn {
   color: var(--fs-signal-attention);
@@ -1807,7 +1807,7 @@ table.grid tr.is-active td {
   font: 11.5px/1 var(--fs-font-data);
 }
 .report__chip code {
-  color: var(--fm-accent);
+  color: var(--fs-interaction-text);
 }
 .report__warnings {
   margin: 0;
