@@ -24,6 +24,76 @@ import {
 
 const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
 
+function createAssociativeBlockSource() {
+  const doc = createDocument({ title: 'Origen asociativo' });
+  doc.transact('CREA_BLOQUE_ASOCIATIVO_COMPARABLE', (tx) => {
+    tx.add('blocks', {
+      id: 'blk_assoc_compare',
+      name: 'DetalleAsociativo',
+      kind: 'normal',
+      basePoint: { x: 0, y: 0 },
+      description: 'Detalle con referencias asociativas',
+      units: 'unitless',
+      explodable: true,
+      scaleUniformly: true,
+      annotative: false,
+      revision: 1,
+    });
+    tx.addEntity<LineEntity>({
+      ...entityDefaults(doc),
+      id: 'assoc_boundary_a',
+      type: 'line',
+      owner: 'blk_assoc_compare',
+      start: { x: 0, y: 0 },
+      end: { x: 20, y: 0 },
+    });
+    tx.addEntity<LineEntity>({
+      ...entityDefaults(doc),
+      id: 'assoc_boundary_b',
+      type: 'line',
+      owner: 'blk_assoc_compare',
+      start: { x: 0, y: 10 },
+      end: { x: 20, y: 10 },
+    });
+    tx.addEntity<DimensionEntity>({
+      ...entityDefaults(doc),
+      id: 'assoc_dimension',
+      type: 'dimension',
+      owner: 'blk_assoc_compare',
+      dimType: 'linear',
+      style: doc.settings.currentDimStyle,
+      overrides: {},
+      p1: { x: 0, y: 0 },
+      p2: { x: 20, y: 0 },
+      p3: { x: 10, y: 4 },
+      rotation: 0,
+      assoc: [{ point: 'p1', entityId: 'assoc_boundary_a', snap: 'endpoint-start' }],
+    });
+    tx.addEntity<HatchEntity>({
+      ...entityDefaults(doc),
+      id: 'assoc_hatch',
+      type: 'hatch',
+      owner: 'blk_assoc_compare',
+      pattern: { type: 'solid', name: 'SOLID', angle: 0, scale: 1, spacing: 1, double: false },
+      origin: { x: 0, y: 0 },
+      islandStyle: 'normal',
+      loops: [],
+      associative: ['assoc_boundary_a'],
+    });
+    tx.addEntity<InsertEntity>({
+      ...entityDefaults(doc),
+      id: 'assoc_insert',
+      type: 'insert',
+      blockId: 'blk_assoc_compare',
+      position: { x: 0, y: 0 },
+      scale: { x: 1, y: 1 },
+      rotation: 0,
+      attributes: [],
+    });
+  });
+  return doc;
+}
+
 describe('portapapeles portable (DAT-002)', () => {
   it('copia y pega bloque anidado entre dos documentos sin perder definiciones ni dejar referencias rotas', () => {
     const srcDoc = createDocument({ title: 'Origen' });
@@ -1278,5 +1348,93 @@ describe('portapapeles portable (DAT-002)', () => {
     expect(destLt).toBeDefined();
     expect(destLay).toBeDefined();
     expect(destLay?.linetype).toBe(destLt?.id);
+  });
+
+  it('no reutiliza un bloque si una cota equivalente apunta a otra entidad interna', () => {
+    const srcDoc = createAssociativeBlockSource();
+    const dstDoc = createDocument({ title: 'Destino cota asociativa' });
+    const original = createClipboardPackage(srcDoc, ['assoc_insert']);
+    pasteClipboardPackage(dstDoc, original, MODEL_SPACE_ID, { x: 0, y: 0 });
+    pasteClipboardPackage(dstDoc, original, MODEL_SPACE_ID, { x: 30, y: 0 });
+    expect(dstDoc.findByName('blocks', 'DetalleAsociativo (2)')).toBeUndefined();
+
+    const changed = structuredClone(original);
+    const dimension = changed.blockEntities?.find((entity) => entity.type === 'dimension') as DimensionEntity;
+    dimension.assoc = [{ point: 'p1', entityId: 'assoc_boundary_b', snap: 'endpoint-start' }];
+    pasteClipboardPackage(dstDoc, changed, MODEL_SPACE_ID, { x: 40, y: 0 });
+
+    expect(dstDoc.findByName('blocks', 'DetalleAsociativo (2)')).toBeDefined();
+  });
+
+  it('no reutiliza un bloque si un sombreado equivalente sigue otra frontera interna', () => {
+    const srcDoc = createAssociativeBlockSource();
+    const dstDoc = createDocument({ title: 'Destino hatch asociativo' });
+    const original = createClipboardPackage(srcDoc, ['assoc_insert']);
+    pasteClipboardPackage(dstDoc, original, MODEL_SPACE_ID, { x: 0, y: 0 });
+    pasteClipboardPackage(dstDoc, original, MODEL_SPACE_ID, { x: 30, y: 0 });
+    expect(dstDoc.findByName('blocks', 'DetalleAsociativo (2)')).toBeUndefined();
+
+    const changed = structuredClone(original);
+    const hatch = changed.blockEntities?.find((entity) => entity.type === 'hatch') as HatchEntity;
+    hatch.associative = ['assoc_boundary_b'];
+    pasteClipboardPackage(dstDoc, changed, MODEL_SPACE_ID, { x: 40, y: 0 });
+
+    expect(dstDoc.findByName('blocks', 'DetalleAsociativo (2)')).toBeDefined();
+  });
+
+  it('no reutiliza un bloque dinámico cuando cambia el orden visible de sus propiedades', () => {
+    const srcDoc = createDocument({ title: 'Origen orden dinámico' });
+    const dstDoc = createDocument({ title: 'Destino orden dinámico' });
+    srcDoc.transact('CREA_ORDEN_DINAMICO', (tx) => {
+      tx.add('blocks', {
+        id: 'blk_property_order',
+        name: 'MuebleOrdenado',
+        kind: 'normal',
+        basePoint: { x: 0, y: 0 },
+        description: 'Mueble con propiedades ordenadas',
+        units: 'unitless',
+        explodable: true,
+        scaleUniformly: true,
+        annotative: false,
+        revision: 1,
+        dynamic: {
+          parameters: [
+            { id: 'p_width', type: 'linear', name: 'Ancho', label: 'Ancho', showInProperties: true, chainActions: false, gripCount: 2, base: { x: 0, y: 0 }, end: { x: 80, y: 0 }, baseLocation: 'start', valueSet: { kind: 'none' } },
+            { id: 'p_depth', type: 'linear', name: 'Fondo', label: 'Fondo', showInProperties: true, chainActions: false, gripCount: 2, base: { x: 0, y: 0 }, end: { x: 0, y: 40 }, baseLocation: 'start', valueSet: { kind: 'none' } },
+          ],
+          actions: [],
+          constraints: [],
+          lookups: [],
+          variables: [],
+          propertyOrder: ['p_width', 'p_depth'],
+        },
+      });
+      tx.addEntity<LineEntity>({
+        ...entityDefaults(srcDoc),
+        id: 'property_order_line',
+        type: 'line',
+        owner: 'blk_property_order',
+        start: { x: 0, y: 0 },
+        end: { x: 80, y: 0 },
+      });
+      tx.addEntity<InsertEntity>({
+        ...entityDefaults(srcDoc),
+        id: 'property_order_insert',
+        type: 'insert',
+        blockId: 'blk_property_order',
+        position: { x: 0, y: 0 },
+        scale: { x: 1, y: 1 },
+        rotation: 0,
+        attributes: [],
+      });
+    });
+
+    const original = createClipboardPackage(srcDoc, ['property_order_insert']);
+    pasteClipboardPackage(dstDoc, original, MODEL_SPACE_ID, { x: 0, y: 0 });
+    const changed = structuredClone(original);
+    changed.blocks![0].dynamic!.propertyOrder = ['p_depth', 'p_width'];
+    pasteClipboardPackage(dstDoc, changed, MODEL_SPACE_ID, { x: 100, y: 0 });
+
+    expect(dstDoc.findByName('blocks', 'MuebleOrdenado (2)')).toBeDefined();
   });
 });

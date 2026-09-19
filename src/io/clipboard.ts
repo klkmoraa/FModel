@@ -456,6 +456,44 @@ function buildEntityMatchMap(
   return matchMap;
 }
 
+/** Verifica referencias asociativas después de establecer la correspondencia entre entidades. */
+function entityAssociationsMatch(
+  existingEntities: Entity[],
+  pkgEntities: Entity[],
+  entityMatchMap: Map<Id, Id>,
+): boolean {
+  const existingById = new Map(existingEntities.map((entity) => [entity.id, entity]));
+  const normalizeDimensionAssoc = (entity: DimensionEntity, isPkg: boolean) =>
+    (entity.assoc ?? [])
+      .map((assoc) => ({
+        ...assoc,
+        entityId: isPkg ? (entityMatchMap.get(assoc.entityId) ?? assoc.entityId) : assoc.entityId,
+      }))
+      .sort((a, b) => `${a.point}:${a.snap}:${a.entityId}`.localeCompare(`${b.point}:${b.snap}:${b.entityId}`));
+  const normalizeHatchAssoc = (entity: HatchEntity, isPkg: boolean) =>
+    (entity.associative ?? [])
+      .map((id) => (isPkg ? (entityMatchMap.get(id) ?? id) : id))
+      .sort();
+
+  for (const pkgEntity of pkgEntities) {
+    const existingId = entityMatchMap.get(pkgEntity.id);
+    const existingEntity = existingId ? existingById.get(existingId) : undefined;
+    if (!existingEntity || existingEntity.type !== pkgEntity.type) return false;
+    if (pkgEntity.type === 'dimension' && existingEntity.type === 'dimension') {
+      if (canonicalJson(normalizeDimensionAssoc(existingEntity, false)) !== canonicalJson(normalizeDimensionAssoc(pkgEntity, true))) {
+        return false;
+      }
+    }
+    if (pkgEntity.type === 'hatch' && existingEntity.type === 'hatch') {
+      if (canonicalJson(normalizeHatchAssoc(existingEntity, false)) !== canonicalJson(normalizeHatchAssoc(pkgEntity, true))) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
 /** Compara si dos definiciones dinámicas de bloque son funcionalmente equivalentes. */
 function dynamicDefsMatch(
   existingDyn: DynamicBlockDefinition,
@@ -593,6 +631,11 @@ function dynamicDefsMatch(
     if (existingNormVars[i] !== pkgNormVars[i]) return false;
   }
 
+  // 6. Orden visible de propiedades personalizadas
+  const existingPropertyOrder = existingDyn.propertyOrder ?? [];
+  const pkgPropertyOrder = (pkgDyn.propertyOrder ?? []).map((id) => paramMap.get(id) ?? id);
+  if (canonicalJson(existingPropertyOrder) !== canonicalJson(pkgPropertyOrder)) return false;
+
   return true;
 }
 
@@ -618,9 +661,10 @@ function isBlockEquivalent(
   const pkgEntities = pkgBlockEntities.filter((e) => e.owner === pkgBlock.id);
   if (!entitiesMatch(existingEntities, pkgEntities, mappings)) return false;
 
+  const entityMatchMap = buildEntityMatchMap(existingEntities, pkgEntities, mappings);
+  if (!entityMatchMap || !entityAssociationsMatch(existingEntities, pkgEntities, entityMatchMap)) return false;
+
   if (existing.dynamic && pkgBlock.dynamic) {
-    const entityMatchMap = buildEntityMatchMap(existingEntities, pkgEntities, mappings);
-    if (!entityMatchMap) return false;
     return dynamicDefsMatch(existing.dynamic, pkgBlock.dynamic, entityMatchMap);
   }
 
