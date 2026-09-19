@@ -1,5 +1,5 @@
 import { X } from 'lucide-react';
-import { useEffect, useRef, type KeyboardEvent, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import type { Editor } from '../editor/editor';
 import { DraftingSettings } from './dialogs/DraftingSettings';
 import { FileMenu } from './dialogs/FileMenu';
@@ -37,50 +37,57 @@ export function Dialog({ title, onClose, children, footer, wide, lang }: { title
     const dialog = dialogRef.current;
     if (!dialog) return;
 
-    const first = dialog.querySelector<HTMLElement>(DIALOG_FOCUSABLE);
+    const focusableElements = () =>
+      Array.from(dialog.querySelectorAll<HTMLElement>(DIALOG_FOCUSABLE)).filter(
+        (element) => element.getAttribute('aria-hidden') !== 'true' && !element.hasAttribute('disabled'),
+      );
+
+    const first = focusableElements()[0];
     (first ?? dialog).focus({ preventScroll: true });
 
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        onClose();
+        return;
+      }
+      if (event.key !== 'Tab') return;
+
+      const focusable = focusableElements();
+      if (focusable.length === 0) {
+        event.preventDefault();
+        event.stopPropagation();
+        dialog.focus({ preventScroll: true });
+        return;
+      }
+
+      const firstFocusable = focusable[0]!;
+      const lastFocusable = focusable[focusable.length - 1]!;
+      const active = document.activeElement;
+
+      if (event.shiftKey && (active === firstFocusable || !dialog.contains(active))) {
+        event.preventDefault();
+        event.stopPropagation();
+        lastFocusable.focus({ preventScroll: true });
+      } else if (!event.shiftKey && (active === lastFocusable || !dialog.contains(active))) {
+        event.preventDefault();
+        event.stopPropagation();
+        firstFocusable.focus({ preventScroll: true });
+      }
+    };
+
+    // Captura nativa: el modal conserva Escape/Tab aunque un control hijo detenga bubbling.
+    document.addEventListener('keydown', handleKeyDown, true);
+
     return () => {
+      document.removeEventListener('keydown', handleKeyDown, true);
       previousFocusRef.current?.focus({ preventScroll: true });
     };
-  }, []);
-
-  const onDialogKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    event.stopPropagation();
-
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      onClose();
-      return;
-    }
-    if (event.key !== 'Tab') return;
-
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(DIALOG_FOCUSABLE)).filter(
-      (element) => element.getAttribute('aria-hidden') !== 'true' && !element.hasAttribute('disabled'),
-    );
-
-    if (focusable.length === 0) {
-      event.preventDefault();
-      dialog.focus({ preventScroll: true });
-      return;
-    }
-
-    const first = focusable[0]!;
-    const last = focusable[focusable.length - 1]!;
-    const active = document.activeElement;
-    if (event.shiftKey && (active === first || !dialog.contains(active))) {
-      event.preventDefault();
-      last.focus({ preventScroll: true });
-    } else if (!event.shiftKey && active === last) {
-      event.preventDefault();
-      first.focus({ preventScroll: true });
-    }
-  };
+  }, [onClose]);
 
   return (
-    <div className="veil" onMouseDown={(event) => event.target === event.currentTarget && onClose()} onKeyDown={onDialogKeyDown}>
+    <div className="veil" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
       <div ref={dialogRef} className={`dialog${wide ? ' dialog--wide' : ''}`} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1}>
         <div className="dialog__head">
           <h2>{title}</h2>
