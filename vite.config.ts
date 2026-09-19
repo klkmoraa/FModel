@@ -14,8 +14,8 @@ function serviceWorker(): Plugin {
     generateBundle(_options, bundle) {
       const publicDir = fileURLToPath(new URL('./public', import.meta.url));
       const walk = (dir: string): string[] => readdirSync(dir).flatMap((f) => (statSync(join(dir, f)).isDirectory() ? walk(join(dir, f)) : [relative(publicDir, join(dir, f)).replace(/\\/g, '/')]));
-      // fuentes: solo woff2 latinas (el resto de subconjuntos se descarga si alguna vez hace falta)
-      // el lector DWG (WebAssembly, ~10 MB) y la biblioteca inicial (~4 MB) no se precargan: se guardan en caché al usarlos
+      // fuentes: solo woff2 latinas (el resto de subconjuntos se descarga si alguna vez hace falta).
+      // La biblioteca CC0 se carga y cachea bajo demanda; no bloquea la instalación de la PWA.
       const wanted = (f: string) => !f.endsWith('.map') && !f.endsWith('.wasm') && !f.startsWith('library/') && f !== 'sw.js' && !f.startsWith('.') && !f.includes('/.') && !(/\.woff2?$/.test(f) && (!f.endsWith('.woff2') || /cyrillic|greek|vietnamese/.test(f)));
       const files = [...new Set(['index.html', ...Object.keys(bundle), ...walk(publicDir)])].filter(wanted).sort();
       const entries = files.map((file) => {
@@ -54,5 +54,41 @@ export default defineConfig({
   test: {
     include: ['src/**/*.test.ts'],
     environment: 'node',
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'lcov'],
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: [
+        'src/**/*.test.ts',
+        'src/**/*.d.ts',
+        'src/**/*.css',
+        'src/main.tsx',
+        'src/workers/heavy.worker.ts',
+      ],
+      thresholds: {
+        lines: 48,
+        statements: 45,
+        branches: 34,
+        functions: 34,
+        'src/document/**': {
+          lines: 85,
+          statements: 80,
+        },
+        'src/storage/**': {
+          lines: 70,
+          statements: 70,
+        },
+        'src/geometry/**': {
+          lines: 65,
+          statements: 65,
+        },
+        'src/io/native*': {
+          lines: 80,
+          statements: 80,
+          branches: 65,
+          functions: 70,
+        },
+      },
+    },
   },
 });

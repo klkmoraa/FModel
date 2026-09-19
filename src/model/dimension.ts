@@ -277,7 +277,7 @@ export function buildDimension(e: DimensionEntity, ctx: EvalContext): DimGeometr
       const pB = polar(center, a0 + sweep, radius);
       // líneas de extensión si el arco queda fuera de las entidades
       const extFrom = e.dimType === 'angular' ? [e.p1, e.p2, e.p3, e.p4 ?? e.p3] : [e.p1, e.p2];
-      for (const [ang, p] of [
+      for (const [ang, _p] of [
         [a0, pA],
         [a0 + sweep, pB],
       ] as [number, Vec2][]) {

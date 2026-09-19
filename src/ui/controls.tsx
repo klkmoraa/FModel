@@ -114,9 +114,28 @@ export function ColorPicker({ value, onChange, lang, allowByLayer = true, mixed 
   }, [open]);
   const dark = document.documentElement.dataset.theme === 'noche' || (!document.documentElement.dataset.theme && matchMedia('(prefers-color-scheme: dark)').matches);
   const std = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+  const selectedAci = value.startsWith('aci:') ? Number(value.slice(4)) : 1;
+  const focusAci = (aci: number) => ref.current?.querySelector<HTMLElement>(`[data-aci="${aci}"]`)?.focus();
+  const moveAci = (event: React.KeyboardEvent, current: number, columns: number, min: number, max: number) => {
+    let next = current;
+    if (event.key === 'ArrowRight') next = Math.min(max, current + 1);
+    else if (event.key === 'ArrowLeft') next = Math.max(min, current - 1);
+    else if (event.key === 'ArrowDown') next = Math.min(max, current + columns);
+    else if (event.key === 'ArrowUp') next = Math.max(min, current - columns);
+    else if (event.key === 'Home') next = Math.floor((current - min) / columns) * columns + min;
+    else if (event.key === 'End') next = Math.min(max, Math.floor((current - min) / columns) * columns + columns - 1 + min);
+    else if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onChange(`aci:${current}`);
+      setOpen(false);
+      return;
+    } else return;
+    event.preventDefault();
+    focusAci(next);
+  };
   return (
     <div ref={ref} style={{ position: 'relative' }}>
-      <button className="input" style={{ display: 'flex', alignItems: 'center', gap: 6, textAlign: 'left' }} onClick={() => setOpen((o) => !o)} aria-haspopup="dialog" aria-expanded={open}>
+      <button type="button" className="input" style={{ display: 'flex', alignItems: 'center', gap: 6, textAlign: 'left' }} onClick={() => setOpen((o) => !o)} aria-haspopup="dialog" aria-expanded={open}>
         <span className="swatch" style={{ background: mixed ? 'repeating-linear-gradient(45deg,var(--line),var(--line) 2px,transparent 2px,transparent 4px)' : colorCss(value, dark) }} />
         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{mixed ? MIXED : colorLabel(value, lang)}</span>
       </button>
@@ -125,20 +144,20 @@ export function ColorPicker({ value, onChange, lang, allowByLayer = true, mixed 
           {allowByLayer && (
             <div style={{ display: 'flex', gap: 4, marginBottom: 6 }}>
               {['ByLayer', 'ByBlock'].map((c) => (
-                <button key={c} className={`btn btn--sm${value === c ? ' btn--accent' : ''}`} onClick={() => (onChange(c), setOpen(false))}>
+                <button type="button" key={c} className={`btn btn--sm${value === c ? ' btn--accent' : ''}`} onClick={() => (onChange(c), setOpen(false))}>
                   {colorLabel(c, lang)}
                 </button>
               ))}
             </div>
           )}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(9, 1fr)', gap: 3, marginBottom: 6 }}>
+          <div role="grid" aria-label={tr(lang, 'Colores ACI básicos', 'Basic ACI colors')} style={{ display: 'grid', gridTemplateColumns: 'repeat(9, 1fr)', gap: 3, marginBottom: 6 }}>
             {std.map((i) => (
-              <button key={i} title={`${colorLabel(`aci:${i}`, lang)} (${i})`} className="swatch" style={{ width: 22, height: 22, background: i === 7 ? 'linear-gradient(135deg,#fff 50%,#14171a 50%)' : aciToHex(i), outline: value === `aci:${i}` ? '2px solid var(--fs-interaction)' : undefined }} onClick={() => (onChange(`aci:${i}`), setOpen(false))} />
+              <button type="button" role="gridcell" aria-selected={selectedAci === i} data-aci={i} tabIndex={selectedAci >= 1 && selectedAci <= 9 ? (selectedAci === i ? 0 : -1) : (i === 1 ? 0 : -1)} key={i} title={`${colorLabel(`aci:${i}`, lang)} (${i})`} className="swatch" style={{ width: 22, height: 22, background: i === 7 ? 'linear-gradient(135deg,#fff 50%,#14171a 50%)' : aciToHex(i), outline: value === `aci:${i}` ? '2px solid var(--fs-interaction)' : undefined }} onKeyDown={(event) => moveAci(event, i, 9, 1, 9)} onClick={() => (onChange(`aci:${i}`), setOpen(false))} />
             ))}
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(24, 1fr)', gap: 1, marginBottom: 6 }}>
+          <div role="grid" aria-label={tr(lang, 'Colores ACI ampliados', 'Extended ACI colors')} style={{ display: 'grid', gridTemplateColumns: 'repeat(24, 1fr)', gap: 1, marginBottom: 6 }}>
             {Array.from({ length: 240 }, (_, k) => 10 + k).map((i) => (
-              <button key={i} title={`ACI ${i}`} style={{ height: 9, background: aciToHex(i), outline: value === `aci:${i}` ? '2px solid var(--fs-interaction)' : undefined }} onClick={() => (onChange(`aci:${i}`), setOpen(false))} />
+              <button type="button" role="gridcell" aria-selected={selectedAci === i} data-aci={i} tabIndex={selectedAci >= 10 ? (selectedAci === i ? 0 : -1) : (i === 10 ? 0 : -1)} key={i} title={`ACI ${i}`} style={{ height: 9, background: aciToHex(i), outline: value === `aci:${i}` ? '2px solid var(--fs-interaction)' : undefined }} onKeyDown={(event) => moveAci(event, i, 24, 10, 249)} onClick={() => (onChange(`aci:${i}`), setOpen(false))} />
             ))}
           </div>
           <label className="field" style={{ gridTemplateColumns: '1fr auto' }}>

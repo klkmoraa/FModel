@@ -99,7 +99,7 @@ export function ImportCenterView({ editor, onOpenWorkspace }: ImportCenterViewPr
       tone: 'var(--fs-family-proyecto)',
       ext: '.dwg',
       title: tr(lang, 'AutoCAD DWG', 'AutoCAD DWG'),
-      body: tr(lang, 'Solo lectura, con LibreDWG (~10 MB la primera vez). FModel no escribe DWG: exporta DXF.', 'Read only, with LibreDWG (~10 MB on first use). FModel does not write DWG: it exports DXF.'),
+      body: tr(lang, 'Lectura local experimental. FModel no escribe DWG: exporta DXF.', 'Experimental local reading. FModel does not write DWG: it exports DXF.'),
       status: statusOf('Lectura DWG', 'experimental'),
     },
     {

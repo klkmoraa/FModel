@@ -202,7 +202,7 @@ export function evaluateDynamic(ctx: EvalContext, block: BlockRecord, baseEntiti
   const geoms = new Map<Id, ParamGeom>(def.parameters.map((p) => [p.id, paramGeometry(p)]));
   const values = new Map<Id, unknown>();
   // consultas: fijan valores de parámetros de entrada
-  const effectiveState: DynamicInstanceState = { values: { ...(state?.values ?? {}) }, visibilityState: state?.visibilityState, userValues: state?.userValues };
+  const effectiveState: DynamicInstanceState = { values: { ...state?.values }, visibilityState: state?.visibilityState, userValues: state?.userValues };
   for (const p of def.parameters) {
     if (p.type !== 'lookup') continue;
     const rowLabel = state?.values[p.id];
@@ -568,7 +568,7 @@ export function moveDynamicGrip(ctx: EvalContext, e: InsertEntity, gripId: strin
   const { param, geom } = entry;
   const m = insertMatrixOf(e, block);
   const local = applyToPoint(invert(m), to);
-  const state: DynamicInstanceState = { values: { ...(e.dynamic?.values ?? {}) }, visibilityState: e.dynamic?.visibilityState, userValues: e.dynamic?.userValues };
+  const state: DynamicInstanceState = { values: { ...e.dynamic?.values }, visibilityState: e.dynamic?.visibilityState, userValues: e.dynamic?.userValues };
   switch (param.type) {
     case 'linear': {
       const u = normalize(sub(param.end, param.base));

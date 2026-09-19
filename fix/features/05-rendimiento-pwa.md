@@ -40,12 +40,13 @@
 
 ## WRK-001 — Cancelar y transferir operaciones pesadas
 
-- [ ] **Estado:** Abierta
+- [x] **Estado:** Cerrada
+- **Responsable:** Codex · **Inicio:** 2026-09-19 · **Cierre:** 2026-09-19
 - **Prioridad:** P2 — memoria, bloqueos y control del usuario
 - **Depende de:** DAT-003
 - **Bloquea:** UI-003
 
-**Evidencia:** `src/workers/client.ts` no acepta `AbortSignal`, timeout ni progreso. `postMessage` no usa transferibles, por lo que DWG y estructuras grandes pueden duplicarse. Si una operación queda colgada, la promesa permanece en `pending`.
+**Evidencia:** `src/workers/client.ts` mantiene una cola FIFO determinista con una sola operación activa. Timeout, abort y crash terminan y recrean el worker cuando corresponde, rechazan solo la operación afectada y dejan continuar las siguientes; el fallback inline conserva una copia de payload aunque un `ArrayBuffer` ya haya sido transferido.
 
 **Archivos previstos:**
 
@@ -57,13 +58,15 @@
 
 **Criterios de aceptación:**
 
-- [ ] Cancelar retira la petición de `pending` y evita aplicar resultados tardíos.
-- [ ] Timeout termina/reinicia el worker cuando no puede cancelar cooperativamente.
-- [ ] `ArrayBuffer` grandes se transfieren cuando el llamador ya no los necesita.
-- [ ] El fallback inline conserva semántica de cancelación entre etapas.
-- [ ] Error del worker reintenta inline solo cuando es seguro e idempotente.
+- [x] Cancelar retira la petición de `pending` y evita aplicar resultados tardíos.
+- [x] Timeout termina/reinicia el worker cuando no puede cancelar cooperativamente.
+- [x] `ArrayBuffer` grandes se transfieren cuando el llamador ya no los necesita.
+- [x] El fallback inline conserva semántica de cancelación entre etapas.
+- [x] Error del worker reintenta inline solo cuando es seguro e idempotente.
 
-**Verificación:** `pnpm vitest run src/workers/client.test.ts && pnpm verify`
+**Cierre:** 2026-09-19
+
+**Verificación:** `pnpm vitest run src/workers/client.test.ts` (11 pruebas: FIFO/concurrencia, timeout, abort, crash, recreación y transferibles) y las puertas locales completas pasan con 63 archivos y 582 pruebas Vitest.
 
 ---
 

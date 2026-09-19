@@ -23,7 +23,7 @@ export function dynamicPropertyRows(editor: Editor, e: InsertEntity): DynPropRow
   const commit = (mut: (s: DynamicInstanceState) => void) => {
     editor.doc.transact('DYNPROP', (tx) =>
       tx.updateEntity<InsertEntity>(e.id, (cur) => {
-        const state: DynamicInstanceState = { values: { ...(cur.dynamic?.values ?? {}) }, visibilityState: cur.dynamic?.visibilityState, userValues: { ...(cur.dynamic?.userValues ?? {}) } };
+        const state: DynamicInstanceState = { values: { ...cur.dynamic?.values }, visibilityState: cur.dynamic?.visibilityState, userValues: { ...cur.dynamic?.userValues } };
         mut(state);
         return { ...cur, dynamic: state };
       }),
@@ -93,7 +93,7 @@ export function dynamicPropertyRows(editor: Editor, e: InsertEntity): DynPropRow
   }
   for (const u of def.variables) {
     if (!u.exposed) continue;
-    rows.push({ key: `var:${u.name}`, label: u.name, kind: 'number', value: scope[u.name] ?? 0, readOnly: u.readOnly, set: (nv) => commit((s) => (s.userValues = { ...(s.userValues ?? {}), [u.name]: Number(nv) })) });
+    rows.push({ key: `var:${u.name}`, label: u.name, kind: 'number', value: scope[u.name] ?? 0, readOnly: u.readOnly, set: (nv) => commit((s) => (s.userValues = { ...s.userValues, [u.name]: Number(nv) })) });
   }
   return rows;
 }

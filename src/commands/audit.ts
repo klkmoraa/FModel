@@ -3,6 +3,7 @@ import { compareDrawings } from '../audit/compare';
 import { applyHealthFixes } from '../audit/health';
 import type { DocumentData } from '../document/types';
 import { readXrefSource } from '../xref/xref';
+import { taskManager } from '../app/tasks';
 import { runHeavy } from '../workers/client';
 import { openFile } from '../storage/fileAccess';
 import { K, L } from './helpers';
@@ -23,11 +24,21 @@ const AUDIT: CommandDef = {
     const k = given ? { kind: 'keyword' as const, key: given } : await api.getKeyword({ prompt: L('¿Corregir los errores detectados?', 'Fix any errors detected?'), keywords: kws, defaultValue: 'Yes' });
     if (k.kind !== 'keyword') return;
     api.info(L('Analizando el dibujo en segundo plano…', 'Analyzing the drawing in the background…'));
-    const before = await runHeavy('analyze', { data: editor.doc.data });
+    const before = await taskManager.runTask(
+      'audit-analyze',
+      { es: 'Analizando salud del dibujo', en: 'Analyzing drawing health' },
+      async (ctx) => runHeavy('analyze', { data: editor.doc.data }, { signal: ctx.signal }),
+      { retryable: true },
+    );
     const fixable = before.issues.filter((i) => i.fixable).length;
     if (k.key === 'Yes' && fixable) {
       const fixes = api.apply('AUDIT', (tx) => applyHealthFixes(tx, editor.doc, before));
-      const after = await runHeavy('analyze', { data: editor.doc.data });
+      const after = await taskManager.runTask(
+        'audit-post-fixes',
+        { es: 'Comprobando correcciones de salud', en: 'Verifying health fixes' },
+        async (ctx) => runHeavy('analyze', { data: editor.doc.data }, { signal: ctx.signal }),
+        { retryable: true },
+      );
       api.info(L(`AUDIT: ${before.issues.length} problema(s), ${fixes} corrección(es). Puntuación ${before.score} → ${after.score}.`, `AUDIT: ${before.issues.length} issue(s), ${fixes} fix(es). Score ${before.score} → ${after.score}.`));
       requestUi('health-report', { report: after, fixed: fixes });
       return;
@@ -46,7 +57,13 @@ const HEALTHREPORT: CommandDef = {
   label: L('Informe de salud del dibujo', 'Drawing health report'),
   description: L('Puntuación y lista de problemas por categoría (geometría, duplicados, referencias, bloques, estándares y elementos sin uso) con acceso a cada objeto.', 'Score and issue list by category (geometry, duplicates, references, blocks, standards and unused items) with access to each object.'),
   async run(api) {
-    requestUi('health-report', { report: await runHeavy('analyze', { data: api.editor.doc.data }), fixed: 0 });
+    const report = await taskManager.runTask(
+      'health-report',
+      { es: 'Calculando informe de salud', en: 'Calculating health report' },
+      async (ctx) => runHeavy('analyze', { data: api.editor.doc.data }, { signal: ctx.signal }),
+      { retryable: true },
+    );
+    requestUi('health-report', { report, fixed: 0 });
   },
 };
 

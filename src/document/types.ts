@@ -638,6 +638,20 @@ export interface XrefInfo {
   ownedBlocks?: Id[];
   /** capas «xref|capa» creadas al cargar (sus propiedades locales se conservan al recargar) */
   ownedLayers?: Id[];
+  /** tipos de línea creados al cargar */
+  ownedLinetypes?: Id[];
+  /** estilos de texto creados al cargar */
+  ownedTextStyles?: Id[];
+  /** estilos de cota creados al cargar */
+  ownedDimStyles?: Id[];
+  /** estilos de directriz múltiple creados al cargar */
+  ownedMLeaderStyles?: Id[];
+  /** estilos de tabla creados al cargar */
+  ownedTableStyles?: Id[];
+  /** estilos de multilínea creados al cargar */
+  ownedMLineStyles?: Id[];
+  /** recursos binarios (assets) creados al cargar */
+  ownedAssets?: Id[];
   /** último error de resolución */
   error?: string;
 }

@@ -119,7 +119,7 @@ export function ReferencesDialog({ editor, onClose }: { editor: Editor; onClose:
                           <button className="btn btn--sm" onClick={() => run('XRELOAD', [b.name])}>
                             {tr(lang, 'Recargar', 'Reload')}
                           </button>
-                          {b.xref.status === 'loaded' && (
+                          {b.xref.status !== 'unloaded' && (
                             <button className="btn btn--sm" onClick={() => run('XUNLOAD', [b.name])}>
                               {tr(lang, 'Descargar', 'Unload')}
                             </button>
@@ -130,7 +130,7 @@ export function ReferencesDialog({ editor, onClose }: { editor: Editor; onClose:
                           <button className="btn btn--sm" onClick={() => run('XREPATH', [b.name])}>
                             {tr(lang, 'Ruta…', 'Path…')}
                           </button>
-                          <button className="btn btn--sm" disabled={b.xref.status !== 'loaded'} onClick={() => run('XBIND', [b.name])}>
+                          <button className="btn btn--sm" disabled={b.xref.status === 'unloaded'} onClick={() => run('XBIND', [b.name])}>
                             {tr(lang, 'Unir', 'Bind')}
                           </button>
                           <button className="btn btn--sm btn--danger" onClick={() => window.confirm(tr(lang, `¿Desenlazar «${b.name}» y borrar sus ${inserts(b.id)} inserción(es)?`, `Detach "${b.name}" and delete its ${inserts(b.id)} insertion(s)?`)) && run('XDETACH', [b.name])}>

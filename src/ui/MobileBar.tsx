@@ -1,8 +1,10 @@
 import { Check, ChevronDown, ChevronUp, Keyboard, Maximize, Minus, Plus, Search, Settings2, Star, X } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { getServices, hasServices } from '../app/services';
 import { findCommand } from '../commands/registry';
 import type { Editor } from '../editor/editor';
 import { formatCoord } from '../snap/coords';
+import type { PersistenceHealth } from '../storage/persistence';
 import { tr } from './controls';
 import { useEditorEvents, useThrottledEditorEvents } from './hooks';
 import { CadIcon } from './icons';
@@ -18,6 +20,14 @@ export function MobileBar({ editor, onUi, onKeyboard }: { editor: Editor; onUi: 
   const [open, setOpen] = useState(true);
   const [sheet, setSheet] = useState(false);
   const lang = editor.lang;
+  const persistence = hasServices() ? getServices().persistence : null;
+  const [health, setHealth] = useState<PersistenceHealth | null>(() => persistence?.health ?? null);
+
+  useEffect(() => {
+    if (!persistence) return;
+    return persistence.onHealthChange(setHealth);
+  }, [persistence]);
+
   const pending = editor.runner.pending;
   const busy = editor.runner.busy;
   const active = editor.runner.active?.def.name ?? '';
@@ -67,6 +77,20 @@ export function MobileBar({ editor, onUi, onKeyboard }: { editor: Editor; onUi: 
                 <CadIcon name="properties" size={18} />
               </button>
             </>
+          )}
+          {health && health.status !== 'protected' && (
+            <button
+              className="mbar__act is-warn"
+              onClick={() => onUi('versions')}
+              aria-label={health.status === 'unavailable' ? tr(lang, 'Sin persistencia', 'No persistence') : tr(lang, 'Almacenamiento degradado', 'Storage degraded')}
+              title={
+                health.status === 'unavailable'
+                  ? tr(lang, 'IndexedDB no disponible: los cambios no se guardan automáticamente.', 'IndexedDB unavailable: changes are not autosaved.')
+                  : tr(lang, `Almacenamiento degradado (${health.lastError?.message ?? 'error'}). Haz clic para ver versiones o liberar espacio.`, `Storage degraded (${health.lastError?.message ?? 'error'}). Click to view versions or free space.`)
+              }
+            >
+              ⚠️
+            </button>
           )}
           <button className="mbar__act" onClick={onKeyboard} aria-label={tr(lang, 'Escribir valor o comando', 'Type value or command')}>
             <Keyboard size={17} />

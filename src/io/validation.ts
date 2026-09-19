@@ -1,5 +1,7 @@
-import { NativeFormatError } from './native';
+import { ENTITY_TYPES, NativeFormatError } from './native';
 import { INPUT_LIMITS } from './limits';
+
+export { ENTITY_TYPES };
 
 /** Rechaza números que el formato JSON no puede representar con seguridad. */
 export function assertFiniteValues(value: unknown): void {

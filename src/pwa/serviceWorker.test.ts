@@ -50,7 +50,7 @@ function boot(files: string[], version: string, network: { online: boolean; stat
 const req = (url: string, mode: RequestMode | 'navigate' = 'cors', headers: HeadersInit = {}) => ({ url, method: 'GET', mode, headers: new Headers(headers) }) as unknown as Request;
 
 describe('service worker', () => {
-  it('precaches the whole build and serves assets and navigation offline', async () => {
+  it('precaches the application shell and serves assets and navigation offline', async () => {
     const network = { online: true };
     const sw = boot(['./', 'index.html', 'assets/index-abc.js'], 'v1', network);
     await sw.dispatch('install');

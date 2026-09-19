@@ -13,6 +13,7 @@ import { DND_MIME } from '../dnd';
 import { tr } from '../controls';
 
 const ALL = '*all';
+const PAGE_SIZE = 48;
 
 /** Biblioteca de bloques: árbol de categorías, búsqueda, rejilla con miniaturas y edición. */
 export function LibraryView({ editor, query }: { editor: Editor; query: string }) {
@@ -22,6 +23,7 @@ export function LibraryView({ editor, query }: { editor: Editor; query: string }
   const [cats, setCats] = useState<LibraryCategory[]>([]);
   const [current, setCurrent] = useState(ALL);
   const [onlyDynamic, setOnlyDynamic] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [editing, setEditing] = useState<LibraryBlock | null>(null);
   const [manage, setManage] = useState(false);
   const [error, setError] = useState('');
@@ -46,6 +48,7 @@ export function LibraryView({ editor, query }: { editor: Editor; query: string }
   const inCat = current === ALL ? null : descendantIds(cats, current);
   const q = query.trim().toLowerCase();
   const shown = items.filter((b) => (!inCat || inCat.has(b.categoryId)) && (!onlyDynamic || b.dynamic) && (!q || `${b.name} ${b.tags.join(' ')} ${b.description ?? ''}`.toLowerCase().includes(q)));
+  useEffect(() => setVisibleCount(PAGE_SIZE), [current, onlyDynamic, q]);
 
   const insert = (b: LibraryBlock) => {
     try {
@@ -120,7 +123,7 @@ export function LibraryView({ editor, query }: { editor: Editor; query: string }
           </nav>
         )}
         <div className="libgrid">
-          {shown.map((b) => (
+          {shown.slice(0, visibleCount).map((b) => (
             <div key={b.id} className="libcard" draggable onDragStart={(e) => e.dataTransfer.setData(DND_MIME, JSON.stringify({ kind: 'library-block', id: b.id }))} title={`${b.name}\n${categoryPath(cats, b.categoryId)}${b.tags.length ? `\n#${b.tags.join(' #')}` : ''}`}>
               <button className="libcard__thumb" onClick={() => insert(b)} aria-label={tr(lang, `Insertar ${b.name}`, `Insert ${b.name}`)}>
                 {b.thumbnail ? <img src={b.thumbnail} width={64} height={64} alt="" draggable={false} /> : null}
@@ -149,6 +152,11 @@ export function LibraryView({ editor, query }: { editor: Editor; query: string }
                 ? tr(lang, 'Ningún bloque coincide con el filtro.', 'No block matches the filter.')
                 : tr(lang, 'La biblioteca está vacía. Instala la biblioteca inicial (muebles estirables, puertas, vegetación…), importa un DXF, DWG o .fmodellib, o envía un bloque del dibujo con WBLOCK.', 'The library is empty. Install the starter library (stretchable furniture, doors, vegetation…), import a DXF, DWG or .fmodellib, or send a drawing block with WBLOCK.')}
             </div>
+          )}
+          {shown.length > visibleCount && (
+            <button className="btn btn--sm" style={{ gridColumn: '1 / -1' }} onClick={() => setVisibleCount((count) => count + PAGE_SIZE)}>
+              {tr(lang, `Mostrar más (${visibleCount} de ${shown.length})`, `Show more (${visibleCount} of ${shown.length})`)}
+            </button>
           )}
         </div>
       </div>

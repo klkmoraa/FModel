@@ -1,12 +1,23 @@
+import { useEffect, useState } from 'react';
+import { getServices, hasServices } from '../app/services';
 import type { Editor } from '../editor/editor';
 import { formatCoord } from '../snap/coords';
+import type { PersistenceHealth } from '../storage/persistence';
 import { useThrottledEditorEvents } from './hooks';
+import { TaskStatus } from './TaskStatus';
 
 const tr = (lang: 'es' | 'en', es: string, en: string) => (lang === 'es' ? es : en);
 
 export function StatusBar({ editor, onOpenSettings, fullscreen, onFullscreen }: { editor: Editor; onOpenSettings: () => void; fullscreen: boolean; onFullscreen: () => void }) {
   useThrottledEditorEvents(editor, ['overlay', 'prefs', 'space', 'doc', 'view']);
   const lang = editor.lang;
+  const persistence = hasServices() ? getServices().persistence : null;
+  const [health, setHealth] = useState<PersistenceHealth | null>(() => persistence?.health ?? null);
+
+  useEffect(() => {
+    if (!persistence) return;
+    return persistence.onHealthChange(setHealth);
+  }, [persistence]);
   const p = editor.hover.resolved?.p ?? editor.hover.world;
   const snap = editor.prefs.snap;
   const s = editor.doc.settings;
@@ -78,7 +89,21 @@ export function StatusBar({ editor, onOpenSettings, fullscreen, onFullscreen }: 
       <span className="status-toggle" title={tr(lang, 'Zoom', 'Zoom')}>
         {editor.view.scale >= 1 ? `${editor.view.scale.toFixed(2)} px/u` : `${(1 / editor.view.scale).toFixed(2)} u/px`}
       </span>
+      {health && health.status !== 'protected' && (
+        <button
+          className="status-toggle is-warn"
+          onClick={() => hasServices() && getServices().openUi('versions')}
+          title={
+            health.status === 'unavailable'
+              ? tr(lang, 'IndexedDB no disponible: los cambios no se guardan automáticamente.', 'IndexedDB unavailable: changes are not autosaved.')
+              : tr(lang, `Almacenamiento degradado (${health.lastError?.message ?? 'error'}). Haz clic para ver versiones o liberar espacio.`, `Storage degraded (${health.lastError?.message ?? 'error'}). Click to view versions or free space.`)
+          }
+        >
+          ⚠️ {health.status === 'unavailable' ? tr(lang, 'SIN PERSISTENCIA', 'NO PERSISTENCE') : tr(lang, 'ALMACENAMIENTO DEGRADADO', 'STORAGE DEGRADED')}
+        </button>
+      )}
       <span style={{ flex: 1 }} />
+      <TaskStatus lang={lang} />
       <button className="status-toggle" onClick={onFullscreen} title={tr(lang, 'Pantalla limpia / completa (Ctrl+0)', 'Clean screen / fullscreen (Ctrl+0)')}>
         {fullscreen ? '⤡' : '⤢'}
       </button>

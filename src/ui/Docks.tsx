@@ -42,6 +42,15 @@ export function Docks({ editor, side, mobileSheet, onCloseSheet, onUi }: { edito
   });
   const collapsed = editor.prefs.panels.collapsed.includes(side);
   const drag = useRef<{ x: number; w: number } | null>(null);
+  const setDockWidth = (next: number) => {
+    const value = Math.max(200, Math.min(720, Math.round(next)));
+    setWidth(value);
+    try {
+      localStorage.setItem(`fmodel.dock.${side}`, String(value));
+    } catch {
+      /* sin almacenamiento */
+    }
+  };
 
   useEffect(() => {
     const onPanel = (e: Event) => {
@@ -95,37 +104,48 @@ export function Docks({ editor, side, mobileSheet, onCloseSheet, onUi }: { edito
           }}
           onPointerUp={() => {
             drag.current = null;
-            try {
-              localStorage.setItem(`fmodel.dock.${side}`, String(width));
-            } catch {
-              /* sin almacenamiento */
-            }
+            setDockWidth(width);
+          }}
+          onKeyDown={(e) => {
+            const step = e.shiftKey ? 40 : 10;
+            const next = e.key === 'ArrowRight' ? width + step : e.key === 'ArrowLeft' ? width - step : e.key === 'Home' ? 200 : e.key === 'End' ? 720 : null;
+            if (next === null) return;
+            e.preventDefault();
+            setDockWidth(next);
           }}
           role="separator"
           aria-orientation="vertical"
+          tabIndex={0}
+          aria-label={tr(lang, `Redimensionar panel ${side === 'left' ? 'izquierdo' : 'derecho'}`, `Resize ${side} dock`)}
+          aria-valuemin={200}
+          aria-valuemax={720}
+          aria-valuenow={Math.round(width)}
+          aria-valuetext={tr(lang, `${Math.round(width)} píxeles`, `${Math.round(width)} pixels`)}
         />
       )}
-      <div className="dock__tabs" role="tablist">
-        {(sheetPanel ? [sheetPanel] : panels).map((id) => (
-          <button
-            key={id}
-            role="tab"
-            aria-selected={shown === id}
-            className={`dock__tab${shown === id ? ' is-active' : ''}`}
-            onClick={() => {
-              setActive(id);
-              if (collapsed) toggleCollapse();
-            }}
-            onContextMenu={(e) => {
-              e.preventDefault();
-              moveTo(id);
-            }}
-            title={tr(lang, `${PANELS[id].label.es} · clic derecho: mover al otro lado`, `${PANELS[id].label.en} · right-click: move to other side`)}
-          >
-            <CadIcon name={PANELS[id].icon} size={15} />
-            <span>{PANELS[id].label[lang]}</span>
-          </button>
-        ))}
+      <div className="dock__tabs">
+        <div className="dock__tab-list" role="tablist">
+          {(sheetPanel ? [sheetPanel] : panels).map((id) => (
+            <button
+              key={id}
+              role="tab"
+              aria-selected={shown === id}
+              className={`dock__tab${shown === id ? ' is-active' : ''}`}
+              onClick={() => {
+                setActive(id);
+                if (collapsed) toggleCollapse();
+              }}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                moveTo(id);
+              }}
+              title={tr(lang, `${PANELS[id].label.es} · clic derecho: mover al otro lado`, `${PANELS[id].label.en} · right-click: move to other side`)}
+            >
+              <CadIcon name={PANELS[id].icon} size={15} />
+              <span>{PANELS[id].label[lang]}</span>
+            </button>
+          ))}
+        </div>
         <span style={{ flex: 1 }} />
         {sheetPanel ? (
           <button className="icon-btn" onClick={onCloseSheet} aria-label={tr(lang, 'Cerrar', 'Close')}>

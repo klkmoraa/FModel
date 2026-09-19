@@ -377,7 +377,7 @@ export function solveConstraints(entityList: Entity[], constraints: BlockConstra
     const m = r.length;
     const n = free.length;
     // Jacobiano J[m×n]
-    const J: number[][] = Array.from({ length: m }, () => new Array<number>(n).fill(0));
+    const J: number[][] = Array.from({ length: m }, () => Array.from<number>({ length: n }).fill(0));
     for (let j = 0; j < n; j++) {
       const vi = free[j];
       const h = 1e-7 * Math.max(1, Math.abs(x[vi]));
@@ -397,7 +397,7 @@ export function solveConstraints(entityList: Entity[], constraints: BlockConstra
       if (lambda > 1e6) break;
       continue;
     }
-    const delta = new Array<number>(n).fill(0);
+    const delta = Array.from<number>({ length: n }).fill(0);
     for (let j = 0; j < n; j++) for (let i = 0; i < m; i++) delta[j] += J[i][j] * y[i];
     const trial = [...x];
     for (let j = 0; j < n; j++) trial[free[j]] += delta[j];
