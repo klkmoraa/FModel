@@ -2,14 +2,13 @@
 
 ## TST-001 — Cubrir recorridos críticos en un navegador real
 
-- [x] **Estado:** Cerrada
-- **Responsable:** Codex · **Inicio:** 2026-09-18 · **Cierre:** 2026-09-18
-- **Reapertura:** 2026-09-18 · **Responsable:** Codex · **Cierre de seguimiento:** 2026-09-18
+- [>] **Estado:** En curso
+- **Responsable:** Codex · **Inicio:** 2026-09-18
 - **Prioridad:** P1 — los fallos de integración más peligrosos hoy no se ejecutan
 - **Depende de:** DAT-001, DAT-002, DAT-003
 - **Bloquea:** UI-001, UI-002, CMD-001
 
-**Evidencia:** las 316 pruebas unitarias se ejecutaban en Node sin suite E2E. Se implementó Playwright con 8 recorridos críticos en navegador real cubriendo selector/descarga de archivos, IndexedDB real, portapapeles cross-drawing, canvas, teclado, service worker y layouts/plot.
+**Evidencia:** `e2e/criticalJourneys.spec.ts` contiene cinco recorridos black-box en Chromium: crear/dibujar/undo/redo/guardar/reabrir con selección de archivo, importar/exportar DXF con archivo real, cancelar Guardar como y observar el aviso de cambios, favoritos y resize de docks por teclado, y auditoría axe de las superficies observables. No usa `window.fmodel`, `doc.transact()`, `page.evaluate()` ni APIs internas del modelo.
 
 **Archivos previstos:**
 
@@ -17,27 +16,27 @@
 - Modificar: `package.json`, `.github/workflows/ci.yml`
 - Añadir fixtures mínimos generados por código, no binarios grandes duplicados
 
-**Recorridos obligatorios:**
+**Recorridos verificados en esta corrección:**
 
 - [x] Crear → dibujar → undo/redo → guardar → reabrir.
 - [x] Cancelar Guardar como con cambios y comprobar aviso al cerrar/nuevo.
-- [x] Copiar bloque/imagen/texto entre dibujos y reabrir el resultado.
+- [ ] Copiar bloque/imagen/texto entre dibujos y reabrir el resultado (pendiente de journey black-box dedicado).
 - [x] Importar/exportar DXF y mostrar informe.
-- [x] Crear layout → vista previa → PDF/SVG.
-- [x] Autoguardado → simular cierre no limpio → recuperar.
-- [x] Actualización de service worker sin perder dibujo abierto.
+- [ ] Crear layout → vista previa → PDF/SVG (pendiente de journey black-box dedicado).
+- [ ] Autoguardado → simular cierre no limpio → recuperar (pendiente de journey black-box dedicado).
+- [ ] Actualización de service worker sin perder dibujo abierto (pendiente de journey black-box dedicado).
 - [x] Navegación principal solo con teclado.
 
 **Criterios de aceptación:**
 
-- [x] Chromium estable corre en cada PR; WebKit se ejecuta al menos en main o job programado.
+- [x] Chromium estable corre en cada PR; WebKit se ejecuta en main mediante el workflow.
 - [x] Las pruebas no dependen de sleeps arbitrarios ni de diálogos nativos imposibles de controlar.
 - [x] Capturas/trazas se conservan solo al fallar.
 - [x] Los recorridos P1 forman parte de la puerta de despliegue.
 
-**Verificación:** `pnpm test:e2e && pnpm lint && pnpm verify` (8 pruebas en navegador real pasan en 3.6s, cubriendo roundtrip completo de bloque, imagen con asset y texto, además de protección de dibujo sucio ante UPDATEAPP y soporte de WebKit para CI).
+**Verificación:** `pnpm test:e2e` (5/5 pruebas Chromium, sin APIs internas ni sleeps arbitrarios); las puertas locales de lint, tipos, capas, features, Vitest, cobertura y build pasan. Los cuatro journeys históricos aún no implementados mantienen TST-001 abierta para no inventar evidencia.
 
-**Seguimiento 2026-09-18:** commit `929fe7b`. `UPDATEAPP` cancela la recarga y muestra un aviso bilingüe cuando el autoguardado devuelve `false`. El E2E falló primero porque ejecutaba el callback y luego pasó tras reconstruir `dist`; Chromium y WebKit cerraron 16/16, y `pnpm lint && pnpm verify` pasó con 50 archivos/404 pruebas, capas, documentación, tipos y build correctos (avisos de lint preexistentes).
+La evidencia histórica de otros recorridos no se reutiliza como cierre: esta tarea permanece en curso hasta implementar y ejecutar de nuevo los journeys pendientes mediante UI observable.
 
 ---
 
@@ -49,7 +48,7 @@
 - **Depende de:** —
 - **Bloquea:** GEO-001, GEO-002, ARC-001, CMD-001
 
-**Evidencia:** Se instaló `@vitest/coverage-v8` compatible con Vitest 5.0.1, se configuró la generación de informes texto y LCOV (`coverage/lcov.info`) en `vite.config.ts`, y se creó el script `pnpm test:coverage`. Se excluyeron de forma justificada archivos de pruebas, tipos `.d.ts`, CSS y el entrypoint de React del DOM (`main.tsx`). Se documentó la línea base completa por subsistema y la política de umbrales en `docs/testing.md`. Se fijaron umbrales globales mínimos (48% líneas, 45% sentencias, 34% ramas, 34% funciones) y umbrales específicos más estrictos para subsistemas críticos: Documento (>= 85% líneas, 80% sentencias), Persistencia (>= 70% líneas, 70% sentencias) y Geometría (>= 65% líneas, 65% sentencias).
+**Evidencia:** Se instaló `@vitest/coverage-v8`, se configuró texto y LCOV (`coverage/lcov.info`), y CI ejecuta `pnpm test:coverage`. `vite.config.ts` conserva umbrales globales y umbrales específicos para Documento, Persistencia, Geometría y `src/io/native*`, de modo que el formato nativo también bloquea regresiones.
 
 **Archivos previstos:**
 
@@ -71,7 +70,7 @@
 
 **Cierre:** 2026-09-19
 
-**Verificación:** `pnpm test:coverage` (ejecuta 55 suites y 515 pruebas, superando todos los umbrales configurados y generando LCOV) y `pnpm verify` (55 suites, 515 pruebas, 0 advertencias de lint, TypeScript estricto, capas conformes y build de producción).
+**Verificación:** `pnpm test:coverage` (63 archivos y 582 pruebas, superando todos los umbrales y generando `coverage/lcov.info`) y CI incluye el mismo comando.
 
 ---
 
@@ -85,7 +84,7 @@
 - **Depende de:** —
 - **Bloquea:** REL-002
 
-**Evidencia:** Se unificó la toolchain en Node 24 (`package.json`, `README.md`, `ci.yml`, `deploy-pages.yml`) y pnpm 11 (`packageManager: pnpm@11.25.0`, `ci.yml` y `deploy-pages.yml`). Se eliminaron todas las advertencias de Oxlint en el código de producción y scripts (0 warnings, 0 errors). Se configuró `oxlint --deny-warnings src` en `pnpm lint` para bloquear advertencias nuevas en local y CI. Se integró `pnpm lint` directamente en `pnpm verify` como puerta única y reproducible.
+**Evidencia:** Node 24 se declara en `package.json` y setup-node. `package.json` con `packageManager: pnpm@11.25.0` es la única fuente de versión de pnpm: `ci.yml` y `deploy-pages.yml` usan `pnpm/action-setup@v4` sin una versión duplicada. CI ejecuta lint, tipos, capas, features, suite, cobertura, build y E2E; `pnpm verify` integra la puerta local.
 
 **Archivos modificados:**
 - `package.json`
@@ -95,13 +94,13 @@
 
 **Criterios de aceptación:**
 
-- [x] `corepack`/pnpm selecciona la misma versión local y en ambos workflows (pnpm 11).
+- [x] `packageManager` selecciona la misma versión local y ambos workflows no duplican la versión de pnpm.
 - [x] `pnpm verify` reproduce todo lo requerido para integrar/desplegar incluyendo lint.
 - [x] Lint termina sin advertencias con `--deny-warnings`.
 
 **Cierre:** 2026-09-19
 
-**Verificación:** `pnpm lint && pnpm verify` (0 warnings, 0 errors en oxlint, tsc estricto sin errores, 552 importaciones en capas, features al día, 54 archivos / 505 pruebas vitest pasando, build de producción exitoso).
+**Verificación:** puertas locales completas ejecutadas: lint, typecheck, layers, features, test (63 archivos/582 pruebas), coverage, build y E2E; todos pasan.
 
 ---
 
@@ -122,7 +121,7 @@
    - `src/commands/draw/shared.ts`: Utilidades geométricas compartidas entre familias (`nearestCurve`, `arcEntityFrom`).
    - `src/commands/draw.ts`: Fachada modular que preserva 100% de la API pública existente (`DRAW_COMMANDS`, `nearestCurve`, `rectangleVertices`, `revcloudVertices`, `closedLoopOf`, `hatchDefaults` y comandos individuales), garantizando compatibilidad total con consumidores externos (`src/commands/index.ts`, `src/ui/panels/ToolPalettesPanel.tsx`, `src/ui/panels/propertyDefs.ts`).
 2. Pruebas de caracterización fortalecidas en `src/commands/behavior/draw.test.ts` con cobertura de `LINE`, `PLINE`, `CIRCLE`, `ARC`, `RECTANG`, `POINT`, `RAY`, `XLINE`, `POLYGON`, `ELLIPSE`, `DONUT`, `REVCLOUD`, y `REGION`. Las 10 pruebas de caracterización pasan al 100%.
-3. Verificación exhaustiva: `pnpm lint` (0 warnings, 0 errors con `--deny-warnings`), `pnpm check:layers` (567 importaciones válidas sin violaciones de capa), `pnpm check:features` (docs sincronizados), `pnpm test` (61 archivos / 571 pruebas vitest pasando), `pnpm build` (build de producción completado en ~1.5s), y `pnpm test:e2e` (9/9 recorridos críticos de Playwright pasando).
+3. `src/commands/draw.facade.test.ts` fija la API pública de la fachada (`DRAW_COMMANDS`, categorías, comandos y helpers) y pasa junto con la suite completa.
 
 **Archivos creados/modificados:**
 - Creados: `src/commands/draw/curves.ts`, `src/commands/draw/construction.ts`, `src/commands/draw/annotation.ts`, `src/commands/draw/areas.ts`, `src/commands/draw/shared.ts`
@@ -135,7 +134,7 @@
 - [x] El objetivo es responsabilidad clara, no un límite de líneas artificial.
 - [x] Cada PR puede revertirse de forma independiente.
 
-**Verificación:** `pnpm lint && pnpm verify && pnpm test:e2e` (0 advertencias oxlint, 567 importaciones de capas correctas, 61/61 suites vitest con 571 pruebas pasando, build en 1.58s, 9/9 recorridos E2E Playwright pasando).
+**Verificación:** lint, typecheck, layers, features, test (63 archivos/582 pruebas), coverage, build y `pnpm test:e2e` (5/5) pasan; la API pública queda cubierta por la prueba de caracterización.
 
 ---
 

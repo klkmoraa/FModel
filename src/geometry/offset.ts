@@ -17,6 +17,7 @@ import { curvesToVertices, polylineSegments } from './polyline';
 import { splineThroughPoints } from './spline';
 import type { Vec2 } from './vec';
 import { add, cross, dist, normalize, perp, samePoint, scale, sub } from './vec';
+import { TOL } from './tolerance';
 
 /**
  * Lado de un punto respecto a una curva: +1 a la izquierda del sentido de
@@ -105,7 +106,7 @@ function joinArc(center: Vec2, from: Vec2, to: Vec2, leftTurn: boolean): ArcCurv
  * 3. partición en autointersecciones; 4. se descartan los tramos más cercanos
  * que |d| a la polilínea original; 5. se reconectan cadenas.
  */
-export function offsetPolyline(vertices: PolyVertex[], closed: boolean, d: number, tol = 1e-7): { vertices: PolyVertex[]; closed: boolean }[] {
+export function offsetPolyline(vertices: PolyVertex[], closed: boolean, d: number, tol = TOL.LINEAR): { vertices: PolyVertex[]; closed: boolean }[] {
   const segs = polylineSegments(vertices, closed);
   if (!segs.length) return [];
   const n = segs.length;

@@ -3,6 +3,7 @@ import { createDocument, entityDefaults } from '../document/defaults';
 import type { LineEntity } from '../document/types';
 import { MODEL_SPACE_ID } from '../document/types';
 import { runHeavy, _resetWorker, type RunHeavyProgress } from './client';
+import { HEAVY_OPS } from './heavyOps';
 
 describe('heavy operations client', () => {
   beforeEach(() => {
@@ -201,6 +202,194 @@ describe('heavy operations client', () => {
       expect(res).toBeDefined();
       expect(res.score).toBeDefined();
     } finally {
+      (globalThis as any).Worker = originalWorker;
+      (globalThis as any).window = originalWindow;
+    }
+  });
+
+  it('serializes concurrent jobs and drains the queue in submission order', async () => {
+    type Listener = (event: any) => void;
+    const workers: MockQueuedWorker[] = [];
+
+    class MockQueuedWorker {
+      listeners = new Map<string, Listener[]>();
+      posted: any[] = [];
+      constructor() {
+        workers.push(this);
+      }
+      addEventListener(type: string, fn: Listener) {
+        this.listeners.set(type, [...(this.listeners.get(type) ?? []), fn]);
+      }
+      removeEventListener(type: string, fn: Listener) {
+        this.listeners.set(type, (this.listeners.get(type) ?? []).filter((candidate) => candidate !== fn));
+      }
+      postMessage(data: any) {
+        this.posted.push(data);
+      }
+      terminate = vi.fn();
+      respond(result: unknown) {
+        const messageListeners = this.listeners.get('message') ?? [];
+        for (const listener of messageListeners) listener({ data: { type: 'result', id: this.posted[this.posted.length - 1].id, ok: true, result } });
+      }
+    }
+
+    const originalWorker = globalThis.Worker;
+    const originalWindow = (globalThis as any).window;
+    (globalThis as any).Worker = MockQueuedWorker as any;
+    (globalThis as any).window = globalThis;
+
+    try {
+      const first = runHeavy('readDxf', { text: 'first' });
+      const second = runHeavy('readDxf', { text: 'second' });
+      await Promise.resolve();
+
+      expect(workers).toHaveLength(1);
+      expect(workers[0].posted.map((message) => message.payload.text)).toEqual(['first']);
+
+      workers[0].respond({ order: 1 });
+      await Promise.resolve();
+      expect(workers[0].posted.map((message) => message.payload.text)).toEqual(['first', 'second']);
+      workers[0].respond({ order: 2 });
+
+      await expect(first).resolves.toEqual({ order: 1 });
+      await expect(second).resolves.toEqual({ order: 2 });
+    } finally {
+      (globalThis as any).Worker = originalWorker;
+      (globalThis as any).window = originalWindow;
+    }
+  });
+
+  it('rejects a timed-out job and continues with queued work on a recreated worker', async () => {
+    type Listener = (event: any) => void;
+    const workers: MockQueuedWorker[] = [];
+
+    class MockQueuedWorker {
+      listeners = new Map<string, Listener[]>();
+      posted: any[] = [];
+      constructor() {
+        workers.push(this);
+      }
+      addEventListener(type: string, fn: Listener) {
+        this.listeners.set(type, [...(this.listeners.get(type) ?? []), fn]);
+      }
+      removeEventListener(type: string, fn: Listener) {
+        this.listeners.set(type, (this.listeners.get(type) ?? []).filter((candidate) => candidate !== fn));
+      }
+      postMessage(data: any) {
+        this.posted.push(data);
+      }
+      terminate = vi.fn();
+      respond(result: unknown) {
+        const messageListeners = this.listeners.get('message') ?? [];
+        for (const listener of messageListeners) listener({ data: { type: 'result', id: this.posted[0].id, ok: true, result } });
+      }
+    }
+
+    const originalWorker = globalThis.Worker;
+    const originalWindow = (globalThis as any).window;
+    (globalThis as any).Worker = MockQueuedWorker as any;
+    (globalThis as any).window = globalThis;
+
+    try {
+      const first = runHeavy('readDxf', { text: 'hung' }, { timeoutMs: 10 });
+      const second = runHeavy('readDxf', { text: 'after-timeout' });
+      await Promise.resolve();
+
+      await expect(first).rejects.toThrow('timed out after 10ms');
+      expect(workers[0].terminate).toHaveBeenCalled();
+      expect(workers).toHaveLength(2);
+      expect(workers[1].posted.map((message) => message.payload.text)).toEqual(['after-timeout']);
+
+      workers[1].respond({ order: 2 });
+      await expect(second).resolves.toEqual({ order: 2 });
+    } finally {
+      (globalThis as any).Worker = originalWorker;
+      (globalThis as any).window = originalWindow;
+    }
+  });
+
+  it('terminates a running worker on abort so a non-cooperative job cannot block the next one', async () => {
+    type Listener = (event: any) => void;
+    const workers: MockQueuedWorker[] = [];
+
+    class MockQueuedWorker {
+      listeners = new Map<string, Listener[]>();
+      posted: any[] = [];
+      constructor() {
+        workers.push(this);
+      }
+      addEventListener(type: string, fn: Listener) {
+        this.listeners.set(type, [...(this.listeners.get(type) ?? []), fn]);
+      }
+      removeEventListener(type: string, fn: Listener) {
+        this.listeners.set(type, (this.listeners.get(type) ?? []).filter((candidate) => candidate !== fn));
+      }
+      postMessage(data: any) {
+        this.posted.push(data);
+      }
+      terminate = vi.fn();
+      respond(result: unknown) {
+        for (const listener of this.listeners.get('message') ?? []) listener({ data: { type: 'result', id: this.posted[this.posted.length - 1].id, ok: true, result } });
+      }
+    }
+
+    const originalWorker = globalThis.Worker;
+    const originalWindow = (globalThis as any).window;
+    (globalThis as any).Worker = MockQueuedWorker as any;
+    (globalThis as any).window = globalThis;
+
+    try {
+      const controller = new AbortController();
+      const first = runHeavy('readDxf', { text: 'non-cooperative' }, { signal: controller.signal });
+      const second = runHeavy('readDxf', { text: 'next' });
+      await Promise.resolve();
+      controller.abort();
+
+      await expect(first).rejects.toThrowError(expect.objectContaining({ name: 'AbortError' }));
+      expect(workers[0].terminate).toHaveBeenCalled();
+      expect(workers[0].posted.some((message) => message.type === 'cancel')).toBe(true);
+      expect(workers).toHaveLength(2);
+      expect(workers[1].posted[0].payload.text).toBe('next');
+
+      workers[1].respond({ order: 2 });
+      await expect(second).resolves.toEqual({ order: 2 });
+    } finally {
+      (globalThis as any).Worker = originalWorker;
+      (globalThis as any).window = originalWindow;
+    }
+  });
+
+  it('falls back with a preserved payload after a crash even when its ArrayBuffer was transferred', async () => {
+    type Listener = (event: any) => void;
+    const listeners = new Map<string, Listener[]>();
+    class CrashingWorker {
+      addEventListener(type: string, fn: Listener) {
+        listeners.set(type, [...(listeners.get(type) ?? []), fn]);
+      }
+      removeEventListener() {}
+      postMessage(data: any, transfer?: Transferable[]) {
+        // Simulate the browser detaching the sender's buffer during transfer.
+        if (transfer?.length) structuredClone(data, { transfer: transfer as ArrayBuffer[] });
+        queueMicrotask(() => {
+          for (const listener of listeners.get('error') ?? []) listener({ message: 'worker crashed after transfer' });
+        });
+      }
+      terminate = vi.fn();
+    }
+
+    const fallback = vi.spyOn(HEAVY_OPS, 'parseDwg').mockImplementation(async ({ bytes }) => ({ byteLength: bytes.byteLength } as never));
+    const originalWorker = globalThis.Worker;
+    const originalWindow = (globalThis as any).window;
+    (globalThis as any).Worker = CrashingWorker as any;
+    (globalThis as any).window = globalThis;
+
+    try {
+      const bytes = new Uint8Array([1, 2, 3, 4, 5]);
+      const result = await runHeavy('parseDwg', { bytes }, { transfer: [bytes.buffer] });
+      expect(result).toEqual({ byteLength: 5 });
+      expect(fallback).toHaveBeenCalled();
+    } finally {
+      fallback.mockRestore();
       (globalThis as any).Worker = originalWorker;
       (globalThis as any).window = originalWindow;
     }

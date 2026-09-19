@@ -1,3 +1,5 @@
+import { evidenceCommands } from '../audit/evidence.ts';
+
 /**
  * Estado real de las funciones de FModel 2D CAD. Es la fuente de la pestaña «Estado de
  * funciones» de la ayuda y de docs/FEATURES.md: solo se marca «Disponible» lo que funciona
@@ -22,31 +24,6 @@ export interface Feature {
   evidence?: FeatureEvidence[];
 }
 
-export const VERIFIED_EVIDENCE_REFS = new Set<string>([
-  'E2E-CRITICAL-JOURNEYS',
-  'BEH-DRAW',
-  'BEH-MODIFY',
-  'BEH-ANNOTATE',
-  'BEH-MANAGEMENT',
-  'BEH-REFERENCES',
-  'BEH-LIBRARY',
-  'BEH-FILE',
-  'GEO-INVARIANTS',
-  'GEO-CURVES',
-  'SOLVER-CONSTRAINTS',
-  'IO-CLIPBOARD',
-  'IO-DXF',
-  'IO-NATIVE',
-  'STORAGE-PERSISTENCE',
-  'WORKER-ASYNC',
-  'RENDER-CANVAS',
-  'SPATIAL-INDEX',
-  'UI-TOUCH-MATRIX',
-  'UI-A11Y',
-  'PWA-SW',
-  'DWG-EXPERIMENTAL',
-]);
-
 const F = (
   areaEs: string,
   areaEn: string,
@@ -56,14 +33,24 @@ const F = (
   commands?: string[],
   note?: [string, string],
   evidence?: FeatureEvidence[]
-): Feature => ({
-  area: { es: areaEs, en: areaEn },
-  name: { es, en },
-  status,
-  commands,
-  note: note ? { es: note[0], en: note[1] } : undefined,
-  evidence,
-});
+): Feature => {
+  const missingCommands = status === 'available' ? (commands ?? []).filter((command) => evidenceCommands(command).length === 0) : [];
+  const effectiveStatus: FeatureStatus = missingCommands.length > 0 ? 'experimental' : status;
+  const evidenceNote: [string, string] | undefined = missingCommands.length > 0
+    ? [
+      `Evidencia ejecutada pendiente para: ${missingCommands.join(', ')}. La función no se publica como Disponible hasta enlazar cada comando a una prueba real.`,
+      `Executed evidence is pending for: ${missingCommands.join(', ')}. The feature is not published as Available until every command links to a real test.`,
+    ]
+    : undefined;
+  return {
+    area: { es: areaEs, en: areaEn },
+    name: { es, en },
+    status: effectiveStatus,
+    commands,
+    note: note || evidenceNote ? { es: (note ?? evidenceNote)![0], en: (note ?? evidenceNote)![1] } : undefined,
+    evidence,
+  };
+};
 
 export const FEATURES: Feature[] = [
   F('Lienzo', 'Canvas', 'Zoom, encuadre, extensión, zoom a selección y vistas guardadas', 'Zoom, pan, extents, zoom to selection and saved views', 'available', ['ZOOM', 'PAN', 'VIEW'], ['La rueda del ratón hace zoom y dos dedos en el panel táctil encuadran: el dispositivo se deduce del propio evento y se puede fijar a mano en Opciones › Visualización.', 'The mouse wheel zooms and two fingers on a trackpad pan: the device is inferred from the event itself and can be fixed by hand in Options › Display.'], [{ kind: 'unit', ref: 'BEH-MANAGEMENT' }, { kind: 'e2e', ref: 'E2E-CRITICAL-JOURNEYS' }]),

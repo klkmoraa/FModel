@@ -61,6 +61,27 @@ export function TaskStatus({ lang }: { lang: 'es' | 'en' }) {
             {task.progress !== undefined && <span>{Math.round(task.progress)}%</span>}
             {task.state === 'failed' && <span style={{ maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>: {errorText}</span>}
             {task.state === 'cancelled' && <span>({lang === 'es' ? 'Cancelado' : 'Cancelled'})</span>}
+            {task.state === 'failed' && task.retry && (
+              <button
+                type="button"
+                className="task-retry-btn"
+                onClick={() => {
+                  void task.retry?.().catch(() => undefined);
+                }}
+                title={lang === 'es' ? 'Reintentar operación' : 'Retry operation'}
+                aria-label={lang === 'es' ? 'Reintentar operación' : 'Retry operation'}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: '0 2px',
+                  cursor: 'pointer',
+                  color: 'inherit',
+                  fontSize: '11px',
+                }}
+              >
+                ↻
+              </button>
+            )}
             {task.state === 'running' && task.cancellable && (
               <button
                 type="button"

@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { registerAllCommands } from '../commands';
@@ -8,7 +8,9 @@ import { PANELS } from '../ui/Docks';
 import { hasCadIcon } from '../ui/icons';
 import { RIBBON } from '../ui/ribbonConfig';
 import { DEFAULT_SHORTCUTS } from '../editor/preferences';
-import { FEATURES, VERIFIED_EVIDENCE_REFS } from './features';
+import { EVIDENCE_CATALOG } from '../audit/evidence';
+import { COMMAND_EVIDENCE_REGISTRY } from '../commands/behavior/evidence';
+import { FEATURES } from './features';
 
 describe('feature status and UI wiring', () => {
   registerAllCommands();
@@ -73,16 +75,59 @@ describe('feature status and UI wiring', () => {
     expect(missing).toEqual([]);
   });
 
-  it('all feature evidence refs resolve to valid registered evidence (DOC-002)', () => {
+  it('all feature evidence refs resolve to executable test files (DOC-002)', () => {
     const unknown: string[] = [];
+    const root = new URL('../../', import.meta.url);
     for (const f of FEATURES) {
       for (const ev of f.evidence ?? []) {
-        if (!VERIFIED_EVIDENCE_REFS.has(ev.ref)) {
+        const record = EVIDENCE_CATALOG[ev.ref];
+        if (!record) {
           unknown.push(`${f.name.es} -> ${ev.ref}`);
+          continue;
+        }
+        try {
+          const source = readFileSync(new URL(record.testFile, root), 'utf8');
+          if (!source.includes(record.testName)) unknown.push(`${ev.ref}: marcador ausente en ${record.testFile}`);
+        } catch {
+          unknown.push(`${ev.ref}: archivo inexistente ${record.testFile}`);
         }
       }
     }
     expect(unknown).toEqual([]);
+  });
+
+  it('every catalog record has an existing marker and executable command (DOC-002)', () => {
+    const invalid = Object.entries(EVIDENCE_CATALOG).flatMap(([ref, record]) => {
+      const path = new URL(`../../${record.testFile}`, import.meta.url);
+      if (!record.testCommand.trim() || !existsSync(path)) return [`${ref}: archivo o comando ausente`];
+      return readFileSync(path, 'utf8').includes(record.testName) ? [] : [`${ref}: marcador ausente`];
+    });
+    expect(invalid).toEqual([]);
+  });
+
+  it('every available command resolves to a catalogued test (CMD-001)', () => {
+    const missing = FEATURES
+      .filter((feature) => feature.status === 'available')
+      .flatMap((feature) => (feature.commands ?? []).filter((command) => !COMMAND_EVIDENCE_REGISTRY[command.toUpperCase()]))
+      .map((command) => command.toUpperCase());
+    expect([...new Set(missing)]).toEqual([]);
+  });
+
+  it('every available command points to the catalogued test that covers it (CMD-001)', () => {
+    const invalid: string[] = [];
+    for (const feature of FEATURES.filter((item) => item.status === 'available')) {
+      for (const command of feature.commands ?? []) {
+        const entry = COMMAND_EVIDENCE_REGISTRY[command.toUpperCase()];
+        const record = entry && EVIDENCE_CATALOG[entry.evidenceRef];
+        if (!entry || !record || !record.commands?.includes(command.toUpperCase())) {
+          invalid.push(`${feature.name.es}: ${command}`);
+          continue;
+        }
+        const path = new URL(`../../${entry.testFile}`, import.meta.url);
+        if (!existsSync(path) || !readFileSync(path, 'utf8').includes(entry.testName) || !entry.testCommand.trim()) invalid.push(`${feature.name.es}: ${command} -> ${entry.testFile}`);
+      }
+    }
+    expect(invalid).toEqual([]);
   });
 
   it('experimental features document limitations in both languages (DOC-002)', () => {

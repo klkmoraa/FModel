@@ -27,7 +27,8 @@ const AUDIT: CommandDef = {
     const before = await taskManager.runTask(
       'audit-analyze',
       { es: 'Analizando salud del dibujo', en: 'Analyzing drawing health' },
-      async (ctx) => runHeavy('analyze', { data: editor.doc.data }, { signal: ctx.signal })
+      async (ctx) => runHeavy('analyze', { data: editor.doc.data }, { signal: ctx.signal }),
+      { retryable: true },
     );
     const fixable = before.issues.filter((i) => i.fixable).length;
     if (k.key === 'Yes' && fixable) {
@@ -35,7 +36,8 @@ const AUDIT: CommandDef = {
       const after = await taskManager.runTask(
         'audit-post-fixes',
         { es: 'Comprobando correcciones de salud', en: 'Verifying health fixes' },
-        async (ctx) => runHeavy('analyze', { data: editor.doc.data }, { signal: ctx.signal })
+        async (ctx) => runHeavy('analyze', { data: editor.doc.data }, { signal: ctx.signal }),
+        { retryable: true },
       );
       api.info(L(`AUDIT: ${before.issues.length} problema(s), ${fixes} corrección(es). Puntuación ${before.score} → ${after.score}.`, `AUDIT: ${before.issues.length} issue(s), ${fixes} fix(es). Score ${before.score} → ${after.score}.`));
       requestUi('health-report', { report: after, fixed: fixes });
@@ -58,7 +60,8 @@ const HEALTHREPORT: CommandDef = {
     const report = await taskManager.runTask(
       'health-report',
       { es: 'Calculando informe de salud', en: 'Calculating health report' },
-      async (ctx) => runHeavy('analyze', { data: api.editor.doc.data }, { signal: ctx.signal })
+      async (ctx) => runHeavy('analyze', { data: api.editor.doc.data }, { signal: ctx.signal }),
+      { retryable: true },
     );
     requestUi('health-report', { report, fixed: 0 });
   },

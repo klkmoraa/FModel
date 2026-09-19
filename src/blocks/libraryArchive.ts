@@ -50,6 +50,41 @@ export class LibraryFormatError extends Error {
 
 const VALID_SOURCE_KINDS = new Set<string>(['fmodel', 'dxf', 'dwg', 'fmodellib']);
 const SAFE_ID_PATTERN = /^[a-zA-Z0-9_-]+$/;
+const THUMBNAIL_DATA_URL = /^data:image\/(?:png|jpeg|webp|gif|svg\+xml);base64,([A-Za-z0-9+/]+={0,2})$/i;
+const SAFE_SVG_TAGS = new Set(['svg', 'defs', 'style', 'g', 'path', 'line', 'polyline', 'polygon', 'rect', 'circle', 'ellipse']);
+
+function validateThumbnail(thumbnail: unknown, blockId: string): void {
+  if (typeof thumbnail !== 'string') {
+    throw new LibraryFormatError(`Miniatura no válida en el bloque «${blockId}». / Invalid thumbnail in block "${blockId}".`);
+  }
+  if (thumbnail.length > 1_048_576) {
+    throw new LibraryFormatError(`Miniatura demasiado grande en el bloque «${blockId}». / Thumbnail too large in block "${blockId}".`);
+  }
+  const match = THUMBNAIL_DATA_URL.exec(thumbnail);
+  if (!match) {
+    throw new LibraryFormatError(`Miniatura no válida en el bloque «${blockId}»: solo se admiten imágenes base64 locales. / Invalid thumbnail in block "${blockId}": only local base64 images are allowed.`);
+  }
+  if (!thumbnail.toLowerCase().startsWith('data:image/svg+xml;')) return;
+
+  let svg: string;
+  try {
+    const binary = globalThis.atob(match[1]);
+    svg = new TextDecoder().decode(Uint8Array.from(binary, (char) => char.charCodeAt(0)));
+  } catch {
+    throw new LibraryFormatError(`SVG no válido en la miniatura del bloque «${blockId}». / Invalid SVG in thumbnail for block "${blockId}".`);
+  }
+  const withoutNamespace = svg.replace(/\bxmlns\s*=\s*["'][^"']*["']/gi, '');
+  if (
+    /<\s*(?:script|foreignObject|iframe|object|embed|image|use|a)\b|(?:on[a-z]+|(?:xlink:)?href|src)\s*=|javascript\s*:|url\s*\(|@import|<\s*!doctype/i.test(withoutNamespace)
+  ) {
+    throw new LibraryFormatError(`SVG inseguro en la miniatura del bloque «${blockId}». / Unsafe SVG in thumbnail for block "${blockId}".`);
+  }
+  for (const tag of svg.matchAll(/<\s*\/?\s*([a-z][\w:-]*)\b/gi)) {
+    if (!SAFE_SVG_TAGS.has(tag[1].toLowerCase())) {
+      throw new LibraryFormatError(`Etiqueta SVG no permitida en la miniatura del bloque «${blockId}». / SVG tag is not allowed in thumbnail for block "${blockId}".`);
+    }
+  }
+}
 
 /** Valida la jerarquía de categorías: IDs únicos, padres existentes, sin ciclos y profundidad <= 2. */
 export function validateLibraryCategories(categories: unknown): asserts categories is LibraryCategory[] {
@@ -552,12 +587,7 @@ export function validateLibraryBlock(value: unknown): asserts value is LibraryBl
     throw new LibraryFormatError(`Descripción no válida en el bloque «${block.id}». / Invalid description in block "${block.id}".`);
   }
   if (block.thumbnail !== undefined) {
-    if (typeof block.thumbnail !== 'string') {
-      throw new LibraryFormatError(`Miniatura no válida en el bloque «${block.id}». / Invalid thumbnail in block "${block.id}".`);
-    }
-    if (block.thumbnail.length > 1_048_576) {
-      throw new LibraryFormatError(`Miniatura demasiado grande en el bloque «${block.id}». / Thumbnail too large in block "${block.id}".`);
-    }
+    validateThumbnail(block.thumbnail, block.id as string);
   }
   if (block.source !== undefined) {
     if (!block.source || typeof block.source !== 'object') {

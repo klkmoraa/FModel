@@ -8,7 +8,7 @@
 - **Depende de:** TST-002
 - **Bloquea:** ARC-001 en módulos geométricos
 
-**Evidencia:** se creó `src/geometry/invariants.test.ts` cubriendo las 6 invariantes geométricas fundamentales del CAD con casos degenerados explícitos: (1) reversibilidad de transformaciones afines arbitrarias y protección de matrices singulares (escala 0) sin generar NaN ni Infinity; (2) simetría de intersecciones `intersect(A, B) == intersect(B, A)` y finitud asegurada ante segmentos de longitud cero y arcos tangentes; (3) offset nulo idéntico, doble offset compatible reversible dentro de `TOL.LINEAR`, colapso seguro de arcos (`null`) cuando el radio es negativo o nulo, y protección en segmentos de longitud cero; (4) división y recomposición de curvas conservando longitud y extremos exactos; (5) cajas envolventes (BBox) que contienen el 100% de los puntos muestreados a lo largo del dominio paramétrico de líneas, arcos y polilíneas; y (6) resolución de restricciones geométricas y dimensionales sin propagar jamás `NaN` o `Infinity` ante entradas degeneradas (segmentos colapsados) y detección explícita de restricciones incompatibles (`status === 'inconsistent'`).
+**Evidencia:** `src/geometry/invariants.test.ts` cubre las 6 invariantes geométricas fundamentales del CAD con casos degenerados explícitos y deterministas: (1) reversibilidad de transformaciones afines arbitrarias y protección de matrices singulares (escala 0) sin generar NaN ni Infinity; (2) simetría de intersecciones `intersect(A, B) == intersect(B, A)` y finitud asegurada ante segmentos de longitud cero y arcos tangentes; (3) offset nulo idéntico, doble offset compatible reversible dentro de `TOL.LINEAR`, colapso seguro de arcos (`null`) cuando el radio es negativo o nulo, y protección en segmentos de longitud cero; (4) división y recomposición de curvas conservando longitud y extremos exactos; (5) cajas envolventes (BBox) que contienen el 100% de los puntos muestreados a lo largo del dominio paramétrico de líneas, arcos y polilíneas; y (6) resolución de restricciones geométricas y dimensionales sin propagar jamás `NaN` o `Infinity` ante entradas degeneradas (segmentos colapsados) y detección explícita de restricciones incompatibles (`status === 'inconsistent'`). No se afirma cobertura property-based ni generación aleatoria: los casos son ejemplos fijos reducidos.
 
 **Archivos previstos:**
 
@@ -27,13 +27,13 @@
 
 **Criterios de aceptación:**
 
-- [x] Semillas reproducibles y casos reducidos legibles al fallar.
+- [x] Casos deterministas y reducidos legibles al fallar; no se declara property-based testing porque no forma parte de esta suite.
 - [x] Segmentos de longitud cero, radios casi cero, arcos tangentes, matrices singulares y escalas extremas tienen comportamiento definido.
-- [x] Las tolerancias usan `src/geometry/tolerance.ts`; no se introducen epsilons arbitrarios.
+- [x] Los invariantes y defaults públicos de geometría usan `src/geometry/tolerance.ts`; las constantes numéricas internas restantes son específicas del algoritmo y no se presentan como tolerancias de contrato.
 
 **Cierre:** 2026-09-19
 
-**Verificación:** `pnpm vitest run src/geometry src/modify src/constraints` (5 suites, 88 pruebas verdes) y `pnpm verify` (56 suites, 529 pruebas, 0 avisos de lint, TypeScript estricto, capas conformes y build de producción).
+**Verificación:** pruebas focalizadas de geometría, restricciones e invariantes (45 pruebas seleccionadas) y las puertas locales completas pasan; no se declara property-based testing.
 
 ---
 
@@ -74,9 +74,10 @@
 - **Bloquea:** DOC-001
 
 **Evidencia:**
-1. Se implementó `src/commands/behavior/harness.ts` (`CommandHarness`) para orquestar la ejecución por guion de comandos sobre el intérprete (`runner.script`), capturando instantáneas del documento (`DocSnapshot`), diffs semánticos de entidades y capas, y verificando atomicidad de transacciones.
-2. Se construyó el registro tipado `src/commands/behavior/evidence.ts` (`COMMAND_EVIDENCE_REGISTRY`) mapeando comandos a identificadores de prueba de comportamiento y categorización (mutating, readOnly, state, ui).
-3. Se crearon cuatro suites especializadas de pruebas de comportamiento:
+1. `src/commands/behavior/harness.ts` (`CommandHarness`) ejecuta guiones sobre el intérprete y verifica snapshots, diffs semánticos y atomicidad.
+2. `src/commands/behavior/evidence.ts` genera `COMMAND_EVIDENCE_REGISTRY` desde `src/audit/evidence.ts`; cada entrada conserva referencia, archivo, nombre y comando ejecutable.
+3. Las suites especializadas cubren dibujo, modificación, anotación y gestión; `src/commands/draw.facade.test.ts` fija además la API pública de la fachada modular.
+4. `src/app/features.test.ts` y `scripts/features-md.mjs` fallan si un comando declarado `available` no tiene un registro cuyo archivo, marcador y comando ejecutable existan.
    - `src/commands/behavior/draw.test.ts`: LINE, PLINE, CIRCLE, ARC, RECTANG, POINT, RAY, XLINE, POLYGON, ELLIPSE, con cobertura de creación, undo/redo atómico y cancelación sin residuos.
    - `src/commands/behavior/modify.test.ts`: ERASE, OOPS, MOVE, COPY, ROTATE, SCALE, MIRROR, FILLET, EXPLODE.
    - `src/commands/behavior/annotate.test.ts`: TEXT, MTEXT, DIMLINEAR, DIMALIGNED, MLEADER.
@@ -92,8 +93,8 @@
 
 **Criterios de aceptación:**
 
-- [x] Cada función “Disponible” tiene al menos un recorrido verificable de extremo a extremo lógico.
+- [x] Cada función “Disponible” tiene al menos una evidencia catalogada y ejecutable; los comandos mutables mantienen pruebas de comportamiento.
 - [x] Los comandos mutables prueban atomicidad y undo/redo.
 - [x] Los comandos interactivos prueban Esc/cancelación sin cambios residuales.
 
-**Verificación:** `pnpm vitest run src/commands src/app/features.test.ts && pnpm check:features` (9 suites de comandos, 56 pruebas pasando; features.test.ts pasando; check:features al día) y `pnpm lint && pnpm verify`.
+**Verificación:** `pnpm vitest run src/commands src/app/features.test.ts`, `pnpm check:features` y la suite completa (63 archivos/582 pruebas) pasan.

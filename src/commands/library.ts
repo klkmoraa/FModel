@@ -53,7 +53,8 @@ export async function buildImportSession(file: { name: string; bytes: Uint8Array
     const dxf = await taskManager.runTask(
       'library-parse-dwg',
       { es: `Leyendo DWG: ${file.name}`, en: `Reading DWG: ${file.name}` },
-      async (ctx2) => runHeavy('parseDwg', { bytes: file.bytes }, { signal: ctx2.signal, transfer })
+      async (ctx2) => runHeavy('parseDwg', { bytes: file.bytes }, { signal: ctx2.signal, transfer }),
+      { retryable: true },
     );
     const report = importDxfFile(doc, dxf, { format: 'DWG' });
     const candidates = candidatesFromDocument(doc, ctx, cats, { file: file.name, thumb: (id) => thumb(doc, ctx, id) });

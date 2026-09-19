@@ -54,7 +54,8 @@ export async function openBytes(api: CommandApi, name: string, bytes: Uint8Array
       const { data, report } = await taskManager.runTask(
         'open-dxf',
         { es: `Leyendo DXF: ${name}`, en: `Reading DXF: ${name}` },
-        async (ctx) => runHeavy('readDxf', { text: decodeDxfBytes(bytes) }, { signal: ctx.signal })
+        async (ctx) => runHeavy('readDxf', { text: decodeDxfBytes(bytes) }, { signal: ctx.signal }),
+        { retryable: true },
       );
       api.editor.doc.replaceData(data);
       api.editor.fileName = fileBaseName(name);
@@ -79,7 +80,8 @@ export async function openBytes(api: CommandApi, name: string, bytes: Uint8Array
       const { data, report } = await taskManager.runTask(
         'open-dwg',
         { es: `Leyendo DWG: ${name}`, en: `Reading DWG: ${name}` },
-        async (ctx) => runHeavy('readDwg', { bytes }, { signal: ctx.signal, transfer })
+        async (ctx) => runHeavy('readDwg', { bytes }, { signal: ctx.signal, transfer }),
+        { retryable: true },
       );
       api.editor.doc.replaceData(data);
       api.editor.fileName = fileBaseName(name);
@@ -290,7 +292,8 @@ const EXPORTDXF: CommandDef = {
       const res = await taskManager.runTask(
         'export-dxf',
         { es: 'Exportando DXF', en: 'Exporting DXF' },
-        async (ctx) => runHeavy('exportDxf', { data: api.editor.doc.data }, { signal: ctx.signal })
+        async (ctx) => runHeavy('exportDxf', { data: api.editor.doc.data }, { signal: ctx.signal }),
+        { retryable: true },
       );
       text = res.text;
       report = res.report;

@@ -21,12 +21,20 @@ export interface RemapContext {
   containerId?: Id;
 }
 
+export interface RemapWarning {
+  code: 'missing-reference';
+  ref: Id;
+  context: RemapContext;
+  message: { es: string; en: string };
+}
+
 export interface RemapDynamicBlockOptions {
   /**
    * Política para referencias que no se encuentran en el mapa/resolver:
    * - 'keep': conserva el ID original (por defecto, previene pérdida accidental de datos).
    * - 'omit': descarta la referencia de selecciones, estados de visibilidad y rotateOnly;
-   *           en restricciones geométricas/dimensionales, asigna cadena vacía.
+   *           en restricciones geométricas/dimensionales, elimina la referencia y la
+   *           restricción si ya no conserva referencias válidas.
    * - 'error': lanza un error si alguna referencia de entidad no se resuelve.
    */
   missingPolicy?: 'keep' | 'omit' | 'error';
@@ -39,7 +47,7 @@ export interface RemapDynamicBlockOptions {
   /**
    * Arreglo opcional para acumular mensajes bilingües o advertencias sobre referencias no resueltas.
    */
-  warnings?: string[];
+  warnings?: RemapWarning[];
 
   /**
    * Mapa o función resolutora para identificadores de parámetros (opcional).
@@ -96,9 +104,16 @@ function remapEntityRef(
 
   options.onMissing?.(id, context);
   if (options.warnings) {
-    options.warnings.push(
-      `Referencia no encontrada: «${id}» en ${context.kind}${context.containerId ? ` (${context.containerId})` : ''}`,
-    );
+    const location = `${context.kind}${context.containerId ? ` (${context.containerId})` : ''}`;
+    options.warnings.push({
+      code: 'missing-reference',
+      ref: id,
+      context,
+      message: {
+        es: `Referencia no encontrada: «${id}» en ${location}`,
+        en: `Missing reference: "${id}" in ${location}`,
+      },
+    });
   }
 
   if (options.missingPolicy === 'error') {
@@ -218,16 +233,17 @@ export function remapDynamicBlockDef(
 
   // 3. Restricciones
   if (cloned.constraints) {
-    for (const c of cloned.constraints) {
-      if (c.refs) {
-        for (const ref of c.refs) {
-          if (ref.entityId) {
-            const remapped = remapEntityRef(ref.entityId, entityResolver, options, { kind: 'constraint', containerId: c.id });
-            ref.entityId = remapped ?? '';
-          }
-        }
-      }
-    }
+    cloned.constraints = cloned.constraints.flatMap((constraint) => {
+      if (!constraint.refs) return [constraint];
+      const refs = constraint.refs
+        .map((ref) => {
+          if (!ref.entityId) return ref;
+          const remapped = remapEntityRef(ref.entityId, entityResolver, options, { kind: 'constraint', containerId: constraint.id });
+          return remapped === undefined ? null : { ...ref, entityId: remapped };
+        })
+        .filter((ref): ref is NonNullable<typeof ref> => ref !== null && !!ref.entityId);
+      return refs.length > 0 ? [{ ...constraint, refs }] : [];
+    });
   }
 
   // 4. Tablas de consulta (lookups)

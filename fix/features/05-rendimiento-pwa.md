@@ -46,7 +46,7 @@
 - **Depende de:** DAT-003
 - **Bloquea:** UI-003
 
-**Evidencia:** `src/workers/client.ts` y `src/workers/heavy.worker.ts` implementan la interfaz ampliada `runHeavy(op, payload, { signal, timeoutMs, onProgress, transfer })`. Las operaciones aceptan `AbortSignal` con rechazo distinguible (`AbortError`), timeout con descarte y terminación/recreación limpia del worker si este no responde de forma cooperativa, notificación de progreso hacia el llamador, transferencia de búferes (`Transferable[]`) al leer archivos DWG/DXF para evitar duplicación de memoria, y fallback inline con idéntica semántica de cancelación y timeout. Si el worker falla catastróficamente con un evento de error, reintenta inline de forma segura e idempotente.
+**Evidencia:** `src/workers/client.ts` mantiene una cola FIFO determinista con una sola operación activa. Timeout, abort y crash terminan y recrean el worker cuando corresponde, rechazan solo la operación afectada y dejan continuar las siguientes; el fallback inline conserva una copia de payload aunque un `ArrayBuffer` ya haya sido transferido.
 
 **Archivos previstos:**
 
@@ -66,7 +66,7 @@
 
 **Cierre:** 2026-09-19
 
-**Verificación:** `pnpm vitest run src/workers/client.test.ts` (7 pruebas que cubren ejecución inline, AbortSignal pre/post llamada, timeout, simulación de worker con transferables y progreso, cancelación cooperativa con descarte de resultados tardíos, timeout con terminación del worker y reintento inline ante error del worker) y `pnpm verify` (54 suites, 511 pruebas, 0 avisos de lint, TypeScript estricto, capas conformes y build de producción limpio).
+**Verificación:** `pnpm vitest run src/workers/client.test.ts` (11 pruebas: FIFO/concurrencia, timeout, abort, crash, recreación y transferibles) y las puertas locales completas pasan con 63 archivos y 582 pruebas Vitest.
 
 ---
 

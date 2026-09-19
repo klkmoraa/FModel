@@ -101,11 +101,11 @@
 - **Bloquea:** —
 
 **Evidencia:**
-1. Se extendió el modelo de datos en `src/app/features.ts` introduciendo los tipos `FeatureEvidence` y el conjunto de identificadores certificados `VERIFIED_EVIDENCE_REFS`. Cada una de las funciones disponibles tiene ahora asignada su evidencia concreta (unit, integration, e2e, manual).
+1. Se centralizó la trazabilidad en el catálogo tipado `src/audit/evidence.ts`. Cada registro enlaza una referencia, archivo de prueba, nombre de prueba, comando ejecutable y comandos cubiertos; no se acepta una lista de strings sin prueba.
 2. Se actualizaron `scripts/features-md.mjs` y `docs/FEATURES.md` para incluir la columna `Evidencia` de forma compacta y verificable en cada tabla de área.
 3. Se añadió validación estricta en tiempo de ejecución tanto en `scripts/features-md.mjs --check` como en `src/app/features.test.ts`:
    - Ninguna función puede estar marcada como `available` sin evidencia registrada.
-   - Todo identificador de evidencia debe existir en `VERIFIED_EVIDENCE_REFS`.
+   - Todo registro debe tener archivo y marcador existentes, comando ejecutable y cobertura de cada comando declarado `available`.
    - Las funciones experimentales deben documentar de forma obligatoria sus limitaciones en notas bilingües.
 
 **Archivos modificados:**
@@ -121,7 +121,7 @@
 - [x] La documentación generada muestra limitaciones sin inflar el README.
 - [x] CI detecta funciones disponibles sin evidencia mínima.
 
-**Verificación:** `pnpm check:features && pnpm vitest run src/app/features.test.ts` y `pnpm lint && pnpm verify`.
+**Verificación:** `pnpm check:features`, `pnpm vitest run src/app/features.test.ts` y la suite completa validan archivo, marcador, comando ejecutable y relación feature → comando → test.
 
 ---
 
@@ -135,7 +135,7 @@
 - **Depende de:** CI-001
 - **Bloquea:** —
 
-**Evidencia:** Se unificaron los requisitos de desarrollo eliminando rangos dispersos. `package.json` declara `engines: { "node": ">=24.0.0" }` y `packageManager: "pnpm@11.25.0"`. `README.md` documenta claramente `Requiere Node 24 y pnpm 11.` tanto para la aplicación como para los scripts de generación de documentación. Los workflows de CI y Pages ejecutan Node 24 y pnpm 11.
+**Evidencia:** `package.json` declara `engines: { "node": ">=24.0.0" }` y `packageManager: "pnpm@11.25.0"`. `README.md` documenta Node 24 y pnpm 11. Los workflows configuran Node 24 y dejan que `pnpm/action-setup@v4` lea la única versión declarada en `package.json`; no contienen un segundo `version:` de pnpm.
 
 **Archivos modificados:**
 - `package.json`
@@ -150,4 +150,4 @@
 
 **Cierre:** 2026-09-19
 
-**Verificación:** `pnpm verify` (lint con cero advertencias, typecheck estricto, capas, features al día, 505 pruebas vitest pasando, build exitoso).
+**Verificación:** puertas locales completas pasan; la verificación remota de GitHub Actions del commit final queda registrada al cerrar la tarea.

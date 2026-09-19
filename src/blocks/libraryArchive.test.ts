@@ -21,6 +21,15 @@ function makeValidItem() {
 }
 
 describe('archivo .fmodellib', () => {
+  it('rechaza miniaturas remotas o SVG con capacidades activas', () => {
+    const item = makeValidItem();
+    expect(() => validateLibraryBlock({ ...item, thumbnail: 'https://example.com/thumbnail.svg' })).toThrow(/miniatura|thumbnail/i);
+    const unsafe = Buffer.from('<svg><script>fetch("https://evil.test")</script></svg>').toString('base64');
+    expect(() => validateLibraryBlock({ ...item, thumbnail: `data:image/svg+xml;base64,${unsafe}` })).toThrow(/miniatura|thumbnail/i);
+    const external = Buffer.from('<svg><image href="https://evil.test/x.png" /></svg>').toString('base64');
+    expect(() => validateLibraryBlock({ ...item, thumbnail: `data:image/svg+xml;base64,${external}` })).toThrow(/miniatura|thumbnail/i);
+  });
+
   it('ida y vuelta con un bloque dinámico', () => {
     const item = makeValidItem();
     const back = readLibraryArchive(writeLibraryArchive({ categories: DEFAULT_CATEGORIES, blocks: [item] }));

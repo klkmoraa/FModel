@@ -86,7 +86,7 @@ describe('Invariantes geométricas y entradas degeneradas (GEO-001)', () => {
 
     it('maneja círculos/arcos casi tangentes sin bucles infinitos ni NaNs', () => {
       const a1: ArcCurve = { kind: 'arc', c: { x: 0, y: 0 }, r: 10, a0: 0, sweep: Math.PI * 2 };
-      const a2: ArcCurve = { kind: 'arc', c: { x: 20 - 1e-8, y: 0 }, r: 10, a0: 0, sweep: Math.PI * 2 };
+      const a2: ArcCurve = { kind: 'arc', c: { x: 20 - TOL.LINEAR, y: 0 }, r: 10, a0: 0, sweep: Math.PI * 2 };
 
       const hits = intersectCurves(a1, a2);
       for (const h of hits) {
@@ -192,10 +192,10 @@ describe('Invariantes geométricas y entradas degeneradas (GEO-001)', () => {
         for (let i = 0; i <= steps; i++) {
           const t = i / steps;
           const pt = curvePoint(c, t);
-          expect(pt.x).toBeGreaterThanOrEqual(box.minX - 1e-7);
-          expect(pt.x).toBeLessThanOrEqual(box.maxX + 1e-7);
-          expect(pt.y).toBeGreaterThanOrEqual(box.minY - 1e-7);
-          expect(pt.y).toBeLessThanOrEqual(box.maxY + 1e-7);
+          expect(pt.x).toBeGreaterThanOrEqual(box.minX - TOL.LINEAR);
+          expect(pt.x).toBeLessThanOrEqual(box.maxX + TOL.LINEAR);
+          expect(pt.y).toBeGreaterThanOrEqual(box.minY - TOL.LINEAR);
+          expect(pt.y).toBeLessThanOrEqual(box.maxY + TOL.LINEAR);
         }
       }
     });

@@ -19,6 +19,7 @@ import {
   remapDynamicBlockDef,
   remapDynamicInstanceState,
   remapDynamicState,
+  type RemapWarning,
 } from './remap';
 
 const makeLinearParam = (id: string, name: string, end: { x: number; y: number } = { x: 10, y: 0 }): DynParam => ({
@@ -293,7 +294,7 @@ describe('remapDynamicBlockDef', () => {
     };
 
     it('missingPolicy: "keep" conserva el ID original y emite advertencias opcionales', () => {
-      const warnings: string[] = [];
+      const warnings: RemapWarning[] = [];
       const reported: { ref: string; kind: string }[] = [];
 
       const result = remapDynamicBlockDef(
@@ -313,20 +314,24 @@ describe('remapDynamicBlockDef', () => {
       expect(reported.map((r) => r.ref)).toEqual(['e_missing', 'e_missing', 'e_missing']);
     });
 
-    it('missingPolicy: "omit" descarta de listas y vacía en constraints', () => {
+    it('missingPolicy: "omit" descarta referencias y elimina constraints sin refs válidas', () => {
       let missingCount = 0;
+      const warnings: RemapWarning[] = [];
       const result = remapDynamicBlockDef(
         def,
         (id) => (id === 'e1' ? 'new_1' : undefined),
         {
           missingPolicy: 'omit',
+          warnings,
           onMissing: () => { missingCount++; },
         },
       );
 
       expect((result.parameters[0] as VisibilityParam).states[0].visible).toEqual(['new_1']);
       expect(result.actions[0].selection).toEqual(['new_1']);
-      expect(result.constraints[0].refs[0].entityId).toBe('');
+      expect(result.constraints).toEqual([]);
+      expect(warnings).toHaveLength(3);
+      expect(warnings).toContainEqual(expect.objectContaining({ code: 'missing-reference', context: { kind: 'constraint', containerId: 'c1' } }));
       expect(missingCount).toBe(3);
     });
 
@@ -408,7 +413,7 @@ describe('remapDynamicBlockDef', () => {
     };
 
     it('no trata parámetros de la definición como entidades faltantes en selection', () => {
-      const warnings: string[] = [];
+      const warnings: RemapWarning[] = [];
       let missingCount = 0;
 
       // missingPolicy: "error" NO debe lanzar error por p_chain

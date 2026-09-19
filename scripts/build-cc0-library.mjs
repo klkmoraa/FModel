@@ -7,6 +7,7 @@ import { createServer } from 'vite';
 // Fuente: https://caddillo.com/downloads/caddillo-blocks-library.zip
 // Licencia de la geometría: CC0 1.0, https://caddillo.com/license/
 const EXPECTED_SHA256 = '9d5f35093e245158115aa5ead39d31d4b92253e2125b2751e2ef9c05e68e2d72';
+const CC0_BUILD_TIMESTAMP = Date.UTC(2026, 0, 1);
 const source = process.argv[2];
 const thumbnailsFile = process.argv[3];
 if (!source || !thumbnailsFile) throw new Error('Uso: node scripts/build-cc0-library.mjs fuente.zip miniaturas.json');
@@ -22,7 +23,22 @@ const thumbnails = JSON.parse(readFileSync(thumbnailsFile, 'utf8'));
 if (Object.keys(thumbnails).length !== files.length) throw new Error('Faltan miniaturas para la colección.');
 
 const server = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' });
+const originalDateNow = Date.now;
+const originalCrypto = globalThis.crypto;
+let randomState = 0x4f1a2b3c;
+const deterministicCrypto = {
+  getRandomValues(buffer) {
+    const bytes = new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+    for (let i = 0; i < bytes.length; i += 1) {
+      randomState = (randomState * 1664525 + 1013904223) >>> 0;
+      bytes[i] = randomState & 0xff;
+    }
+    return buffer;
+  },
+};
 try {
+  Date.now = () => CC0_BUILD_TIMESTAMP;
+  Object.defineProperty(globalThis, 'crypto', { configurable: true, value: deterministicCrypto });
   const [{ starterBlock }, { DEFAULT_CATEGORIES }, { writeLibraryArchive, readLibraryArchive }, { decodeDxfBytes }] = await Promise.all([
     server.ssrLoadModule('/src/blocks/starterLibrary.ts'),
     server.ssrLoadModule('/src/blocks/libraryCategories.ts'),
@@ -81,5 +97,7 @@ try {
   writeFileSync('public/library/fmodel-cc0.fmodellib', output);
   process.stdout.write(`Convertidos ${blocks.length} bloques a .fmodellib (${output.length} bytes).\n`);
 } finally {
+  Date.now = originalDateNow;
+  Object.defineProperty(globalThis, 'crypto', { configurable: true, value: originalCrypto });
   await server.close();
 }

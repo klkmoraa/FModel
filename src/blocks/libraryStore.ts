@@ -30,11 +30,18 @@ function ensureReady(): Promise<void> {
       } catch {
         legacy = [];
       }
-      const items: LibraryBlock[] = legacy.map((b) => {
+      const items: LibraryBlock[] = [];
+      for (const b of legacy) {
         const root = b.package.blocks.find((x) => x.id === b.package.root);
         const categoryId = suggestCategory(`${b.name} ${b.category ?? ''} ${root?.description ?? ''}`, DEFAULT_CATEGORIES);
-        return { id: b.id, name: b.name, categoryId, tags: b.category ? [b.category] : [], description: root?.description ?? '', dynamic: !!root?.dynamic, savedAt: b.savedAt, thumbnail: b.thumbnail, package: b.package, source: { kind: 'fmodel', importedAt: b.savedAt } };
-      });
+        const candidate: LibraryBlock = { id: b.id, name: b.name, categoryId, tags: b.category ? [b.category] : [], description: root?.description ?? '', dynamic: !!root?.dynamic, savedAt: b.savedAt, thumbnail: b.thumbnail, package: b.package, source: { kind: 'fmodel', importedAt: b.savedAt } };
+        try {
+          validateLibraryBlock(candidate);
+          items.push(candidate);
+        } catch {
+          // No migres miniaturas remotas ni paquetes heredados que ya no sean válidos.
+        }
+      }
       await idbWrite(['libraryCategories', 'library', 'meta'], (s) => {
         for (const c of DEFAULT_CATEGORIES) s('libraryCategories').put(c);
         for (const it of items) s('library').put(it);

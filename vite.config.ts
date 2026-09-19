@@ -15,8 +15,8 @@ function serviceWorker(): Plugin {
       const publicDir = fileURLToPath(new URL('./public', import.meta.url));
       const walk = (dir: string): string[] => readdirSync(dir).flatMap((f) => (statSync(join(dir, f)).isDirectory() ? walk(join(dir, f)) : [relative(publicDir, join(dir, f)).replace(/\\/g, '/')]));
       // fuentes: solo woff2 latinas (el resto de subconjuntos se descarga si alguna vez hace falta).
-      // La colección FModel se precarga porque forma parte de la biblioteca disponible al iniciar.
-      const wanted = (f: string) => !f.endsWith('.map') && !f.endsWith('.wasm') && (!f.startsWith('library/') || f === 'library/fmodel-cc0.fmodellib') && f !== 'sw.js' && !f.startsWith('.') && !f.includes('/.') && !(/\.woff2?$/.test(f) && (!f.endsWith('.woff2') || /cyrillic|greek|vietnamese/.test(f)));
+      // La biblioteca CC0 se carga y cachea bajo demanda; no bloquea la instalación de la PWA.
+      const wanted = (f: string) => !f.endsWith('.map') && !f.endsWith('.wasm') && !f.startsWith('library/') && f !== 'sw.js' && !f.startsWith('.') && !f.includes('/.') && !(/\.woff2?$/.test(f) && (!f.endsWith('.woff2') || /cyrillic|greek|vietnamese/.test(f)));
       const files = [...new Set(['index.html', ...Object.keys(bundle), ...walk(publicDir)])].filter(wanted).sort();
       const entries = files.map((file) => {
         const chunk = bundle[file];
@@ -57,7 +57,7 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],
-      include: ['src/**'],
+      include: ['src/**/*.{ts,tsx}'],
       exclude: [
         'src/**/*.test.ts',
         'src/**/*.d.ts',
@@ -81,6 +81,12 @@ export default defineConfig({
         'src/geometry/**': {
           lines: 65,
           statements: 65,
+        },
+        'src/io/native*': {
+          lines: 80,
+          statements: 80,
+          branches: 65,
+          functions: 70,
         },
       },
     },

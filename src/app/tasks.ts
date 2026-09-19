@@ -14,6 +14,7 @@ export interface TaskInfo {
   error?: LocalizedText | string;
   cancellable: boolean;
   cancel?: () => void;
+  retry?: () => Promise<void>;
   startedAt: number;
   endedAt?: number;
 }
@@ -56,7 +57,7 @@ export class TaskManager {
     id: string,
     name: LocalizedText,
     fn: (ctx: TaskContext) => Promise<T>,
-    options?: { cancellable?: boolean; onCancel?: () => void }
+    options?: { cancellable?: boolean; onCancel?: () => void; retryable?: boolean }
   ): Promise<T> {
     const controller = new AbortController();
     const cancellable = options?.cancellable ?? true;
@@ -119,14 +120,13 @@ export class TaskManager {
         } else {
           current.state = 'failed';
           current.error = err instanceof Error ? err.message : String(err);
+          if (options?.retryable) {
+            current.retry = async () => {
+              await this.runTask(id, name, fn, options);
+            };
+          }
         }
         this.notify();
-        setTimeout(() => {
-          if (this.tasks.get(id)?.state === 'failed' || this.tasks.get(id)?.state === 'cancelled') {
-            this.tasks.delete(id);
-            this.notify();
-          }
-        }, 8000);
       }
       throw err;
     }

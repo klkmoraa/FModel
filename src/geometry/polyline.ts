@@ -61,7 +61,7 @@ export function segmentFromVertices(a: PolyVertex, b: PolyVertex): LineCurve | A
 }
 
 /** Convierte una cadena de líneas y arcos contiguos en vértices de polilínea. */
-export function curvesToVertices(curves: readonly Curve[], tol: number = 1e-7): { vertices: PolyVertex[]; closed: boolean } {
+export function curvesToVertices(curves: readonly Curve[], tol: number = TOL.LINEAR): { vertices: PolyVertex[]; closed: boolean } {
   const vertices: PolyVertex[] = [];
   for (const c of curves) {
     const s = curveStart(c);

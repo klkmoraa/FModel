@@ -10,6 +10,7 @@ import { DND_MIME } from './dnd';
 import type { DropPayload } from './dropOnCanvas';
 import { dropOnCanvas } from './dropOnCanvas';
 import { TouchGestureController } from './touchGesture';
+import { effectiveDpr } from './dpr';
 
 interface Props {
   editor: Editor;
@@ -50,7 +51,7 @@ export function CanvasView({ editor, theme, onContextMenu }: Props) {
     const scene = sceneRef.current;
     const overlay = overlayRef.current;
     if (!scene || !overlay) return;
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = effectiveDpr();
     const opts = { theme: themeRef.current, dpr, images };
     try {
       if (dirty.current.scene) {
@@ -99,7 +100,7 @@ export function CanvasView({ editor, theme, onContextMenu }: Props) {
     const host = hostRef.current!;
     const ro = new ResizeObserver(() => {
       const r = host.getBoundingClientRect();
-      const dpr = Math.min(window.devicePixelRatio || 1, 3);
+      const dpr = effectiveDpr();
       for (const c of [sceneRef.current!, overlayRef.current!]) {
         c.width = Math.max(1, Math.round(r.width * dpr));
         c.height = Math.max(1, Math.round(r.height * dpr));

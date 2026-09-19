@@ -79,4 +79,25 @@ describe('TaskManager', () => {
     tm.dismissTask('task-fail');
     expect(tm.getTasks()).toHaveLength(0);
   });
+
+  it('keeps a failed task actionable and retries it with the original context', async () => {
+    let attempts = 0;
+    const promise = tm.runTask(
+      'task-retry',
+      { es: 'Importando', en: 'Importing' },
+      async () => {
+        attempts += 1;
+        if (attempts === 1) throw new Error('Temporal');
+        return 'ok';
+      },
+      { retryable: true },
+    );
+
+    await expect(promise).rejects.toThrow('Temporal');
+    expect(tm.getTasks()[0].retry).toBeDefined();
+    expect(tm.getTasks()[0].error).toBe('Temporal');
+    await tm.getTasks()[0].retry?.();
+    await vi.waitFor(() => expect(attempts).toBe(2));
+    expect(tm.getTasks()[0].state).toBe('completed');
+  });
 });

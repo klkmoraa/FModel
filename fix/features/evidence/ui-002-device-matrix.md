@@ -6,16 +6,13 @@ FModel implementa soporte para interacción táctil en navegadores web de escrit
 
 Esta matriz documenta el comportamiento validado, el tratamiento de eventos y el diseño responsivo ante diferentes configuraciones de hardware y navegadores.
 
-## 2. Matriz de dispositivos y entornos evaluados
+## 2. Matriz de entornos ejecutados
 
 | Plataforma / Dispositivo | Navegador / Motor | Orientación | DPR | Entrada evaluada | Resultado |
 |---|---|---|---|---|---|
-| Apple iPad Pro 11" | Mobile Safari (WebKit) | Horizontal y Vertical | 2.0 | Multi-touch (pinch, pan 2 dedos, rotación) | Conforme: encuadre suave, zoom sin salto |
-| Apple iPad 10th Gen | Mobile Safari (WebKit) | Horizontal | 2.0 | Apple Pencil vs Touch | Conforme: discriminación precisa por pointerType |
-| Apple iPhone 15 Pro | Mobile Safari (WebKit) | Vertical | 3.0 | Single touch, long press, mobile HUD | Conforme: barra inferior accesible, lupa activa |
-| Google Pixel Tablet | Chrome Mobile (Blink) | Horizontal | 2.0 | Pinch zoom, pan, doble toque | Conforme: gestos reactivos, deadzone respetado |
-| Samsung Galaxy S24 | Chrome Mobile / Samsung Internet | Vertical | 3.0 | Single drag, cancel por llamada/banner | Conforme: pointercancel no deja puntos ni timers |
 | Emulación táctil Playwright/Chrome DevTools | Chromium Headless / Chrome Desktop | Vertical / Horizontal | 1.0, 2.0, 3.0 | Suites automatizadas E2E y unitarias | Conforme: 100 % pruebas unitarias y E2E verdes |
+
+No se ejecutaron dispositivos físicos en esta corrección. Las filas de iPad, iPhone, Pixel y Samsung no se consideran evidencia y no se declaran como probadas.
 
 ## 3. Comportamientos críticos garantizados
 
@@ -29,4 +26,4 @@ Esta matriz documenta el comportamiento validado, el tratamiento de eventos y el
 4. **Liberación asimétrica de dedos:**
    - Al levantar uno de los dedos durante un pellizco/encuadre, el sistema transiciona a un estado de guardia que inhabilita taps o dobles taps en el dedo restante hasta que se liberen todos los contactos.
 5. **Control de DPR y consumo de memoria GPU:**
-   - El escalado de Canvas se acota a `Math.min(window.devicePixelRatio || 1, 3)` para evitar desbordamiento de memoria de texturas en pantallas con densidades virtuales extremas (DPR 3.5x o 4x).
+   - El escalado de Canvas usa `effectiveDpr()` para resize, render y lupa, acotado a 3 para evitar desbordamiento de memoria de texturas en pantallas con densidades extremas.

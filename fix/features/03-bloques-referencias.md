@@ -2,19 +2,19 @@
 
 ## BLK-003 — Integrar una colección ampliada CC0 en formato FModel
 
-- [x] **Estado:** Cerrada
+- [>] **Estado:** En curso
 - **Prioridad:** P2 — ampliar la biblioteca local con geometría 2D reutilizable
-- **Responsable:** Codex · **Inicio:** 2026-09-18 · **Cierre:** 2026-09-19
+- **Responsable:** Codex · **Inicio:** 2026-09-18
 - **Depende de:** —
 - **Bloquea:** —
 
 **Decisión de producto:** conservar la biblioteca instalada por el usuario y añadir una colección opcional en formato `.fmodellib`. El catálogo público seleccionado se distribuye bajo CC0; su procedencia y la del material GPL-2.0 existente se documentan sin atribuir a FModel autoría ajena.
 
-**Evidencia:**
-1. Conversión de 398 bloques DXF CC0 a formato nativo `.fmodellib` ([`public/library/fmodel-cc0.fmodellib`](file:///Users/crismora/Desktop/FModel/public/library/fmodel-cc0.fmodellib)) con miniaturas SVG integradas, categorías estándar y unidades en pulgadas.
-2. Procedencia y licencia documentadas en [`public/library/fmodel-cc0-SOURCE.md`](file:///Users/crismora/Desktop/FModel/public/library/fmodel-cc0-SOURCE.md) con SHA-256 verificado.
-3. Lógica de instalación en [`src/blocks/cc0Library.ts`](file:///Users/crismora/Desktop/FModel/src/blocks/cc0Library.ts) e interfaces bilingües en [`src/ui/panels/LibraryView.tsx`](file:///Users/crismora/Desktop/FModel/src/ui/panels/LibraryView.tsx) y [`src/ui/welcome/LibraryCatalogView.tsx`](file:///Users/crismora/Desktop/FModel/src/ui/welcome/LibraryCatalogView.tsx) que garantizan que reinstalar no genera duplicados ni reemplaza bloques del usuario.
-4. Pruebas automatizadas en [`src/blocks/cc0Library.test.ts`](file:///Users/crismora/Desktop/FModel/src/blocks/cc0Library.test.ts) pasando al 100%.
+**Evidencia parcial:**
+1. Existe la colección local de 398 bloques CC0 en `public/library/fmodel-cc0.fmodellib`, con procedencia y licencia documentadas.
+2. La instalación es bajo demanda, se valida y no consulta un servicio externo; el service worker no la incluye en el precache.
+3. `scripts/build-cc0-library.mjs` fija reloj y aleatoriedad para una generación reproducible.
+4. La generación reproducible de extremo a extremo no se volvió a ejecutar en esta corrección porque el archivo fuente DXF/miniaturas de entrada no está disponible en el checkout; no se inventa esa evidencia.
 
 **Criterios de aceptación:**
 
@@ -22,9 +22,9 @@
 - [x] La colección se instala desde un recurso incluido en la aplicación, sin enviar dibujos ni consultar un servicio externo.
 - [x] Instalar dos veces no crea duplicados ni reemplaza bloques personalizados.
 - [x] La interfaz en español e inglés permite instalarla y consultar su procedencia y licencia.
-- [x] La fuente, licencia, fecha y huella del material incorporado quedan registradas.
+- [ ] La generación reproducible se ejecuta desde las fuentes declaradas y produce el artefacto esperado sin timestamps variables.
 
-**Verificación:** `pnpm vitest run src/blocks/cc0Library.test.ts` y `pnpm lint && pnpm verify`.
+**Verificación:** suite de biblioteca, inspección de `dist/sw.js` sin entradas `library/` y puertas locales pasan; BLK-003 permanece abierta hasta repetir la generación desde sus fuentes.
 
 ---
 
@@ -36,7 +36,7 @@
 - **Depende de:** DAT-003
 - **Bloquea:** ARC-001 en bloques/xref
 
-**Evidencia:** `src/blocks/remap.ts` implementa `remapDynamicBlockDef`, `remapDynamicInstanceState` y `remapDynamicState`, con resolución tipada de entidades en parámetros de visibilidad (`visible`), selecciones de acciones (`selection`), rotación polar (`rotateOnly`) y restricciones (`refs[].entityId`). Se eliminaron todas las sustituciones regex `JSON.stringify(...).replace(...)` en `commands/blockEditor.ts`, `blocks/library.ts` y `xref/xref.ts`. Se desacopló y reutilizó en `io/clipboard.ts` y se integró en `io/dxf/dynamicData.ts` para que la codificación y decodificación de handles DXF sólo afecte referencias reales de entidades sin alterar nombres, etiquetas, fórmulas o tablas de consulta.
+**Evidencia:** `src/blocks/remap.ts` implementa remapeo tipado de entidades, acciones, visibilidad y restricciones. Con `missingPolicy: 'omit'` elimina referencias y constraints inválidas sin producir `entityId: ''`; cada omisión agrega un `RemapWarning` tipado con contexto. La misma ruta se usa en biblioteca, xref, Guardar bloque como, portapapeles y datos dinámicos DXF.
 
 **Archivos previstos:**
 
@@ -55,12 +55,12 @@
 **Criterios de aceptación:**
 
 - [x] Solo cambian campos de referencia documentados.
-- [x] Referencias faltantes generan advertencia o error; no quedan silenciosamente rotas.
+- [x] Referencias faltantes generan advertencia tipada o error; con `omit` no quedan cadenas vacías ni constraints sin referencias válidas.
 - [x] La ida y vuelta de bloques dinámicos y xrefs conserva nombres, fórmulas y textos.
 
 **Cierre:** 2026-09-19
 
-**Verificación:** `pnpm vitest run src/blocks src/xref src/io/dxf/dynamicData.test.ts src/io/clipboard.test.ts` (15 suites, 117 pruebas pasando) y `pnpm lint && pnpm verify` (53 archivos de test, 462 pruebas pasando, 0 errores de tipo, capas y features al día, build correcto).
+**Verificación:** `src/blocks/remap.test.ts` (18 pruebas focalizadas) y la suite completa (63 archivos/582 pruebas) pasan.
 
 ---
 
@@ -72,7 +72,7 @@
 - **Depende de:** DAT-003, BLK-001
 - **Bloquea:** —
 
-**Evidencia:** `src/blocks/libraryArchive.ts` implementa validación profunda de archivos `.fmodellib` antes de escribir en IndexedDB: `validateLibraryCategories` verifica unicidad de IDs de categorías, existencia y validez de padres, ausencia de auto-dependencias y ciclos, y profundidad máxima de 2 niveles; `readLibraryArchive` valida la unicidad de IDs y rutas de manifiesto, rechaza path traversal exigiendo `blocks/<id>.json`, comprueba coherencia estricta entre el manifiesto y el JSON real (`manifest.id === block.id` y `manifest.name === block.name`), y rechaza versiones de manifiesto menores a 1; `validateLibraryBlock` y `validateBlockPackage` verifican metadatos, tags, límites de miniaturas y cadenas, existencia del root, unicidad de IDs en bloques/capas/estilos/entidades, pertenencia de propietarios (`owner`), existencia de capas/tipos de línea/estilos/bloques (`insert`/`array`/`mleader` con bloque), tipos de entidad válidos (`ENTITY_TYPES` compartido con formatos nativos), soporte para cotas/directrices/tablas con estilos CAD estándar (`DIMSTYLE_ISO_ID`, `DIMSTYLE_STANDARD_ID`, `MLEADERSTYLE_STANDARD_ID`, etc.), detección de referencias circulares entre bloques (evitando bucles infinitos), finitud de números (`assertFiniteValues`) y límite de puntos (`assertPointLimits`), y referencias internas válidas en bloques dinámicos acotadas a las entidades del propio bloque. Se reforzó `commitLibrary` en `src/blocks/libraryStore.ts` para validar bloques y categorías antes de ejecutar la transacción atómica IndexedDB y reasignar graciosamente categorías desconocidas pero válidas a «Sin clasificar», garantizando que un archivo inválido nunca deje escritura parcial.
+**Evidencia:** además de la validación profunda y transacción atómica de `.fmodellib`, las miniaturas se restringen a data URLs de PNG/JPEG/WebP/GIF/SVG permitido, con longitud acotada y sanitización/rechazo de SVG activo, remoto o externo. La migración legacy de localStorage también descarta miniaturas remotas o inseguras; un paquete local no abre rutas de red.
 
 **Archivos previstos:**
 
@@ -88,7 +88,7 @@
 
 **Cierre:** 2026-09-19
 
-**Verificación:** `pnpm vitest run src/blocks/libraryArchive.test.ts src/blocks/libraryImport.test.ts src/blocks/libraryStore.test.ts` (3 archivos de prueba, 40 pruebas pasando) y `pnpm lint && pnpm verify` (53 suites, 494 pruebas pasando, 0 errores de tipo, capas y features al día, build correcto).
+**Verificación:** `src/blocks/libraryArchive.test.ts` incluye rechazo de URLs remotas, SVG con script y referencias externas; la suite completa (63 archivos/582 pruebas) pasa.
 
 ---
 
