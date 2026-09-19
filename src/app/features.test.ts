@@ -8,7 +8,7 @@ import { PANELS } from '../ui/Docks';
 import { hasCadIcon } from '../ui/icons';
 import { RIBBON } from '../ui/ribbonConfig';
 import { DEFAULT_SHORTCUTS } from '../editor/preferences';
-import { FEATURES } from './features';
+import { FEATURES, VERIFIED_EVIDENCE_REFS } from './features';
 
 describe('feature status and UI wiring', () => {
   registerAllCommands();
@@ -66,5 +66,27 @@ describe('feature status and UI wiring', () => {
       }
     }
     expect(clashes).toEqual([]);
+  });
+
+  it('every available feature has verified evidence (DOC-002)', () => {
+    const missing = FEATURES.filter((f) => f.status === 'available' && (!f.evidence || f.evidence.length === 0)).map((f) => f.name.es);
+    expect(missing).toEqual([]);
+  });
+
+  it('all feature evidence refs resolve to valid registered evidence (DOC-002)', () => {
+    const unknown: string[] = [];
+    for (const f of FEATURES) {
+      for (const ev of f.evidence ?? []) {
+        if (!VERIFIED_EVIDENCE_REFS.has(ev.ref)) {
+          unknown.push(`${f.name.es} -> ${ev.ref}`);
+        }
+      }
+    }
+    expect(unknown).toEqual([]);
+  });
+
+  it('experimental features document limitations in both languages (DOC-002)', () => {
+    const undocumented = FEATURES.filter((f) => f.status === 'experimental' && (!f.note?.es?.trim() || !f.note?.en?.trim())).map((f) => f.name.es);
+    expect(undocumented).toEqual([]);
   });
 });

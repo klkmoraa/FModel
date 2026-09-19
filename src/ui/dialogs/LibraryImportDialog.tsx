@@ -8,6 +8,11 @@ import type { Editor } from '../../editor/editor';
 import { Dialog } from '../Dialogs';
 import { tr } from '../controls';
 
+const UNITS = ['unitless', 'mm', 'cm', 'm', 'km', 'in', 'ft', 'yd', 'mi'] as const;
+const unitLabel = (lang: 'es' | 'en', unit: (typeof UNITS)[number]) => ({
+  unitless: tr(lang, 'Sin unidad', 'Unitless'), mm: 'mm', cm: 'cm', m: 'm', km: 'km', in: 'in', ft: 'ft', yd: 'yd', mi: 'mi',
+})[unit];
+
 /** Revisión antes de guardar en la biblioteca: qué bloques, con qué nombre, categoría y etiquetas. */
 export function LibraryImportDialog({ editor, session, onClose, onUi }: { editor: Editor; session: LibraryImportSession | undefined; onClose: () => void; onUi: (ui: string, cmd?: string, payload?: unknown) => void }) {
   const lang = editor.lang;
@@ -97,6 +102,12 @@ export function LibraryImportDialog({ editor, session, onClose, onUi }: { editor
                     </optgroup>
                   ))}
                 </select>
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--ink-muted)' }}>
+                  {tr(lang, 'Unidades', 'Units')}
+                  <select className="select" value={c.units} onChange={(e) => patch(c.key, { units: e.target.value as ImportCandidate['units'] })} aria-label={tr(lang, 'Unidades de origen del bloque', 'Block source units')}>
+                    {UNITS.map((unit) => <option key={unit} value={unit}>{unitLabel(lang, unit)}</option>)}
+                  </select>
+                </label>
                 <input className="input" style={{ flex: 1, minWidth: 140 }} placeholder={tr(lang, 'Etiquetas, separadas por comas', 'Tags, comma separated')} value={c.tags.join(', ')} onChange={(e) => patch(c.key, { tags: e.target.value.split(',').map((t) => t.trim()).filter(Boolean) })} />
               </div>
               {clashes.has(c.key) && c.selected && (

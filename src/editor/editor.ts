@@ -736,6 +736,15 @@ export class Editor {
     this.downAt = { screen, time: Date.now(), button };
   }
 
+  pointerCancel() {
+    this.panning = null;
+    this.downAt = null;
+    if (this.window?.dragging) {
+      this.window = null;
+      this.emit('overlay');
+    }
+  }
+
   pointerUp(screen: Vec2, button: number, mods: { shift?: boolean; ctrl?: boolean } = {}) {
     const wasPanning = this.panning;
     this.panning = null;

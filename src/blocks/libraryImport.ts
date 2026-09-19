@@ -2,7 +2,7 @@ import type { BBox } from '../geometry/bbox';
 import { emptyBox, expandBox, isEmptyBox } from '../geometry/bbox';
 import type { CadDocument } from '../document/document';
 import { newId } from '../document/ids';
-import type { BlockRecord, Id } from '../document/types';
+import type { BlockRecord, DrawingUnits, Id } from '../document/types';
 import { MODEL_SPACE_ID } from '../document/types';
 import type { ModelContext } from '../model/context';
 import { kindOf } from '../model/registry';
@@ -28,6 +28,17 @@ export interface ImportCandidate {
   savedAt?: number;
   /** al guardar, hacerlo estirable (Ancho y Fondo) si no es dinámico */
   stretchable?: boolean;
+  /** Unidad de la definición raíz: se convierte automáticamente al soltarla en otro dibujo. */
+  units: DrawingUnits;
+}
+
+function packageUnits(pkg: BlockPackage): DrawingUnits {
+  return pkg.blocks.find((block) => block.id === pkg.root)?.units ?? 'unitless';
+}
+
+/** Cambia solo la unidad declarada de la definición raíz, sin alterar la geometría guardada. */
+function withRootUnits(pkg: BlockPackage, units: DrawingUnits): BlockPackage {
+  return { ...pkg, blocks: pkg.blocks.map((block) => (block.id === pkg.root ? { ...block, units } : block)) };
 }
 
 /** Lo que el diálogo de la biblioteca necesita para guardar: candidatos y categorías (ya fusionadas). */
@@ -87,6 +98,7 @@ export function candidatesFromDocument(doc: CadDocument, ctx: ModelContext, cats
       categoryId: suggestCategory(`${b.name} ${b.description}`, cats),
       tags: [],
       selected: true,
+      units: b.units,
     }))
     .map((c) => ({ ...c, stretchable: !c.dynamic && isFurniture(cats, c.categoryId) }));
   const name = baseName(opts.file);
@@ -103,6 +115,7 @@ export function candidatesFromDocument(doc: CadDocument, ctx: ModelContext, cats
       tags: [],
       selected: !out.length,
       stretchable: isFurniture(cats, suggestCategory(name, cats)),
+      units: packageUnits(packageBlock(doc, modelId)),
     });
   }
   return out;
@@ -121,6 +134,7 @@ export function candidatesFromArchive(archive: LibraryArchive, cats: LibraryCate
     tags: b.tags ?? [],
     selected: true,
     savedAt: b.savedAt,
+    units: packageUnits(b.package),
   }));
   return { candidates, categories };
 }
@@ -147,7 +161,8 @@ export function planLibraryWrite(session: LibraryImportSession, existing: Librar
       }
     }
     names.add(fold(name));
-    const pkg = c.stretchable && !c.dynamic ? stretchablePackage(c.pkg) : c.pkg;
+    const sourcePackage = withRootUnits(c.pkg, c.units);
+    const pkg = c.stretchable && !c.dynamic ? stretchablePackage(sourcePackage) : sourcePackage;
     const item = makeLibraryBlock(pkg, { name, categoryId: c.categoryId, tags: c.tags, description: c.description, thumbnail: c.thumbnail, source: { kind: session.source.kind, file: session.source.file, importedAt: Date.now() } });
     put.push(c.savedAt ? { ...item, savedAt: c.savedAt } : item);
   }

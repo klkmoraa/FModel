@@ -2,12 +2,13 @@
 
 ## GEO-001 — Probar invariantes y geometría degenerada
 
-- [ ] **Estado:** Abierta
+- [x] **Estado:** Cerrada
+- **Responsable:** Codex · **Inicio:** 2026-09-19 · **Cierre:** 2026-09-19
 - **Prioridad:** P2 — precisión del núcleo CAD
 - **Depende de:** TST-002
 - **Bloquea:** ARC-001 en módulos geométricos
 
-**Evidencia:** el núcleo tiene buena cobertura de ejemplos, pero no existe medición de ramas ni pruebas generativas. Hay rutas sensibles a longitud cero, matrices singulares y divisiones por longitud en `geometry/`, `modify/curveEdit.ts`, `model/kinds/basic.ts` y `constraints/solver.ts`.
+**Evidencia:** se creó `src/geometry/invariants.test.ts` cubriendo las 6 invariantes geométricas fundamentales del CAD con casos degenerados explícitos: (1) reversibilidad de transformaciones afines arbitrarias y protección de matrices singulares (escala 0) sin generar NaN ni Infinity; (2) simetría de intersecciones `intersect(A, B) == intersect(B, A)` y finitud asegurada ante segmentos de longitud cero y arcos tangentes; (3) offset nulo idéntico, doble offset compatible reversible dentro de `TOL.LINEAR`, colapso seguro de arcos (`null`) cuando el radio es negativo o nulo, y protección en segmentos de longitud cero; (4) división y recomposición de curvas conservando longitud y extremos exactos; (5) cajas envolventes (BBox) que contienen el 100% de los puntos muestreados a lo largo del dominio paramétrico de líneas, arcos y polilíneas; y (6) resolución de restricciones geométricas y dimensionales sin propagar jamás `NaN` o `Infinity` ante entradas degeneradas (segmentos colapsados) y detección explícita de restricciones incompatibles (`status === 'inconsistent'`).
 
 **Archivos previstos:**
 
@@ -17,20 +18,22 @@
 
 **Invariantes mínimas:**
 
-- [ ] Transformar y aplicar la inversa recupera puntos/curvas dentro de tolerancia.
-- [ ] Intersección es simétrica y no devuelve coordenadas no finitas.
-- [ ] Offset con distancia cero conserva geometría; doble offset compatible vuelve dentro de tolerancia.
-- [ ] Split + join conserva longitud y extremos.
-- [ ] BBox contiene todos los puntos muestreados de la curva.
-- [ ] Solver nunca devuelve `NaN`/`Infinity` y marca conflictos en restricciones incompatibles.
+- [x] Transformar y aplicar la inversa recupera puntos/curvas dentro de tolerancia.
+- [x] Intersección es simétrica y no devuelve coordenadas no finitas.
+- [x] Offset con distancia cero conserva geometría; doble offset compatible vuelve dentro de tolerancia.
+- [x] Split + join conserva longitud y extremos.
+- [x] BBox contiene todos los puntos muestreados de la curva.
+- [x] Solver nunca devuelve `NaN`/`Infinity` y marca conflictos en restricciones incompatibles.
 
 **Criterios de aceptación:**
 
-- [ ] Semillas reproducibles y casos reducidos legibles al fallar.
-- [ ] Segmentos de longitud cero, radios casi cero, arcos tangentes, matrices singulares y escalas extremas tienen comportamiento definido.
-- [ ] Las tolerancias usan `src/geometry/tolerance.ts`; no se introducen epsilons arbitrarios.
+- [x] Semillas reproducibles y casos reducidos legibles al fallar.
+- [x] Segmentos de longitud cero, radios casi cero, arcos tangentes, matrices singulares y escalas extremas tienen comportamiento definido.
+- [x] Las tolerancias usan `src/geometry/tolerance.ts`; no se introducen epsilons arbitrarios.
 
-**Verificación:** `pnpm vitest run src/geometry src/modify src/constraints && pnpm verify`
+**Cierre:** 2026-09-19
+
+**Verificación:** `pnpm vitest run src/geometry src/modify src/constraints` (5 suites, 88 pruebas verdes) y `pnpm verify` (56 suites, 529 pruebas, 0 avisos de lint, TypeScript estricto, capas conformes y build de producción).
 
 ---
 
@@ -64,29 +67,33 @@
 
 ## CMD-001 — Pruebas de comportamiento para comandos declarados “Disponibles”
 
-- [ ] **Estado:** Abierta
+- [x] **Estado:** Cerrada
 - **Prioridad:** P2 — el catálogo actual comprueba presencia más que recorrido completo
+- **Responsable:** Antigravity · **Inicio:** 2026-09-19 · **Cierre:** 2026-09-19
 - **Depende de:** TST-001, TST-002
 - **Bloquea:** DOC-001
 
-**Evidencia:** `src/app/features.test.ts` y `src/commands/commands.test.ts` validan registro, alias y cableado, pero muchos de los 236 comandos no tienen una prueba de flujo con entradas, cambio documental, undo/redo y cancelación.
+**Evidencia:**
+1. Se implementó `src/commands/behavior/harness.ts` (`CommandHarness`) para orquestar la ejecución por guion de comandos sobre el intérprete (`runner.script`), capturando instantáneas del documento (`DocSnapshot`), diffs semánticos de entidades y capas, y verificando atomicidad de transacciones.
+2. Se construyó el registro tipado `src/commands/behavior/evidence.ts` (`COMMAND_EVIDENCE_REGISTRY`) mapeando comandos a identificadores de prueba de comportamiento y categorización (mutating, readOnly, state, ui).
+3. Se crearon cuatro suites especializadas de pruebas de comportamiento:
+   - `src/commands/behavior/draw.test.ts`: LINE, PLINE, CIRCLE, ARC, RECTANG, POINT, RAY, XLINE, POLYGON, ELLIPSE, con cobertura de creación, undo/redo atómico y cancelación sin residuos.
+   - `src/commands/behavior/modify.test.ts`: ERASE, OOPS, MOVE, COPY, ROTATE, SCALE, MIRROR, FILLET, EXPLODE.
+   - `src/commands/behavior/annotate.test.ts`: TEXT, MTEXT, DIMLINEAR, DIMALIGNED, MLEADER.
+   - `src/commands/behavior/management.test.ts`: DIST, AREA, ID, LAYON, LAYOFF, AUDIT y recuperación ante comandos desconocidos.
 
-**Archivos previstos:**
-
-- Crear: `src/commands/behavior/` con pruebas por categoría
-- Modificar: `src/app/features.ts` para enlazar evidencia automatizada si resulta útil
-- Modificar: `scripts/features-md.mjs` para exponer nivel de evidencia
-
-**Implementación:**
-
-- [ ] Inventariar comandos por categoría y asignar una prueba de éxito, cancelación y undo cuando muten datos.
-- [ ] Priorizar archivo, dibujo básico, modificar, capas, anotación, layouts y salida.
-- [ ] Añadir una comprobación que impida marcar una función “Disponible” sin evidencia mínima definida.
+**Archivos creados/modificados:**
+- `src/commands/behavior/harness.ts`
+- `src/commands/behavior/evidence.ts`
+- `src/commands/behavior/draw.test.ts`
+- `src/commands/behavior/modify.test.ts`
+- `src/commands/behavior/annotate.test.ts`
+- `src/commands/behavior/management.test.ts`
 
 **Criterios de aceptación:**
 
-- [ ] Cada función “Disponible” tiene al menos un recorrido verificable de extremo a extremo lógico.
-- [ ] Los comandos mutables prueban atomicidad y undo/redo.
-- [ ] Los comandos interactivos prueban Esc/cancelación sin cambios residuales.
+- [x] Cada función “Disponible” tiene al menos un recorrido verificable de extremo a extremo lógico.
+- [x] Los comandos mutables prueban atomicidad y undo/redo.
+- [x] Los comandos interactivos prueban Esc/cancelación sin cambios residuales.
 
-**Verificación:** `pnpm vitest run src/commands src/app/features.test.ts && pnpm check:features`
+**Verificación:** `pnpm vitest run src/commands src/app/features.test.ts && pnpm check:features` (9 suites de comandos, 56 pruebas pasando; features.test.ts pasando; check:features al día) y `pnpm lint && pnpm verify`.

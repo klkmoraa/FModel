@@ -14,12 +14,19 @@ export function VersionsDialog({ editor, onClose, onUi }: { editor: Editor; onCl
   const [versions, setVersions] = useState<VersionRecord[] | null>(null);
   const [label, setLabel] = useState('');
   const [error, setError] = useState('');
+  const [loadError, setLoadError] = useState('');
 
   const refresh = () =>
     persistence
       .versions(editor.doc.id)
-      .then(setVersions)
-      .catch(() => setVersions([]));
+      .then((list) => {
+        setVersions(list);
+        setLoadError('');
+      })
+      .catch((err) => {
+        setVersions(null);
+        setLoadError(String((err as { message?: string })?.message || err));
+      });
   useEffect(() => {
     void refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -33,6 +40,33 @@ export function VersionsDialog({ editor, onClose, onUi }: { editor: Editor; onCl
       await refresh();
     } catch (err) {
       setError(tr(lang, `No se pudo guardar: ${String(err)}`, `Could not save: ${String(err)}`));
+    }
+  };
+
+  const hasAutos = Boolean(versions?.some((v) => v.auto));
+  const showPurge = hasAutos || (persistence?.health?.status !== 'protected');
+  const purgeAutos = async () => {
+    if (!window.confirm(tr(lang, '¿Eliminar versiones automáticas para liberar espacio? Las versiones manuales se conservarán intactas.', 'Delete automatic versions to free space? Manual versions will be kept intact.'))) return;
+    try {
+      let deleted = await persistence.purgeAutoVersions(0, editor.doc.id);
+      if (deleted === 0) {
+        deleted = await persistence.purgeAutoVersions(0);
+      }
+      setError('');
+      await refresh();
+      if (deleted > 0) {
+        editor.runner.message('info', {
+          es: `Se liberó espacio eliminando ${deleted} versiones automáticas.`,
+          en: `Freed space by deleting ${deleted} automatic versions.`,
+        });
+      } else {
+        editor.runner.message('info', {
+          es: 'No se encontraron versiones automáticas para eliminar.',
+          en: 'No automatic versions found to delete.',
+        });
+      }
+    } catch (err) {
+      setError(tr(lang, `No se pudieron limpiar las versiones: ${String(err)}`, `Could not purge versions: ${String(err)}`));
     }
   };
 
@@ -64,8 +98,8 @@ export function VersionsDialog({ editor, onClose, onUi }: { editor: Editor; onCl
       onClose={onClose}
       footer={
         <>
-          <span style={{ flex: 1, fontSize: 12, color: error ? 'var(--fm-danger)' : 'var(--ink-muted)' }}>
-            {error || tr(lang, 'Las versiones se guardan solo en este navegador. Se conservan las 40 automáticas más recientes y todas las manuales.', 'Versions are stored only in this browser. The 40 latest automatic versions and all manual ones are kept.')}
+          <span style={{ flex: 1, fontSize: 12, color: error || loadError ? 'var(--fm-danger)' : 'var(--ink-muted)' }}>
+            {error || loadError || tr(lang, 'Las versiones se guardan solo en este navegador. Se conservan las 40 automáticas más recientes y todas las manuales.', 'Versions are stored only in this browser. The 40 latest automatic versions and all manual ones are kept.')}
           </span>
           <button className="btn btn--primary" onClick={onClose}>
             {tr(lang, 'Cerrar', 'Close')}
@@ -74,13 +108,30 @@ export function VersionsDialog({ editor, onClose, onUi }: { editor: Editor; onCl
       }
     >
       <div className="report">
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 6 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: showPurge ? '1fr auto auto' : '1fr auto', gap: 6 }}>
           <input className="input" value={label} placeholder={tr(lang, 'Etiqueta de la versión (p. ej. «Entrega cliente»)', 'Version label (e.g. "Client issue")')} onChange={(e) => setLabel(e.target.value)} onKeyDown={(e) => (e.stopPropagation(), e.key === 'Enter' && void save())} aria-label={tr(lang, 'Etiqueta', 'Label')} />
           <button className="btn btn--sm" onClick={() => void save()}>
             <Save size={13} /> {tr(lang, 'Guardar versión', 'Save version')}
           </button>
+          {showPurge && (
+            <button className="btn btn--sm" onClick={() => void purgeAutos()} title={tr(lang, 'Eliminar versiones automáticas sin tocar las manuales', 'Delete automatic versions without touching manual ones')}>
+              <Trash2 size={12} /> {tr(lang, 'Limpiar automáticas', 'Purge auto')}
+            </button>
+          )}
         </div>
-        {versions === null ? (
+        {loadError ? (
+          <div className="empty" style={{ color: 'var(--fm-danger)', textAlign: 'center', padding: '24px 8px' }} role="alert">
+            <p>{tr(lang, `Error al cargar el historial de versiones: ${loadError}`, `Error loading version history: ${loadError}`)}</p>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 12 }}>
+              <button className="btn btn--sm" onClick={() => void refresh()}>
+                {tr(lang, 'Reintentar', 'Retry')}
+              </button>
+              <button className="btn btn--sm" onClick={() => void purgeAutos()}>
+                <Trash2 size={12} /> {tr(lang, 'Limpiar automáticas', 'Purge auto')}
+              </button>
+            </div>
+          </div>
+        ) : versions === null ? (
           <p className="empty">{tr(lang, 'Cargando…', 'Loading…')}</p>
         ) : versions.length ? (
           <table className="grid">

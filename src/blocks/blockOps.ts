@@ -162,7 +162,7 @@ export function purgeUnusedBlocks(tx: Transaction, doc: CadDocument): string[] {
   while (changed) {
     changed = false;
     const usage = blockUsage(doc);
-    for (const b of [...doc.data.blocks.values()]) {
+    for (const b of Array.from(doc.data.blocks.values())) {
       if (b.kind === 'xref' || usage.get(b.id)) continue;
       if (b.favorite || b.library === 'shared') continue;
       for (const e of doc.entitiesOf(b.id)) tx.removeEntity(e.id);

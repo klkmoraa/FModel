@@ -40,12 +40,13 @@
 
 ## WRK-001 — Cancelar y transferir operaciones pesadas
 
-- [ ] **Estado:** Abierta
+- [x] **Estado:** Cerrada
+- **Responsable:** Codex · **Inicio:** 2026-09-19 · **Cierre:** 2026-09-19
 - **Prioridad:** P2 — memoria, bloqueos y control del usuario
 - **Depende de:** DAT-003
 - **Bloquea:** UI-003
 
-**Evidencia:** `src/workers/client.ts` no acepta `AbortSignal`, timeout ni progreso. `postMessage` no usa transferibles, por lo que DWG y estructuras grandes pueden duplicarse. Si una operación queda colgada, la promesa permanece en `pending`.
+**Evidencia:** `src/workers/client.ts` y `src/workers/heavy.worker.ts` implementan la interfaz ampliada `runHeavy(op, payload, { signal, timeoutMs, onProgress, transfer })`. Las operaciones aceptan `AbortSignal` con rechazo distinguible (`AbortError`), timeout con descarte y terminación/recreación limpia del worker si este no responde de forma cooperativa, notificación de progreso hacia el llamador, transferencia de búferes (`Transferable[]`) al leer archivos DWG/DXF para evitar duplicación de memoria, y fallback inline con idéntica semántica de cancelación y timeout. Si el worker falla catastróficamente con un evento de error, reintenta inline de forma segura e idempotente.
 
 **Archivos previstos:**
 
@@ -57,13 +58,15 @@
 
 **Criterios de aceptación:**
 
-- [ ] Cancelar retira la petición de `pending` y evita aplicar resultados tardíos.
-- [ ] Timeout termina/reinicia el worker cuando no puede cancelar cooperativamente.
-- [ ] `ArrayBuffer` grandes se transfieren cuando el llamador ya no los necesita.
-- [ ] El fallback inline conserva semántica de cancelación entre etapas.
-- [ ] Error del worker reintenta inline solo cuando es seguro e idempotente.
+- [x] Cancelar retira la petición de `pending` y evita aplicar resultados tardíos.
+- [x] Timeout termina/reinicia el worker cuando no puede cancelar cooperativamente.
+- [x] `ArrayBuffer` grandes se transfieren cuando el llamador ya no los necesita.
+- [x] El fallback inline conserva semántica de cancelación entre etapas.
+- [x] Error del worker reintenta inline solo cuando es seguro e idempotente.
 
-**Verificación:** `pnpm vitest run src/workers/client.test.ts && pnpm verify`
+**Cierre:** 2026-09-19
+
+**Verificación:** `pnpm vitest run src/workers/client.test.ts` (7 pruebas que cubren ejecución inline, AbortSignal pre/post llamada, timeout, simulación de worker con transferables y progreso, cancelación cooperativa con descarte de resultados tardíos, timeout con terminación del worker y reintento inline ante error del worker) y `pnpm verify` (54 suites, 511 pruebas, 0 avisos de lint, TypeScript estricto, capas conformes y build de producción limpio).
 
 ---
 

@@ -4,7 +4,7 @@ import type { ColorValue } from './types';
 export const ACI: readonly number[] = buildAci();
 
 function buildAci(): number[] {
-  const t = new Array<number>(256).fill(0);
+  const t = Array.from<number>({ length: 256 }).fill(0);
   const base = [0x000000, 0xff0000, 0xffff00, 0x00ff00, 0x00ffff, 0x0000ff, 0xff00ff, 0xffffff, 0x808080, 0xc0c0c0];
   base.forEach((c, i) => (t[i] = c));
   const hues: [number, number, number][] = [];

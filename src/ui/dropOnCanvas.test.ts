@@ -55,4 +55,18 @@ describe('soltar en el lienzo', () => {
     expect(ins.position).toEqual({ x: 5, y: 7 });
     expect(editor.doc.entitiesOf(MODEL_SPACE_ID).filter((e) => e.type === 'line')).toHaveLength(0);
   });
+
+  it('al soltar un bloque importado convierte sus unidades al dibujo activo', async () => {
+    const source = createDocument({ units: 'in' });
+    installDynamicSamples(source);
+    const original = packageBlock(source, source.findByName('blocks', 'FM Puerta 2D')!.id);
+    const pkg = { ...original, blocks: original.blocks.map((block) => (block.id === original.root ? { ...block, units: 'in' as const } : block)) };
+    const item = makeLibraryBlock(pkg, { name: 'Puerta imperial', categoryId: 'cat-arq-puertas', tags: [] });
+    await commitLibrary({ put: [item] });
+    const editor = setup();
+    await dropOnCanvas(editor, { kind: 'library-block', id: item.id }, { x: 5, y: 7 });
+    const [ins] = inserts(editor);
+    expect(ins.position).toEqual({ x: 5, y: 7 });
+    expect(ins.scale).toEqual({ x: 25.4, y: 25.4 });
+  });
 });

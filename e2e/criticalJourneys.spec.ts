@@ -519,4 +519,36 @@ test.describe('Recorridos críticos E2E en navegador real (TST-001)', () => {
     });
     expect(hasFocus).toBe(true);
   });
+
+  test('9. Accesibilidad: contención de foco en diálogo, escape y descripción accesible del lienzo (UI-001)', async ({ page }) => {
+    await page.goto('/?surface=workspace');
+    await page.waitForFunction(() => !!(window as any).fmodel?.editor);
+    await page.evaluate(() => (window as any).fmodel?.editor?.setPrefs({ onboardingDone: true }));
+
+    // Comprobar descripción accesible del canvas
+    const canvasHost = await page.waitForSelector('.canvas-host');
+    const ariaDesc = await canvasHost.getAttribute('aria-description');
+    expect(ariaDesc?.toLowerCase()).toMatch(/drawing canvas|lienzo/);
+
+    // Abrir diálogo de ajustes con botón
+    const settingsBtn = page.locator('button[title*="Ajustes de dibujo"], button[title*="Drafting settings"]').first();
+    await settingsBtn.click();
+
+    // Esperar a que el diálogo modal aparezca
+    const dialog = await page.waitForSelector('div[role="dialog"]');
+    expect(await dialog.getAttribute('aria-modal')).toBe('true');
+
+    // Tabbing dentro del diálogo retiene el foco adentro
+    await page.keyboard.press('Tab');
+    await page.keyboard.press('Tab');
+    const isFocusInside = await page.evaluate(() => {
+      const dialogEl = document.querySelector('div[role="dialog"]');
+      return dialogEl?.contains(document.activeElement);
+    });
+    expect(isFocusInside).toBe(true);
+
+    // Escape cierra el diálogo
+    await page.keyboard.press('Escape');
+    await page.waitForSelector('div[role="dialog"]', { state: 'detached' });
+  });
 });

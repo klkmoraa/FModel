@@ -31,6 +31,8 @@ describe('candidatos de importación a la biblioteca', () => {
     const put = planLibraryWrite(session, [], () => 'rename').put[0];
     expect(put.dynamic).toBe(true);
     expect(put.package.blocks.find((b) => b.id === put.package.root)!.dynamic!.parameters.map((p) => p.name)).toEqual(['Ancho', 'Fondo']);
+    const imperial = planLibraryWrite({ ...session, candidates: [{ ...c[0], units: 'in' }] }, [], () => 'rename').put[0];
+    expect(imperial.package.blocks.find((b) => b.id === imperial.package.root)?.units).toBe('in');
   });
 
   it('un DXF con bloques los ofrece todos y el espacio modelo sin marcar', () => {

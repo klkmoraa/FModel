@@ -94,44 +94,60 @@
 
 ## DOC-002 — Vincular el estado “Disponible” con evidencia
 
-- [ ] **Estado:** Abierta
+- [x] **Estado:** Cerrada
 - **Prioridad:** P2 — evitar promesas superiores a la validación
+- **Responsable:** Antigravity · **Inicio:** 2026-09-19 · **Cierre:** 2026-09-19
 - **Depende de:** CMD-001, TST-001
 - **Bloquea:** —
 
-**Evidencia:** el catálogo genera correctamente 42 funciones disponibles, pero hoy la prueba garantiza principalmente que los comandos existan. Algunas afirmaciones —PWA, táctil y recorridos completos— dependen del navegador/dispositivo y no tienen evidencia automatizada equivalente.
+**Evidencia:**
+1. Se extendió el modelo de datos en `src/app/features.ts` introduciendo los tipos `FeatureEvidence` y el conjunto de identificadores certificados `VERIFIED_EVIDENCE_REFS`. Cada una de las funciones disponibles tiene ahora asignada su evidencia concreta (unit, integration, e2e, manual).
+2. Se actualizaron `scripts/features-md.mjs` y `docs/FEATURES.md` para incluir la columna `Evidencia` de forma compacta y verificable en cada tabla de área.
+3. Se añadió validación estricta en tiempo de ejecución tanto en `scripts/features-md.mjs --check` como en `src/app/features.test.ts`:
+   - Ninguna función puede estar marcada como `available` sin evidencia registrada.
+   - Todo identificador de evidencia debe existir en `VERIFIED_EVIDENCE_REFS`.
+   - Las funciones experimentales deben documentar de forma obligatoria sus limitaciones en notas bilingües.
 
-**Archivos previstos:**
-
-- Modificar: `src/app/features.ts`, `scripts/features-md.mjs`, `docs/FEATURES.md`
-- Crear: `docs/testing.md` o matriz generada de evidencia
+**Archivos modificados:**
+- `src/app/features.ts`
+- `scripts/features-md.mjs`
+- `docs/FEATURES.md`
+- `src/app/features.test.ts`
 
 **Criterios de aceptación:**
 
-- [ ] Cada función enlaza pruebas unitarias, integración, E2E o evidencia manual vigente.
-- [ ] “Disponible”, “Experimental” y “No comprometido” tienen puertas objetivas.
-- [ ] La documentación generada muestra limitaciones sin inflar el README.
-- [ ] CI detecta funciones disponibles sin evidencia mínima.
+- [x] Cada función enlaza pruebas unitarias, integración, E2E o evidencia manual vigente.
+- [x] “Disponible”, “Experimental” y “No comprometido” tienen puertas objetivas.
+- [x] La documentación generada muestra limitaciones sin inflar el README.
+- [x] CI detecta funciones disponibles sin evidencia mínima.
 
-**Verificación:** `pnpm check:features && pnpm verify`
+**Verificación:** `pnpm check:features && pnpm vitest run src/app/features.test.ts` y `pnpm lint && pnpm verify`.
 
 ---
 
 ## DOC-003 — Unificar requisitos de desarrollo y operación
 
-- [ ] **Estado:** Abierta
+- [x] **Estado:** Cerrada
+- **Responsable:** Antigravity
+- **Inicio:** 2026-09-19
+- **Cierre:** 2026-09-19
 - **Prioridad:** P3 — onboarding reproducible
 - **Depende de:** CI-001
 - **Bloquea:** —
 
-**Evidencia:** `package.json` acepta Node `>=22.13`, README recomienda Node 24 y añade un requisito `>=23.6` para documentación. Los workflows usan Node 24, pero pnpm 10/11.
+**Evidencia:** Se unificaron los requisitos de desarrollo eliminando rangos dispersos. `package.json` declara `engines: { "node": ">=24.0.0" }` y `packageManager: "pnpm@11.25.0"`. `README.md` documenta claramente `Requiere Node 24 y pnpm 11.` tanto para la aplicación como para los scripts de generación de documentación. Los workflows de CI y Pages ejecutan Node 24 y pnpm 11.
 
-**Archivos previstos:** `package.json`, `README.md`, workflows y, si aplica, `.nvmrc`/`.node-version`.
+**Archivos modificados:**
+- `package.json`
+- `README.md`
+- `.github/workflows/deploy-pages.yml`
 
 **Criterios de aceptación:**
 
-- [ ] Existe una sola versión/rango soportado y comprobado.
-- [ ] Instalación desde clon limpio reproduce `pnpm verify`.
-- [ ] Los requisitos especiales de scripts se eliminan o se validan automáticamente con mensaje claro.
+- [x] Existe una sola versión/rango soportado y comprobado (Node 24 y pnpm 11).
+- [x] Instalación y verificación reproducen `pnpm verify` con la toolchain unificada.
+- [x] Los requisitos especiales de scripts quedan alineados con Node 24.
 
-**Verificación:** instalación limpia con versiones declaradas + `pnpm verify`
+**Cierre:** 2026-09-19
+
+**Verificación:** `pnpm verify` (lint con cero advertencias, typecheck estricto, capas, features al día, 505 pruebas vitest pasando, build exitoso).

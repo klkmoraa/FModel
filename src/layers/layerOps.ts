@@ -64,7 +64,7 @@ export function canDeleteLayer(doc: CadDocument, id: Id): { ok: true } | { ok: f
 /** Fusiona capas en una destino moviendo sus objetos (LAYMRG). */
 export function mergeLayers(tx: Transaction, doc: CadDocument, sources: Id[], target: Id): number {
   let n = 0;
-  for (const e of [...doc.data.entities.values()]) {
+  for (const e of doc.data.entities.values()) {
     if (sources.includes(e.layer)) {
       tx.updateEntity(e.id, { layer: target });
       n++;
@@ -77,7 +77,7 @@ export function mergeLayers(tx: Transaction, doc: CadDocument, sources: Id[], ta
 export function purgeEmptyLayers(tx: Transaction, doc: CadDocument): string[] {
   const usage = layerUsage(doc);
   const removed: string[] = [];
-  for (const l of [...doc.data.layers.values()]) {
+  for (const l of Array.from(doc.data.layers.values())) {
     if (l.id === LAYER0_ID || l.id === DEFPOINTS_LAYER_ID || l.id === doc.settings.currentLayer) continue;
     if (usage.get(l.id)) continue;
     const inViewportOverrides = [...doc.data.entities.values()].some((e) => e.type === 'viewport' && (e.frozenLayers.includes(l.id) || l.id in e.layerOverrides));

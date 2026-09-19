@@ -13,16 +13,11 @@ import type {
   Entity,
   HatchEntity,
   Id,
-  InsertEntity,
   LayerRecord,
   LinetypeRecord,
   LookupTable,
-  MLeaderEntity,
   MLeaderStyleRecord,
-  MLineEntity,
   MLineStyleRecord,
-  PolarStretchAction,
-  TableEntity,
   TableStyleRecord,
   TextStyleRecord,
   ViewportEntity,
@@ -32,6 +27,7 @@ import type { Vec2 } from '../geometry/vec';
 import { ModelContext } from '../model/context';
 import { kindOf } from '../model/registry';
 import { INPUT_LIMITS } from './limits';
+import { remapDynamicBlockDef, remapDynamicInstanceState } from '../blocks/remap';
 import { assertFiniteValues, assertPointLimits } from './validation';
 
 export const CLIPBOARD_FORMAT = 'fmodel-clip';
@@ -827,53 +823,6 @@ function sortBlocksTopologically(blocks: BlockRecord[], blockEntities: Entity[])
   return result;
 }
 
-/** Remapea identificadores de entidades en parámetros, acciones y restricciones de bloques dinámicos de forma tipada. */
-function remapDynamicBlockDef(dynamic: DynamicBlockDefinition, blockEntityMap: Map<Id, Id>): DynamicBlockDefinition {
-  const cloned: DynamicBlockDefinition = structuredClone(dynamic);
-  if (cloned.parameters) {
-    for (const param of cloned.parameters) {
-      if (param.type === 'visibility' && param.states) {
-        for (const state of param.states) {
-          if (state.visible) {
-            state.visible = state.visible.map((id) => blockEntityMap.get(id) ?? id);
-          }
-        }
-      }
-    }
-  }
-  if (cloned.actions) {
-    for (const act of cloned.actions) {
-      if (act.selection) {
-        act.selection = act.selection.map((id) => blockEntityMap.get(id) ?? id);
-      }
-      if (act.type === 'polarstretch' && (act as PolarStretchAction).rotateOnly) {
-        (act as PolarStretchAction).rotateOnly = (act as PolarStretchAction).rotateOnly.map((id) => blockEntityMap.get(id) ?? id);
-      }
-    }
-  }
-  if (cloned.constraints) {
-    for (const c of cloned.constraints) {
-      if (c.refs) {
-        for (const ref of c.refs) {
-          if (ref.entityId && blockEntityMap.has(ref.entityId)) {
-            ref.entityId = blockEntityMap.get(ref.entityId)!;
-          }
-        }
-      }
-    }
-  }
-  return cloned;
-}
-
-function remapDynamicInstanceState(insert: InsertEntity, paramMap: Map<Id, Id> | undefined) {
-  if (!insert.dynamic || !paramMap) return;
-  insert.dynamic = {
-    ...insert.dynamic,
-    values: Object.fromEntries(
-      Object.entries(insert.dynamic.values).map(([id, value]) => [paramMap.get(id) ?? id, value]),
-    ),
-  };
-}
 
 function remapEntityOverrides(
   entity: Entity,
@@ -948,7 +897,6 @@ export function pasteClipboardPackage(
   const validPkg = validateClipboardPackage(pkgInput);
   const modelCtx = new ModelContext(doc);
 
-  const isV2 = validPkg.version === 2;
   const pkg = validPkg as ClipboardPackage;
 
   // Si no hay base precalculada (paquetes v1), calcularla al vuelo

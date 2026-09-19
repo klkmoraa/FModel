@@ -2,10 +2,12 @@ import { getServices, requestUi } from '../app/services';
 import { createDocumentData } from '../document/defaults';
 import { fromNativeFile, readPackage, writeDebugJson, writePackage } from '../io/native';
 import { downloadBlob, openFile, saveFile } from '../storage/fileAccess';
+import { classifyStorageError, type RecoveryRecord } from '../storage/persistence';
 import { K, L } from './helpers';
 import type { CommandApi, CommandDef } from './types';
 import { decodeDxfBytes, importDxfIntoDocument } from '../io/dxf/importDxf';
 import { assertInputBytes } from '../io/limits';
+import { taskManager } from '../app/tasks';
 import { runHeavy } from '../workers/client';
 
 const FMODEL_ACCEPT = { 'application/x-fmodel': ['.fmodel'], 'application/json': ['.json'] };
@@ -37,6 +39,7 @@ const NEW: CommandDef = {
     const data = createDocumentData({ units: units.kind === 'keyword' ? (units.key as 'mm') : 'mm', title: api.t(L('Sin título', 'Untitled')) });
     api.editor.doc.replaceData(data);
     api.editor.fileName = '';
+    api.editor.ctx.fileName = '';
     getServices().fileHandle = null;
     api.editor.emit('doc');
   },
@@ -47,22 +50,49 @@ export async function openBytes(api: CommandApi, name: string, bytes: Uint8Array
   const lower = name.toLowerCase();
   if (lower.endsWith('.dxf')) {
     api.info(L('Leyendo DXF en segundo plano…', 'Reading DXF in the background…'));
-    const { data, report } = await runHeavy('readDxf', { text: decodeDxfBytes(bytes) });
-    api.editor.doc.replaceData(data);
-    api.editor.fileName = fileBaseName(name);
-    api.info(L(report.summary.es, report.summary.en));
-    requestUi('conversion-report', { kind: 'import', name, report });
-    api.editor.zoomExtents();
+    try {
+      const { data, report } = await taskManager.runTask(
+        'open-dxf',
+        { es: `Leyendo DXF: ${name}`, en: `Reading DXF: ${name}` },
+        async (ctx) => runHeavy('readDxf', { text: decodeDxfBytes(bytes) }, { signal: ctx.signal })
+      );
+      api.editor.doc.replaceData(data);
+      api.editor.fileName = fileBaseName(name);
+      api.info(L(report.summary.es, report.summary.en));
+      requestUi('conversion-report', { kind: 'import', name, report });
+      api.editor.zoomExtents();
+    } catch (err) {
+      if ((err instanceof DOMException && err.name === 'AbortError') || (err instanceof Error && err.name === 'AbortError')) {
+        api.warn(L('Apertura cancelada.', 'Open cancelled.'));
+        return;
+      }
+      throw err;
+    }
     return;
   }
   if (lower.endsWith('.dwg')) {
     api.info(L('Leyendo DWG con LibreDWG en segundo plano (la primera vez descarga el lector, ~10 MB)…', 'Reading DWG with LibreDWG in the background (first use downloads the reader, ~10 MB)…'));
-    const { data, report } = await runHeavy('readDwg', { bytes });
-    api.editor.doc.replaceData(data);
-    api.editor.fileName = fileBaseName(name);
-    api.info(L(report.summary.es, report.summary.en));
-    requestUi('conversion-report', { kind: 'import', name, report });
-    api.editor.zoomExtents();
+    const transfer = bytes.buffer instanceof ArrayBuffer && bytes.byteOffset === 0 && bytes.byteLength === bytes.buffer.byteLength
+      ? [bytes.buffer]
+      : undefined;
+    try {
+      const { data, report } = await taskManager.runTask(
+        'open-dwg',
+        { es: `Leyendo DWG: ${name}`, en: `Reading DWG: ${name}` },
+        async (ctx) => runHeavy('readDwg', { bytes }, { signal: ctx.signal, transfer })
+      );
+      api.editor.doc.replaceData(data);
+      api.editor.fileName = fileBaseName(name);
+      api.info(L(report.summary.es, report.summary.en));
+      requestUi('conversion-report', { kind: 'import', name, report });
+      api.editor.zoomExtents();
+    } catch (err) {
+      if ((err instanceof DOMException && err.name === 'AbortError') || (err instanceof Error && err.name === 'AbortError')) {
+        api.warn(L('Apertura cancelada.', 'Open cancelled.'));
+        return;
+      }
+      throw err;
+    }
     return;
   }
   const res = readPackage(bytes);
@@ -80,7 +110,7 @@ const OPEN: CommandDef = {
   category: 'file',
   readOnly: true,
   label: L('Abrir', 'Open'),
-  description: L('Abre un dibujo .fmodel, JSON de FModel, DXF o DWG (lectura experimental con LibreDWG).', 'Opens a .fmodel drawing, FModel JSON, DXF or DWG (experimental reading with LibreDWG).'),
+  description: L('Abre un dibujo .fmodel, JSON de FModel, DXF o DWG (lectura experimental).', 'Opens a .fmodel drawing, FModel JSON, DXF or DWG (experimental reading).'),
   async run(api) {
     if (!(await confirmDiscard(api))) return;
     const f = await openFile({ ...FMODEL_ACCEPT, 'application/dxf': ['.dxf'], 'application/acad': ['.dwg'] }, 'FModel / DXF / DWG');
@@ -92,7 +122,8 @@ const OPEN: CommandDef = {
 
 async function save(api: CommandApi, as: boolean) {
   const s = getServices();
-  const name = `${api.editor.fileName || api.editor.doc.settings.title || 'dibujo'}.fmodel`;
+  const base = fileBaseName(api.editor.fileName || api.editor.doc.settings.title || 'dibujo');
+  const name = `${base}.fmodel`;
   const bytes = writePackage(api.editor.doc.data, api.editor.doc.id);
   const result = await saveFile(new Blob([bytes as BlobPart], { type: 'application/x-fmodel' }), name, { 'application/x-fmodel': ['.fmodel'] }, 'FModel 2D CAD', as ? null : s.fileHandle);
   if (result.kind === 'cancelled') return;
@@ -100,13 +131,46 @@ async function save(api: CommandApi, as: boolean) {
   if (handle) {
     s.fileHandle = handle;
     api.editor.fileName = fileBaseName(handle.name);
+    api.editor.ctx.fileName = handle.name;
+  } else if (as) {
+    s.fileHandle = null;
   }
   api.editor.doc.dirty = false;
-  await s.persistence.storeDrawing(api.editor.fileName || name).catch(() => undefined);
-  await s.persistence.saveVersion(api.t(L('Guardado manual', 'Manual save'))).catch(() => undefined);
-  await s.persistence.markCleanExit();
+  let localSaveError: ReturnType<typeof classifyStorageError> | null = null;
+  try {
+    if (typeof s.persistence.storeDrawingAndVersion === 'function') {
+      await s.persistence.storeDrawingAndVersion(
+        api.editor.fileName || name,
+        api.t(L('Guardado manual', 'Manual save')),
+        bytes,
+      );
+    } else {
+      await s.persistence.storeDrawing(api.editor.fileName || name);
+      await s.persistence.saveVersion(api.t(L('Guardado manual', 'Manual save')));
+    }
+  } catch (err) {
+    localSaveError = classifyStorageError(err);
+  }
+  await s.persistence.markCleanExit().catch(() => undefined);
   api.editor.emit('doc');
-  api.info(L(`Guardado ${handle ? `en «${handle.name}»` : 'como descarga'} (${(bytes.length / 1024).toFixed(1)} KB).`, `Saved ${handle ? `to "${handle.name}"` : 'as download'} (${(bytes.length / 1024).toFixed(1)} KB).`));
+  const mainMsg = L(
+    `Guardado ${handle ? `en «${handle.name}»` : 'como descarga'} (${(bytes.length / 1024).toFixed(1)} KB).`,
+    `Saved ${handle ? `to "${handle.name}"` : 'as download'} (${(bytes.length / 1024).toFixed(1)} KB).`,
+  );
+  api.info(mainMsg);
+  if (localSaveError) {
+    const reasonText =
+      localSaveError.kind === 'quota'
+        ? L('espacio insuficiente en el navegador', 'insufficient browser storage')
+        : L('almacenamiento local no disponible', 'local storage unavailable');
+    const warnMsg = L(
+      `Advertencia: no se pudo actualizar la copia local (${api.t(reasonText)}).`,
+      `Warning: could not update local copy (${api.t(reasonText)}).`,
+    );
+    if (typeof api.warn === 'function') {
+      api.warn(warnMsg);
+    }
+  }
 }
 
 const QSAVE: CommandDef = {
@@ -161,7 +225,23 @@ const RECOVER: CommandDef = {
   label: L('Recuperar dibujo', 'Recover drawing'),
   description: L('Restaura el último autoguardado tras un cierre inesperado.', 'Restores the last autosave after an unexpected exit.'),
   async run(api) {
-    const rec = await getServices().persistence.pendingRecovery();
+    let rec: RecoveryRecord | null = null;
+    try {
+      rec = await getServices().persistence.pendingRecovery();
+    } catch (err) {
+      const classified = classifyStorageError(err);
+      const reason =
+        classified.kind === 'quota'
+          ? L('cuota de almacenamiento excedida', 'storage quota exceeded')
+          : L('almacenamiento no disponible', 'storage unavailable');
+      api.warn(
+        L(
+          `Error al acceder al borrador de recuperación (${api.t(reason)}).`,
+          `Error accessing recovery draft (${api.t(reason)}).`,
+        ),
+      );
+      return;
+    }
     if (!rec) {
       api.info(L('No hay borradores pendientes de recuperar.', 'No drafts pending recovery.'));
       return;
@@ -170,6 +250,8 @@ const RECOVER: CommandDef = {
     const res = fromNativeFile(rec.file);
     api.editor.doc.replaceData(res.data, res.documentId);
     api.editor.fileName = rec.name;
+    api.editor.ctx.fileName = rec.name;
+    getServices().fileHandle = null;
     api.editor.doc.dirty = true;
     api.editor.zoomExtents();
     api.info(L(`Recuperado el autoguardado del ${new Date(rec.savedAt).toLocaleString()}.`, `Recovered autosave from ${new Date(rec.savedAt).toLocaleString()}.`));
@@ -202,8 +284,25 @@ const EXPORTDXF: CommandDef = {
   async run(api) {
     const { exportSummary } = await import('../io/dxf/exportDxf');
     api.info(L('Generando DXF en segundo plano…', 'Generating DXF in the background…'));
-    const { text, report } = await runHeavy('exportDxf', { data: api.editor.doc.data });
-    const name = `${api.editor.fileName || api.editor.doc.settings.title || 'dibujo'}.dxf`;
+    let text = '';
+    let report: any = null;
+    try {
+      const res = await taskManager.runTask(
+        'export-dxf',
+        { es: 'Exportando DXF', en: 'Exporting DXF' },
+        async (ctx) => runHeavy('exportDxf', { data: api.editor.doc.data }, { signal: ctx.signal })
+      );
+      text = res.text;
+      report = res.report;
+    } catch (err) {
+      if ((err instanceof DOMException && err.name === 'AbortError') || (err instanceof Error && err.name === 'AbortError')) {
+        api.warn(L('Exportación cancelada.', 'Export cancelled.'));
+        return;
+      }
+      throw err;
+    }
+    const base = fileBaseName(api.editor.fileName || api.editor.doc.settings.title || 'dibujo');
+    const name = `${base}.dxf`;
     const result = await saveFile(new Blob([text], { type: 'application/dxf' }), name, { 'application/dxf': ['.dxf'] }, 'DXF');
     if (result.kind === 'cancelled') return;
     const handle = result.kind === 'saved-to-handle' ? result.handle : null;

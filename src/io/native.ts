@@ -30,7 +30,7 @@ export interface NativeFile {
 
 type Migration = (f: NativeFile) => NativeFile;
 
-const ENTITY_TYPES = new Set([
+export const ENTITY_TYPES = new Set([
   'point', 'line', 'ray', 'xline', 'circle', 'arc', 'ellipse', 'lwpolyline', 'polyline2d', 'spline', 'mline', 'region', 'hatch', 'text', 'mtext', 'leader', 'mleader', 'table', 'wipeout', 'image', 'pdfunderlay', 'insert', 'attdef', 'dimension', 'viewport', 'array',
 ]);
 

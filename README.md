@@ -24,7 +24,7 @@ FModel no lee ni escribe DWG y no simula compatibilidad: no hay una solución le
 
 ## Desarrollo
 
-Requiere Node 24 (≥ 22.13 para la aplicación; ≥ 23.6 para generar la documentación de funciones) y pnpm.
+Requiere Node 24 y pnpm 11.
 
 ```bash
 pnpm install
@@ -43,10 +43,10 @@ pnpm verify
 | `pnpm dev` | servidor de desarrollo |
 | `pnpm build` | tipos + compilación de producción en `dist/` |
 | `pnpm test` | pruebas (Vitest) |
-| `pnpm lint` | oxlint |
+| `pnpm lint` | oxlint con cero advertencias |
 | `pnpm check:layers` | verifica que las dependencias entre módulos respetan las capas |
 | `pnpm docs:features` | regenera `docs/FEATURES.md` desde `src/app/features.ts` |
-| `pnpm verify` | tipos, capas, documentación al día, pruebas y compilación |
+| `pnpm verify` | lint, tipos, capas, documentación al día, pruebas y compilación |
 
 Auditoría opcional de la salida DXF con [ezdxf](https://ezdxf.mozman.at/):
 

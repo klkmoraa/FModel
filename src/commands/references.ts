@@ -11,7 +11,7 @@ import { underlaySize } from '../model/kinds/media';
 import { openFile } from '../storage/fileAccess';
 import { forgetXrefHandle, LIBRARY_PREFIX, readXrefBytes, rememberXrefHandle } from '../xref/sources';
 import type { XrefSource } from '../xref/xref';
-import { attachXref, bindXref, detachXref, readXrefSource, reloadXref, unloadXref, XrefError } from '../xref/xref';
+import { attachXref, bindXref, detachXref, markXrefUnavailable, readXrefSource, reloadXref, repathXref, unloadXref, XrefError } from '../xref/xref';
 import { confirmDiscard, openBytes } from './file';
 import { add, K, L } from './helpers';
 import type { CommandApi, CommandDef } from './types';
@@ -62,11 +62,19 @@ export async function reloadReference(api: CommandApi, block: BlockRecord, inter
     }
   }
   if (!res) {
-    api.apply('XRELOAD', (tx) => unloadXref(tx, doc, block.id, 'not-found', 'sin acceso al archivo'));
+    api.apply('XRELOAD', (tx) => markXrefUnavailable(tx, doc, block.id, 'not-found', 'sin acceso al archivo'));
     api.warn(L(`«${block.name}»: no se encontró el origen (${path}). Usa XREPATH para designarlo.`, `"${block.name}": source not found (${path}). Use XREPATH to pick it.`));
     return false;
   }
-  const source = readSource(res.bytes, res.name);
+  let source: XrefSource;
+  try {
+    source = readSource(res.bytes, res.name);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    api.apply('XRELOAD', (tx) => markXrefUnavailable(tx, doc, block.id, 'unresolved', msg));
+    api.warn(L(`«${block.name}»: no se pudo leer el archivo de referencia (${msg}).`, `"${block.name}": could not read reference file (${msg}).`));
+    return false;
+  }
   try {
     api.apply('XRELOAD', (tx) => reloadXref(tx, doc, block.id, source));
   } catch (err) {
@@ -240,8 +248,7 @@ const XREPATH: CommandDef = {
     const source = readSource(f.bytes, f.name);
     try {
       api.apply('XREPATH', (tx) => {
-        tx.update('blocks', b.id, { xref: { ...b.xref!, path: f.name, source: 'file' } });
-        reloadXref(tx, api.editor.doc, b.id, source);
+        repathXref(tx, api.editor.doc, b.id, f.name, source, 'file');
       });
     } catch (err) {
       asCommandError(err);
