@@ -78,6 +78,10 @@ self.addEventListener('fetch', (event) => {
     );
     return;
   }
+  if (req.headers.has('range')) {
+    event.respondWith(fetch(req));
+    return;
+  }
   event.respondWith(
     caches.open(CACHE).then((cache) =>
       cache.match(req, { ignoreSearch: true }).then(

@@ -47,7 +47,7 @@ function boot(files: string[], version: string, network: { online: boolean; stat
   return { dispatch, stores, scope, skipped: () => skipped };
 }
 
-const req = (url: string, mode: RequestMode | 'navigate' = 'cors') => ({ url, method: 'GET', mode }) as unknown as Request;
+const req = (url: string, mode: RequestMode | 'navigate' = 'cors', headers: HeadersInit = {}) => ({ url, method: 'GET', mode, headers: new Headers(headers) }) as unknown as Request;
 
 describe('service worker', () => {
   it('precaches the whole build and serves assets and navigation offline', async () => {
@@ -137,14 +137,19 @@ describe('service worker', () => {
     expect(await cached!.text()).toContain('library/muebles.dxf');
   });
 
-  it('no almacena en caché respuestas parciales (HTTP 206)', async () => {
-    const network = { online: true, status: 206 };
+  it('una solicitud Range omite una respuesta completa ya almacenada y no guarda el HTTP 206', async () => {
+    const network = { online: true, status: 200 };
     const sw = boot(['./', 'index.html'], 'v1', network);
     await sw.dispatch('install');
 
-    const rangeReq = req(`${sw.scope}heavy.wasm`);
+    const fullReq = req(`${sw.scope}heavy.wasm`);
+    expect((await sw.dispatch('fetch', { request: fullReq }))?.status).toBe(200);
+    expect(sw.stores.get('fmodel-cad-v1')?.has(`${sw.scope}heavy.wasm`)).toBe(true);
+
+    network.status = 206;
+    const rangeReq = req(`${sw.scope}heavy.wasm`, 'cors', { Range: 'bytes=0-1023' });
     const fetched = await sw.dispatch('fetch', { request: rangeReq });
     expect(fetched?.status).toBe(206);
-    expect(sw.stores.get('fmodel-cad-v1')?.has(`${sw.scope}heavy.wasm`)).toBe(false);
+    expect(sw.stores.get('fmodel-cad-v1')?.get(`${sw.scope}heavy.wasm`)?.status).toBe(200);
   });
 });
