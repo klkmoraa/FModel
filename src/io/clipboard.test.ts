@@ -561,6 +561,10 @@ describe('portapapeles portable (DAT-002)', () => {
     // La entidad insert pegada debe apuntar a 'Silla (2)'
     const pastedInsert = dstDoc.entity(res.insertedIds[0]) as InsertEntity;
     expect(pastedInsert.blockId).toBe(newBlock.id);
+
+    // Repetir la misma colisión debe reutilizar la definición equivalente ya renombrada.
+    pasteClipboardPackage(dstDoc, pkg, MODEL_SPACE_ID, { x: 30, y: 30 });
+    expect(dstDoc.findByName('blocks', 'Silla (3)')).toBeUndefined();
   });
 
   it('copia bloque dinámico y remapea identificadores internos de entidades en dynamic', () => {
