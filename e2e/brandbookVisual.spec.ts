@@ -32,6 +32,9 @@ test.describe('alineación visual con FusionStructureBrand', () => {
   test('los diálogos atrapan el foco y lo devuelven al control de origen', async ({ page }) => {
     await page.goto('/?surface=workspace');
     await page.waitForFunction(() => !!(window as any).fmodel?.editor);
+    await page.evaluate(() => {
+      (window as any).fmodel.editor.setPrefs({ onboardingDone: true });
+    });
 
     const origin = page.locator('.brand--btn');
     await origin.focus();
@@ -39,7 +42,7 @@ test.describe('alineación visual con FusionStructureBrand', () => {
       window.dispatchEvent(new CustomEvent('fmodel:ui', { detail: { ui: 'options' } }));
     });
 
-    const dialog = page.getByRole('dialog');
+    const dialog = page.getByRole('dialog', { name: 'Opciones' });
     await expect(dialog).toBeVisible();
     expect(await dialog.evaluate((element) => element.contains(document.activeElement))).toBe(true);
 
@@ -56,6 +59,24 @@ test.describe('alineación visual con FusionStructureBrand', () => {
     await page.keyboard.press('Escape');
     await expect(dialog).toHaveCount(0);
     await expect(origin).toBeFocused();
+  });
+
+  test('el onboarding aplica el mismo contrato modal de teclado', async ({ page }) => {
+    await page.goto('/?surface=workspace');
+    await page.waitForFunction(() => !!(window as any).fmodel?.editor);
+
+    const onboarding = page.getByRole('dialog', { name: 'Bienvenido a FModel 2D CAD' });
+    await expect(onboarding).toBeVisible();
+    expect(await onboarding.evaluate((element) => element.contains(document.activeElement))).toBe(true);
+
+    const focusableCount = await onboarding.locator('button:not([disabled]), [tabindex]:not([tabindex="-1"])').count();
+    for (let index = 0; index < focusableCount + 2; index += 1) {
+      await page.keyboard.press('Tab');
+    }
+    expect(await onboarding.evaluate((element) => element.contains(document.activeElement))).toBe(true);
+
+    await page.keyboard.press('Escape');
+    await expect(onboarding).toHaveCount(0);
   });
 
   for (const viewport of VIEWPORTS) {
