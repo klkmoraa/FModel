@@ -10,12 +10,13 @@ These skills are project-local and intentionally loaded on demand. The root
 | `vercel-react-best-practices` | React rendering, bundle and browser performance | [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills/tree/main/skills/react-best-practices) | `063bee94c3f4df8453406c830b0a7df0f2860278` audited; installed from `main` on 2026-09-18 | MIT as declared upstream |
 | `vercel-composition-patterns` | React 19 component APIs and scalable composition | [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills/tree/main/skills/composition-patterns) | `063bee94c3f4df8453406c830b0a7df0f2860278` audited; installed from `main` on 2026-09-18 | MIT as declared upstream |
 | `web-design-guidelines` | Explicit UI, UX and accessibility review | [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills/tree/main/skills/web-design-guidelines) | `063bee94c3f4df8453406c830b0a7df0f2860278` audited; installed from `main` on 2026-09-18 | MIT as declared upstream |
+| `superpowers` (suite) | Disciplined workflows: systematic debugging, TDD, planning, review and verification | [obra/superpowers](https://github.com/obra/superpowers) | `6.3.0` audited from official plugin cache; installed 2026-09-20 | MIT / Apache-2.0 |
 
 Host-provided skills may also be used when available. In particular, Superpowers
-6.3.0 and additional Anthropic design skills are installed in the current Claude
-and Codex environments. Superpowers is not copied here because both hosts already
-load the same current version; `frontend-design` is included for project portability.
-A missing optional host skill never blocks use of the project-local set.
+6.3.0 is vendored into `.agents/skills/` and mirrored globally in `~/.gemini/config/skills/`
+for Antigravity, matching the environments in Claude and Codex. `frontend-design` is
+included for project portability. A missing optional host skill never blocks use of the
+project-local set.
 
 ## Selection rules
 

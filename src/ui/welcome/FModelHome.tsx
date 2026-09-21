@@ -10,7 +10,6 @@ import { ActiveDrawingStage, FeaturedTemplateStage } from './HeroStage';
 import { QuickStart } from './QuickStart';
 import { RecentDrawings } from './RecentDrawings';
 import { Capabilities } from './Capabilities';
-import { requestUi } from '../../app/services';
 import { BrandMark } from '../icons';
 import { confirmDiscard, openTemplate } from './actions';
 import type { TemplateDefinition } from '../../templates';
@@ -114,6 +113,10 @@ export function FModelHome({
                   <FilePlus2 size={16} aria-hidden="true" />
                   <span>{tr(lang, 'Nuevo dibujo', 'New drawing')}</span>
                 </button>
+                <button type="button" className="fmodel-action" onClick={openFile}>
+                  <FolderOpen size={16} aria-hidden="true" />
+                  <span>{tr(lang, 'Abrir archivo', 'Open file')}</span>
+                </button>
               </div>
             </div>
           ) : (
@@ -143,6 +146,8 @@ export function FModelHome({
         </div>
       </section>
 
+      <RecentDrawings editor={editor} dark={dark} onOpened={onContinue} onSeeAll={onOpenDrawings} />
+
       <QuickStart
         editor={editor}
         dark={dark}
@@ -158,15 +163,7 @@ export function FModelHome({
         }}
       />
 
-      <RecentDrawings editor={editor} dark={dark} onOpened={onContinue} onSeeAll={onOpenDrawings} />
-
-      <Capabilities
-        lang={lang}
-        onOpenStatusHelp={() => {
-          onContinue();
-          requestUi('help', { tab: 'features' });
-        }}
-      />
+      <Capabilities lang={lang} />
 
       {/* Pie: marca, versión, datos verificables y autoría */}
       <footer className="fmodel-footer" aria-label={tr(lang, 'Acerca de FModel', 'About FModel')}>
