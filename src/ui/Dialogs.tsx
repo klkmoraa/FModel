@@ -19,6 +19,7 @@ import { LibraryImportDialog } from './dialogs/LibraryImportDialog';
 import type { LibraryImportSession } from '../blocks/libraryImport';
 import { tr } from './controls';
 import { useModalFocusTrap } from './modalFocus';
+import { NewmarkDialog } from './dialogs/NewmarkDialog';
 
 const DialogReturnFocusContext = createContext<RefObject<HTMLElement | null> | null>(null);
 
@@ -78,6 +79,7 @@ export const DIALOGS: Record<string, DialogRenderer> = {
   versions: (e, close, onUi) => <VersionsDialog editor={e} onClose={close} onUi={onUi} />,
   'library-import': (e, close, onUi, st) => <LibraryImportDialog editor={e} session={st.payload as LibraryImportSession | undefined} onClose={close} onUi={onUi} />,
   'conversion-report': (e, close, _onUi, st) => <ConversionReportDialog editor={e} payload={st.payload as ConversionPayload | undefined} onClose={close} />,
+  newmark: (e, close) => <NewmarkDialog editor={e} onClose={close} />,
 };
 
 /** Pestaña inicial del administrador de estilos según el alias usado (DIMSTYLE, TABLESTYLE…). */
