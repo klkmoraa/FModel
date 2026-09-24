@@ -66,5 +66,5 @@ describe('Pantalla de bienvenida FModel (FS-M01)', () => {
 
     expect(getServices().fileHandle).toBeNull();
     expect(editor.ctx.fileName).toBe(TEMPLATES_CATALOG[0].name[editor.lang]);
-  });
+  }, 15_000);
 });

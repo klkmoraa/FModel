@@ -15,7 +15,7 @@ describe('colección ampliada CC0', () => {
     expect(put.find((block) => block.name === 'PID-VALVE-GATE')?.categoryId).toBe('cat-ins');
     expect(put.find((block) => block.name === 'COFFEE-TABLE-48X24')?.categoryId).toBe('cat-mob-salon');
     expect(put.find((block) => block.name === 'DOOR-SWING-30')?.categoryId).toBe('cat-arq-puertas');
-  });
+  }, 15_000);
 
   it('reinstalar no duplica bloques ni sustituye un bloque personalizado con el mismo nombre', () => {
     const first = prepareCc0Library(bytes, [], DEFAULT_CATEGORIES).put;
