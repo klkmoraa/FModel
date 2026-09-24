@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { PAPER_SIZES, paperExtents, STANDARD_SCALES, unitConversion } from '../../document/defaults';
 import type { PageSetup } from '../../document/types';
 import { MODEL_SPACE_ID } from '../../document/types';
 import type { Editor } from '../../editor/editor';
-import { exportSvg, pageFor, planSheet } from '../../output/plot';
+import { preparePlotPreview } from '../../output/prepare';
+import { pageFor } from '../../output/plot';
 import { Dialog } from '../Dialogs';
 import { NumberField, Toggle, tr } from '../controls';
 
@@ -27,20 +28,26 @@ export function PageSetupDialog({ editor, plot, onClose }: { editor: Editor; plo
   const scaleName = page.plotScale <= 0 ? 'fit' : (scales.find((s) => Math.abs((s.paper / s.drawing) * unitToMm - page.plotScale) < 1e-9)?.name ?? 'custom');
 
   const [preview, setPreview] = useState<{ url: string; scale: number; warnings: string[] } | null>(null);
-  const key = useMemo(() => JSON.stringify(page), [page]);
+  const docVersion = doc.version;
   useEffect(() => {
-    const t = setTimeout(() => {
-      try {
-        const pc = { doc, ctx: editor.ctx, index: editor.index };
-        const plan = planSheet(pc, spaceId, page);
-        const svg = exportSvg(pc, spaceId, page).data;
-        setPreview({ url: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`, scale: plan.scale, warnings: plan.warnings });
-      } catch (err) {
-        setPreview({ url: '', scale: 0, warnings: [err instanceof Error ? err.message : String(err)] });
-      }
+    const controller = new AbortController();
+    setPreview(null);
+    const timer = setTimeout(() => {
+      void (async () => {
+        try {
+          const result = await preparePlotPreview(doc, editor.ctx, spaceId, page, controller.signal);
+          const warnings = [
+            ...result.warnings,
+            ...result.omittedAssets.map((name) => tr(lang, `No se incluyó el recurso «${name}» en la vista previa.`, `The asset “${name}” could not be included in the preview.`)),
+          ];
+          if (!controller.signal.aborted) setPreview({ url: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(result.svg)}`, scale: result.scale, warnings });
+        } catch (err) {
+          if (!controller.signal.aborted) setPreview({ url: '', scale: 0, warnings: [err instanceof Error ? err.message : String(err)] });
+        }
+      })();
     }, 120);
-    return () => clearTimeout(t);
-  }, [key, doc.version]); // eslint-disable-line react-hooks/exhaustive-deps
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [doc, docVersion, editor, lang, page, spaceId]);
 
   const apply = () => {
     doc.transact('PAGESETUP', (tx) => {

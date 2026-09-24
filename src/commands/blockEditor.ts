@@ -48,9 +48,25 @@ function currentBlock(api: CommandApi): BlockRecord {
 }
 
 
-function updateDynamic(api: CommandApi, label: string, fn: (d: DynamicBlockDefinition) => DynamicBlockDefinition) {
+function updateDynamic(api: CommandApi, label: string, fn: (d: DynamicBlockDefinition) => DynamicBlockDefinition, patch: Partial<Pick<BlockRecord, 'basePoint'>> = {}) {
   const b = currentBlock(api);
-  api.apply(label, (tx) => tx.update('blocks', b.id, { dynamic: fn(structuredClone(b.dynamic ?? emptyDynamic())) }));
+  api.apply(label, (tx) => tx.update('blocks', b.id, { ...patch, dynamic: fn(structuredClone(b.dynamic ?? emptyDynamic())) }));
+}
+
+async function getFinitePoint(api: CommandApi, req: Parameters<CommandApi['getPoint']>[0]) {
+  const result = await api.getPoint(req);
+  if (result.kind === 'point' && (!Number.isFinite(result.p.x) || !Number.isFinite(result.p.y))) {
+    throw new CommandError(L('Las coordenadas deben ser números finitos.', 'Coordinates must be finite numbers.'));
+  }
+  return result;
+}
+
+function requireFiniteDistance(a: Vec2, b: Vec2): number {
+  const length = dist(a, b);
+  if (!Number.isFinite(length)) {
+    throw new CommandError(L('La distancia excede el rango numérico válido.', 'The distance exceeds the valid numeric range.'));
+  }
+  return length;
 }
 
 const VS = (): ValueSet => ({ kind: 'none' });
@@ -319,9 +335,12 @@ const BPARAMETER: CommandDef = {
     }
     const common = (base: string) => ({ id: newId('prm'), name: nextName(b.dynamic, base), label: '', showInProperties: true, chainActions: false, gripCount: 1 as const });
     let param: DynParam | null = null;
+    let lookupToAdd: LookupTable | null = null;
+    let basePointToSet: Vec2 | undefined;
+    let visibilityToSet: string | null = null;
     switch (type) {
       case 'Point': {
-        const p = await api.getPoint({ prompt: L('Precise la ubicación del parámetro', 'Specify parameter location') });
+        const p = await getFinitePoint(api, { prompt: L('Precise la ubicación del parámetro', 'Specify parameter location') });
         if (p.kind !== 'point') return;
         param = { ...common('Posición'), type: 'point', point: p.p };
         break;
@@ -329,11 +348,12 @@ const BPARAMETER: CommandDef = {
       case 'Linear':
       case 'Polar':
       case 'XY': {
-        const a = await api.getPoint({ prompt: L('Precise el punto inicial', 'Specify start point') });
+        const a = await getFinitePoint(api, { prompt: L('Precise el punto inicial', 'Specify start point') });
         if (a.kind !== 'point') return;
-        const e = await api.getPoint({ prompt: L(type === 'XY' ? 'Precise la esquina opuesta' : 'Precise el punto final', type === 'XY' ? 'Specify opposite corner' : 'Specify endpoint'), base: a.p, rubber: type === 'XY' ? 'rect' : 'line' });
+        const e = await getFinitePoint(api, { prompt: L(type === 'XY' ? 'Precise la esquina opuesta' : 'Precise el punto final', type === 'XY' ? 'Specify opposite corner' : 'Specify endpoint'), base: a.p, rubber: type === 'XY' ? 'rect' : 'line' });
         if (e.kind !== 'point') return;
-        if (dist(a.p, e.p) < 1e-12) throw new CommandError(L('El parámetro no puede tener longitud cero.', 'The parameter cannot have zero length.'));
+        const length = requireFiniteDistance(a.p, e.p);
+        if (length < 1e-12) throw new CommandError(L('El parámetro no puede tener longitud cero.', 'The parameter cannot have zero length.'));
         if (type === 'Linear') {
           const loc = await api.getKeyword({ prompt: L('Ubicación de la base', 'Base location'), keywords: [K('start', 'Punto inicial', 'Start point', ['i', 's']), K('middle', 'Punto medio', 'Midpoint', ['m'])], defaultValue: 'start' });
           const grips = await api.getNumber({ prompt: L('Número de grips (0, 1, 2)', 'Number of grips (0, 1, 2)'), integer: true, min: 0, max: 2, defaultValue: 1 });
@@ -344,52 +364,55 @@ const BPARAMETER: CommandDef = {
         break;
       }
       case 'Rotation': {
-        const c = await api.getPoint({ prompt: L('Precise el punto base', 'Specify base point') });
+        const c = await getFinitePoint(api, { prompt: L('Precise el punto base', 'Specify base point') });
         if (c.kind !== 'point') return;
-        const rad = await api.getPoint({ prompt: L('Precise el radio del parámetro', 'Specify radius of parameter'), base: c.p, rubber: 'line' });
+        const rad = await getFinitePoint(api, { prompt: L('Precise el radio del parámetro', 'Specify radius of parameter'), base: c.p, rubber: 'line' });
         if (rad.kind !== 'point') return;
-        param = { ...common('Ángulo'), type: 'rotation', base: c.p, radius: dist(c.p, rad.p), angle: angleOf(sub(rad.p, c.p)), valueSet: VS() };
+        const radius = requireFiniteDistance(c.p, rad.p);
+        param = { ...common('Ángulo'), type: 'rotation', base: c.p, radius, angle: angleOf(sub(rad.p, c.p)), valueSet: VS() };
         break;
       }
       case 'Alignment': {
-        const c = await api.getPoint({ prompt: L('Precise la base de alineación', 'Specify base of alignment') });
+        const c = await getFinitePoint(api, { prompt: L('Precise la base de alineación', 'Specify base of alignment') });
         if (c.kind !== 'point') return;
-        const d = await api.getPoint({ prompt: L('Precise la dirección de alineación', 'Specify alignment direction'), base: c.p, rubber: 'line' });
+        const d = await getFinitePoint(api, { prompt: L('Precise la dirección de alineación', 'Specify alignment direction'), base: c.p, rubber: 'line' });
         if (d.kind !== 'point') return;
+        requireFiniteDistance(c.p, d.p);
         param = { ...common('Alineación'), type: 'alignment', base: c.p, direction: sub(d.p, c.p), alignType: 'perpendicular' };
         break;
       }
       case 'Flip': {
-        const a = await api.getPoint({ prompt: L('Precise el punto base de la línea de reflexión', 'Specify base point of reflection line') });
+        const a = await getFinitePoint(api, { prompt: L('Precise el punto base de la línea de reflexión', 'Specify base point of reflection line') });
         if (a.kind !== 'point') return;
-        const e = await api.getPoint({ prompt: L('Precise el punto final de la línea de reflexión', 'Specify endpoint of reflection line'), base: a.p, rubber: 'line' });
+        const e = await getFinitePoint(api, { prompt: L('Precise el punto final de la línea de reflexión', 'Specify endpoint of reflection line'), base: a.p, rubber: 'line' });
         if (e.kind !== 'point') return;
+        requireFiniteDistance(a.p, e.p);
         param = { ...common('Simetría'), type: 'flip', base: a.p, end: e.p, labelNotFlipped: api.t(L('Normal', 'Not flipped')), labelFlipped: api.t(L('Invertido', 'Flipped')) };
         break;
       }
       case 'Visibility': {
         if (b.dynamic?.parameters.some((p) => p.type === 'visibility')) throw new CommandError(L('Un bloque admite un único parámetro de visibilidad.', 'A block supports a single visibility parameter.'));
-        const p = await api.getPoint({ prompt: L('Precise la ubicación del parámetro', 'Specify parameter location') });
+        const p = await getFinitePoint(api, { prompt: L('Precise la ubicación del parámetro', 'Specify parameter location') });
         if (p.kind !== 'point') return;
         const all = api.editor.doc.entitiesOf(b.id).map((e) => e.id);
         param = { ...common('Visibilidad'), type: 'visibility', position: p.p, states: [{ name: api.t(L('Estado1', 'State1')), visible: all }], defaultState: api.t(L('Estado1', 'State1')) };
-        api.editor.blockEditState = { currentVisibility: api.t(L('Estado1', 'State1')) };
+        visibilityToSet = api.t(L('Estado1', 'State1'));
         break;
       }
       case 'Lookup': {
-        const p = await api.getPoint({ prompt: L('Precise la ubicación del parámetro', 'Specify parameter location') });
+        const p = await getFinitePoint(api, { prompt: L('Precise la ubicación del parámetro', 'Specify parameter location') });
         if (p.kind !== 'point') return;
         const tableId = newId('lkt');
         const table: LookupTable = { id: tableId, name: nextName(b.dynamic, 'Consulta'), inputs: [], lookupName: api.t(L('Consulta', 'Lookup')), rows: [], reverse: true };
+        lookupToAdd = table;
         param = { ...common('Consulta'), type: 'lookup', position: p.p, tableId };
-        updateDynamic(api, 'BPARAMETER', (d) => ({ ...d, lookups: [...d.lookups, table] }));
         break;
       }
       case 'Base': {
-        const p = await api.getPoint({ prompt: L('Precise la ubicación del punto base', 'Specify base point location') });
+        const p = await getFinitePoint(api, { prompt: L('Precise la ubicación del punto base', 'Specify base point location') });
         if (p.kind !== 'point') return;
         param = { ...common('Base'), type: 'basepoint', point: p.p, gripCount: 0, showInProperties: false };
-        api.apply('BASEPOINT', (tx) => tx.update('blocks', b.id, { basePoint: p.p }));
+        basePointToSet = p.p;
         break;
       }
     }
@@ -397,7 +420,14 @@ const BPARAMETER: CommandDef = {
     const lbl = await api.getString({ prompt: L('Etiqueta (propiedad visible)', 'Label (visible property)'), defaultValue: param.name, allowSpaces: true });
     if (lbl.kind === 'string') param.label = lbl.value;
     const p = param;
-    updateDynamic(api, 'BPARAMETER', (d) => ({ ...d, parameters: [...d.parameters, p], propertyOrder: [...d.propertyOrder, p.id] }));
+    updateDynamic(api, 'BPARAMETER', (d) => ({
+      ...d,
+      ...(lookupToAdd ? { lookups: [...d.lookups, lookupToAdd] } : {}),
+      parameters: [...d.parameters, p],
+      propertyOrder: [...d.propertyOrder, p.id],
+    }), basePointToSet ? { basePoint: basePointToSet } : {});
+    if (visibilityToSet) api.editor.blockEditState = { currentVisibility: visibilityToSet };
+    if (p.type === 'lookup') requestUi('lookup-table', p.tableId);
     if (!SELF_ACTING_PARAMS.includes(p.type)) api.warn(L(`⚠ «${p.name}» aún no tiene acción: añade una con BACTION.`, `⚠ "${p.name}" has no action yet: add one with BACTION.`));
     requestUi('panel:authoring');
   },
@@ -408,7 +438,7 @@ async function pickParameter(api: CommandApi, types?: DynParam['type'][]): Promi
   const params = (b.dynamic?.parameters ?? []).filter((p) => !types || types.includes(p.type));
   if (!params.length) throw new CommandError(L('No hay parámetros compatibles. Crea uno con BPARAMETER.', 'No compatible parameters. Create one with BPARAMETER.'));
   if (params.length === 1) return params[0];
-  const r = await api.getPoint({ prompt: L(`Designe un parámetro junto a su ubicación o escriba su nombre (${params.map((p) => p.name).join(', ')})`, `Pick near a parameter or type its name (${params.map((p) => p.name).join(', ')})`), keywords: params.map((p) => K(p.id, p.name, p.name, [p.name.toLowerCase()])) });
+  const r = await getFinitePoint(api, { prompt: L(`Designe un parámetro junto a su ubicación o escriba su nombre (${params.map((p) => p.name).join(', ')})`, `Pick near a parameter or type its name (${params.map((p) => p.name).join(', ')})`), keywords: params.map((p) => K(p.id, p.name, p.name, [p.name.toLowerCase()])) });
   if (r.kind === 'keyword') return params.find((p) => p.id === r.key) ?? null;
   if (r.kind !== 'point') return null;
   const anchor = (p: DynParam): Vec2[] => ('base' in p ? [p.base, (p as { end?: Vec2 }).end ?? p.base, (p as { corner?: Vec2 }).corner ?? p.base] : 'point' in p ? [p.point] : 'position' in p ? [p.position] : []);
@@ -420,11 +450,12 @@ async function pickObjects(api: CommandApi, prompt: { es: string; en: string }):
 }
 
 async function pickFrame(api: CommandApi): Promise<Vec2[] | null> {
-  const a = await api.getPoint({ prompt: L('Precise la primera esquina del marco de estiramiento', 'Specify first corner of stretch frame'), noSnap: true });
+  const a = await getFinitePoint(api, { prompt: L('Precise la primera esquina del marco de estiramiento', 'Specify first corner of stretch frame'), noSnap: true });
   if (a.kind !== 'point') return null;
-  const b = await api.getPoint({ prompt: L('Precise la esquina opuesta', 'Specify opposite corner'), base: a.p, rubber: 'rect', noSnap: true });
+  const b = await getFinitePoint(api, { prompt: L('Precise la esquina opuesta', 'Specify opposite corner'), base: a.p, rubber: 'rect', noSnap: true });
   if (b.kind !== 'point') return null;
   const box = boxFromCorners(a.p, b.p);
+  requireFiniteDistance({ x: box.minX, y: box.minY }, { x: box.maxX, y: box.maxY });
   return [
     { x: box.minX, y: box.minY },
     { x: box.maxX, y: box.minY },
@@ -491,7 +522,7 @@ const BACTION: CommandDef = {
         const bt = await api.getKeyword({ prompt: L('Tipo de base', 'Base type'), keywords: [K('dependent', 'Dependiente', 'Dependent', ['d']), K('independent', 'Independiente', 'Independent', ['i'])], defaultValue: 'dependent' });
         let basePoint: Vec2 | undefined;
         if (bt.kind === 'keyword' && bt.key === 'independent') {
-          const bp = await api.getPoint({ prompt: L('Precise la ubicación de la base', 'Specify base location') });
+          const bp = await getFinitePoint(api, { prompt: L('Precise la ubicación de la base', 'Specify base location') });
           if (bp.kind === 'point') basePoint = bp.p;
         }
         action = type === 'scale' ? { ...base, type: 'scale', selection: sel, baseType: basePoint ? 'independent' : 'dependent', basePoint, axis: 'xy' } : { ...base, type: 'rotate', selection: sel, baseType: basePoint ? 'independent' : 'dependent', basePoint };
@@ -507,7 +538,9 @@ const BACTION: CommandDef = {
         if (param.type === 'rotation') {
           const n = await api.getString({ prompt: L('Número de elementos (número o variable)', 'Number of items (number or variable)'), defaultValue: '6' });
           const fill = await api.getAngle({ prompt: L('Ángulo a llenar', 'Angle to fill'), defaultValue: Math.PI * 2 });
-          action = { ...base, type: 'array', selection: sel, columnOffset: 0, rowOffset: 0, polarCount: n.kind === 'string' ? n.value : '6', fillAngle: fill.kind === 'value' ? (fill.value * 180) / Math.PI : 360 };
+          const fillAngle = fill.kind === 'value' ? (fill.value * 180) / Math.PI : 360;
+          if (!Number.isFinite(fillAngle)) throw new CommandError(L('El ángulo excede el rango numérico válido.', 'The angle exceeds the valid numeric range.'));
+          action = { ...base, type: 'array', selection: sel, columnOffset: 0, rowOffset: 0, polarCount: n.kind === 'string' ? n.value : '6', fillAngle };
         } else {
           const co = await api.getDistance({ prompt: L('Distancia entre columnas', 'Column offset') });
           const ro = param.type === 'xy' ? await api.getDistance({ prompt: L('Distancia entre filas', 'Row offset') }) : null;

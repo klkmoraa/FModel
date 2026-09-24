@@ -45,6 +45,7 @@ export class TransactionError extends Error {}
  */
 export class Transaction {
   readonly changes = new Map<string, ChangeRecord>();
+  private pending = new Map<string, ChangeRecord>();
   private done = false;
 
   constructor(
@@ -62,6 +63,9 @@ export class Transaction {
     const prev = this.changes.get(key);
     if (prev) prev.after = after;
     else this.changes.set(key, { coll, id, before, after });
+    const pending = this.pending.get(key);
+    if (pending) pending.after = after;
+    else this.pending.set(key, { coll, id, before, after });
   }
 
   get<C extends CollectionName>(coll: C, id: Id): RecordOf<C> | undefined {
@@ -143,14 +147,14 @@ export class Transaction {
 
   commit(): ChangeRecord[] {
     if (this.done) return [];
-    // Reactores (asociatividad, grupos, cachés): pueden añadir cambios; se itera hasta estabilizar.
-    let processed = 0;
-    for (let pass = 0; pass < 6; pass++) {
-      const all = this.list();
-      if (all.length === processed) break;
-      const fresh = all.slice(processed);
-      processed = all.length;
-      for (const r of this.doc.reactors) r(this, fresh);
+    // Cada mutación, incluso de un registro ya tocado, debe propagarse a los reactores.
+    if (this.doc.reactors.length) {
+      for (let pass = 0; this.pending.size; pass++) {
+        if (pass >= 128) throw new TransactionError('La actualización asociativa no converge / Associative update did not converge');
+        const fresh = [...this.pending.values()];
+        this.pending.clear();
+        for (const r of this.doc.reactors) r(this, fresh);
+      }
     }
     this.done = true;
     const changes = mergeChanges(this.list());
@@ -170,7 +174,8 @@ export class CadDocument {
   private maxOrder = new Map<Id, number>();
   /** Se incrementa en cada cambio; útil para memoización. */
   version = 0;
-  dirty = false;
+  private _dirty = false;
+  private cleanEpoch = 0;
 
   constructor(data: DocumentData, id: Id = newId('doc')) {
     this.id = id;
@@ -185,12 +190,31 @@ export class CadDocument {
         this.restore(transition.map((c) => ({ ...c, before: c.after })));
         this.emit({ label, source: direction, changes: transition });
       },
+      captureAbortState: (label) => {
+        const dirty = this.dirty;
+        const cleanEpoch = this.cleanEpoch;
+        return () => {
+          // Un guardado durante el grupo cambió la referencia limpia: revertirlo sí deja cambios pendientes.
+          if (this.cleanEpoch !== cleanEpoch || this.dirty === dirty) return;
+          this._dirty = dirty;
+          this.emit({ label, source: 'transaction', changes: [] }, false);
+        };
+      },
     });
     this.rebuildOrder();
   }
 
   get settings(): DocumentSettings {
     return this.data.settings;
+  }
+
+  get dirty(): boolean {
+    return this._dirty;
+  }
+
+  set dirty(value: boolean) {
+    this._dirty = value;
+    if (!value) this.cleanEpoch++;
   }
 
   get<C extends CollectionName>(coll: C, id: Id): RecordOf<C> | undefined {
@@ -261,7 +285,7 @@ export class CadDocument {
   endTransaction(tx: Transaction, committed: boolean, changes: ChangeRecord[] = []) {
     if (this.active === tx) this.active = null;
     if (!committed) {
-      this.emit({ label: tx.label, source: 'transaction', changes: tx.list().map((c) => ({ ...c, before: c.after, after: c.before })) });
+      this.emit({ label: tx.label, source: 'transaction', changes: tx.list().map((c) => ({ ...c, before: c.after, after: c.before })) }, false);
       return;
     }
     if (!changes.length) return;
@@ -293,9 +317,9 @@ export class CadDocument {
     return () => this.listeners.delete(fn);
   }
 
-  emit(e: DocChangeEvent) {
+  emit(e: DocChangeEvent, markDirty = true) {
     this.version++;
-    if (e.source !== 'load') this.dirty = true;
+    if (markDirty && e.source !== 'load') this.dirty = true;
     if (e.source === 'load' || e.source === 'reset') this.rebuildOrder();
     for (const l of this.listeners) l(e);
   }

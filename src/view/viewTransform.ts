@@ -15,6 +15,11 @@ export class ViewTransform {
   minScale = 1e-9;
   maxScale = 1e9;
 
+  private maxFiniteScale(center: Vec2): number {
+    const magnitude = Math.max(1, Math.abs(center.x), Math.abs(center.y));
+    return Math.min(this.maxScale, (Number.MAX_VALUE / 2) / magnitude);
+  }
+
   clone(): ViewTransform {
     const v = new ViewTransform();
     Object.assign(v, { center: { ...this.center }, scale: this.scale, width: this.width, height: this.height });
@@ -50,10 +55,11 @@ export class ViewTransform {
   }
 
   zoomAt(screen: Vec2, factor: number) {
+    if (!Number.isFinite(factor) || factor <= 0) return;
     const before = this.toWorld(screen);
-    this.scale = Math.min(this.maxScale, Math.max(this.minScale, this.scale * factor));
+    this.scale = Math.min(this.maxFiniteScale(this.center), Math.max(this.minScale, this.scale * factor));
     const after = this.toWorld(screen);
-    this.center = { x: this.center.x + before.x - after.x, y: this.center.y + before.y - after.y };
+    this.center = { x: this.center.x + (before.x - after.x), y: this.center.y + (before.y - after.y) };
   }
 
   panPixels(dx: number, dy: number) {
@@ -61,18 +67,24 @@ export class ViewTransform {
   }
 
   fit(box: BBox, marginPx = 32) {
-    if (isEmptyBox(box) || !Number.isFinite(box.minX)) return;
+    if (isEmptyBox(box) || ![box.minX, box.minY, box.maxX, box.maxY, marginPx].every(Number.isFinite) || marginPx < 0) return;
+    const width = boxWidth(box);
+    const height = boxHeight(box);
+    if (!Number.isFinite(width) || !Number.isFinite(height)) return;
+    const center = { x: box.minX / 2 + box.maxX / 2, y: box.minY / 2 + box.maxY / 2 };
+    const maxScale = this.maxFiniteScale(center);
     if (this.width < 4 * marginPx || this.height < 4 * marginPx) {
       // vista aún sin tamaño real: solo centrar
-      this.center = { x: (box.minX + box.maxX) / 2, y: (box.minY + box.maxY) / 2 };
+      this.center = center;
+      this.scale = Math.min(this.scale, maxScale);
       return;
     }
-    const w = Math.max(boxWidth(box), 1e-6);
-    const h = Math.max(boxHeight(box), 1e-6);
+    const w = Math.max(width, 1e-6);
+    const h = Math.max(height, 1e-6);
     const sx = (this.width - 2 * marginPx) / w;
     const sy = (this.height - 2 * marginPx) / h;
-    this.scale = Math.max(this.minScale, Math.min(this.maxScale, Math.min(sx, sy)));
-    this.center = { x: (box.minX + box.maxX) / 2, y: (box.minY + box.maxY) / 2 };
+    this.scale = Math.max(this.minScale, Math.min(maxScale, sx, sy));
+    this.center = center;
   }
 
   /** Altura de vista en unidades (vistas guardadas). */
@@ -81,6 +93,7 @@ export class ViewTransform {
   }
 
   setViewHeight(h: number) {
-    if (h > 0) this.scale = this.height / h;
+    if (!Number.isFinite(h) || h <= 0 || !Number.isFinite(this.height) || this.height <= 0) return;
+    this.scale = Math.min(this.maxFiniteScale(this.center), Math.max(this.minScale, this.height / h));
   }
 }

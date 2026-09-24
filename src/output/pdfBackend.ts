@@ -83,6 +83,7 @@ export class PdfBackend implements VectorBackend {
   private gsKeys = new Map<string, PDFName>();
   private encodable = new Map<string, boolean>();
   substitutedChars = 0;
+  readonly failedAssets = new Set<string>();
 
   constructor(
     private pdf: PDFDocument,
@@ -268,7 +269,10 @@ export class PdfBackend implements VectorBackend {
         }
         cache.set(url, image);
       }
-      if (!image) continue;
+      if (!image) {
+        this.failedAssets.add(p.spec.assetId);
+        continue;
+      }
       const name = this.page.node.newXObject(`Im${++seq}`, image.ref);
       const m = p.spec.m;
       all.push(pushGraphicsState());

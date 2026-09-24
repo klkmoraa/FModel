@@ -1,25 +1,90 @@
 import { describe, expect, it } from 'vitest';
 import { TAU } from './angle';
+import { circleFrom3Points } from './construct';
 import type { Curve, EllipseCurve, LineCurve } from './curves';
 import {
+  arcSegments,
   closestParam,
   curveBBox,
   curveLength,
+  curveLengthProfile,
   curvePoint,
+  curveTangent,
+  distanceToCurve,
   ellipseAngleOfPoint,
+  paramAtLength,
   reverseCurve,
   subCurve,
+  tessellateCurve,
   transformCurve,
 } from './curves';
 import { chamferLines, filletCurves } from './fillet';
 import { intersectCurves } from './intersect';
 import { applyToPoint, compose, invert, reflection, rotation, scaling, translation } from './matrix';
-import { offsetCurve, offsetPolyline } from './offset';
-import { bulgeToArc, curvesToVertices, polylineSegments, polylineSignedArea, pointInPolygon } from './polyline';
-import { splineThroughPoints, splinePoint, splitSpline, splineDomain } from './spline';
-import { dist } from './vec';
+import { offsetCurve, offsetPolyline, sideOfCurve } from './offset';
+import { bulgeToArc, curvesToVertices, pointsSignedArea, polylineCentroid, polylineSegments, polylineSignedArea, pointInPolygon } from './polyline';
+import { splineThroughPoints, splinePoint, splitSpline, splineDomain, TessellationLimitError } from './spline';
+import { dist, mid, mirrorPoint, normalize } from './vec';
 
 const close = (a: number, b: number, eps = 1e-7) => expect(Math.abs(a - b)).toBeLessThan(eps);
+
+describe('vector arithmetic', () => {
+  it('normalizes large finite vectors without losing their direction', () => {
+    expect(normalize({ x: 1.5e308, y: 1.5e308 }).x).toBeCloseTo(Math.SQRT1_2);
+    expect(normalize({ x: 1.5e308, y: 1.5e308 }).y).toBeCloseTo(Math.SQRT1_2);
+    expect(normalize({ x: 0.8e-9, y: 0.8e-9 }).x).toBeCloseTo(Math.SQRT1_2);
+    expect(normalize({ x: 1e-12, y: 0 })).toEqual({ x: 0, y: 0 });
+  });
+
+  it('keeps points on a finite line representable when endpoint subtraction overflows', () => {
+    const line: LineCurve = { kind: 'line', a: { x: -1e308, y: 1e308 }, b: { x: 1e308, y: -1e308 } };
+    expect(curvePoint(line, 0)).toEqual(line.a);
+    expect(curvePoint(line, 0.5)).toEqual({ x: 0, y: 0 });
+    expect(curvePoint(line, 1)).toEqual(line.b);
+  });
+
+  it('keeps points on a finite polyline representable when endpoint subtraction overflows', () => {
+    const a = { x: -1e308, y: 1e308 };
+    const b = { x: 1e308, y: -1e308 };
+    const poly: Curve = { kind: 'poly', pts: [a, b] };
+    expect(curvePoint(poly, 0)).toEqual(a);
+    expect(curvePoint(poly, 0.5)).toEqual({ x: 0, y: 0 });
+    expect(curvePoint(poly, 1)).toEqual(b);
+  });
+
+  it('projects onto very long finite lines without overflowing the squared length', () => {
+    const long: LineCurve = { kind: 'line', a: { x: 0, y: 0 }, b: { x: 1e200, y: 0 } };
+    const opposite: LineCurve = { kind: 'line', a: { x: -1e308, y: 0 }, b: { x: 1e308, y: 0 } };
+    expect(closestParam(long, { x: 5e199, y: 1 })).toBeCloseTo(0.5);
+    expect(closestParam(opposite, { x: 0, y: 1 })).toBeCloseTo(0.5);
+    expect(distanceToCurve(long, { x: 5e199, y: 1 })).toBe(1);
+  });
+
+  it('projects onto rays and infinite lines with non-unit directions', () => {
+    const ray: Curve = { kind: 'ray', o: { x: 0, y: 0 }, d: { x: 2, y: 0 } };
+    const xline: Curve = { kind: 'xline', o: ray.o, d: ray.d };
+    expect(closestParam(ray, { x: 3, y: 4 })).toBe(1.5);
+    expect(distanceToCurve(ray, { x: 3, y: 4 })).toBe(4);
+    expect(closestParam(ray, { x: -3, y: 4 })).toBe(0);
+    expect(closestParam(xline, { x: -3, y: 4 })).toBe(-1.5);
+    expect(distanceToCurve(xline, { x: -3, y: 4 })).toBe(4);
+  });
+
+  it('keeps tangents finite for very long lines and polylines', () => {
+    const a = { x: -1e308, y: 0 };
+    const b = { x: 1e308, y: 0 };
+    expect(curveTangent({ kind: 'line', a, b }, 0.5)).toEqual({ x: 1, y: 0 });
+    expect(curveTangent({ kind: 'poly', pts: [a, b] }, 0.5)).toEqual({ x: 1, y: 0 });
+    expect(curveTangent({ kind: 'line', a: { x: 0, y: 0 }, b: { x: 1e-12, y: 0 } }, 0.5)).toEqual({ x: 0, y: 0 });
+    expect(curveTangent({ kind: 'ray', o: { x: 0, y: 0 }, d: { x: 1e-300, y: 0 } }, 0)).toEqual({ x: 1, y: 0 });
+    expect(curveTangent({ kind: 'xline', o: { x: 0, y: 0 }, d: { x: 2, y: 0 } }, 0)).toEqual({ x: 1, y: 0 });
+  });
+
+  it('keeps the midpoint finite for large finite coordinates', () => {
+    expect(mid({ x: 1e308, y: -1e308 }, { x: 1.1e308, y: 1e308 })).toEqual({ x: 1.05e308, y: 0 });
+    expect(mid({ x: -1e308, y: 0 }, { x: 1e308, y: 0 })).toEqual({ x: 0, y: 0 });
+  });
+});
 
 describe('matrix', () => {
   it('compose applies in order and inverts', () => {
@@ -37,9 +102,66 @@ describe('matrix', () => {
     close(p.x, 0);
     close(p.y, 2);
   });
+  it('keeps geometry unchanged when the reflection axis is degenerate', () => {
+    const axisPoint = { x: 4, y: -7 };
+    const point = { x: 2, y: 3 };
+    const matrixPoint = applyToPoint(reflection(axisPoint, axisPoint), point);
+    const vectorPoint = mirrorPoint(point, axisPoint, axisPoint);
+
+    expect(matrixPoint).toEqual(point);
+    expect(vectorPoint).toEqual(point);
+  });
+});
+
+describe('circle construction', () => {
+  it('does not return non-finite tessellation points from finite inputs', () => {
+    expect(tessellateCurve({ kind: 'arc', c: { x: 1e308, y: 0 }, r: 1e308, a0: 0, sweep: Math.PI / 2 })).toEqual([]);
+    expect(tessellateCurve({ kind: 'ray', o: { x: 1e308, y: 0 }, d: { x: 1e308, y: 0 } })).toEqual([]);
+  });
+
+  it('limits tessellation even when an arc is smaller than the tolerance', () => {
+    const segments = arcSegments(0.01, 5_000, 0.1);
+    expect(segments).toBe(4_096);
+    expect(tessellateCurve({ kind: 'arc', c: { x: 0, y: 0 }, r: 0.01, a0: 0, sweep: 5_000 }, 0.1)).toHaveLength(4_097);
+    expect(arcSegments(0.01, Infinity, 0.1)).toBe(0);
+    expect(tessellateCurve({ kind: 'arc', c: { x: 0, y: 0 }, r: 0.01, a0: 0, sweep: Infinity }, 0.1)).toEqual([]);
+  });
+
+  it('keeps a small circle accurate at large world coordinates', () => {
+    const origin = 1e6;
+    const radius = 0.01;
+    const circle = circleFrom3Points(
+      { x: origin + radius, y: origin },
+      { x: origin, y: origin + radius },
+      { x: origin - radius, y: origin },
+    );
+
+    expect(circle).not.toBeNull();
+    expect(dist(circle!.center, { x: origin, y: origin })).toBeLessThan(1e-8);
+    expect(Math.abs(circle!.radius - radius)).toBeLessThan(1e-8);
+  });
+
+  it('accepts non-collinear points above the linear tolerance at small drawing scales', () => {
+    const scale = 1e-8;
+    const circle = circleFrom3Points(
+      { x: 0, y: 0 },
+      { x: scale, y: 0 },
+      { x: 0, y: scale },
+    );
+
+    expect(circle).not.toBeNull();
+    expect(dist(circle!.center, { x: scale / 2, y: scale / 2 })).toBeLessThan(1e-20);
+    expect(Math.abs(circle!.radius - Math.SQRT2 * scale / 2)).toBeLessThan(1e-20);
+  });
 });
 
 describe('bulge', () => {
+  it('keeps the center finite for a large finite chord', () => {
+    const arc = bulgeToArc({ x: 1e308, y: 0 }, { x: 1.1e308, y: 0 }, 1);
+    expect(Number.isFinite(arc.c.x)).toBe(true);
+    expect(Number.isFinite(arc.c.y)).toBe(true);
+    expect(arc.c.x / 1e308).toBeCloseTo(1.05, 12);
+  });
   it('semicircle bulge=1 is CCW below a +x chord', () => {
     const arc = bulgeToArc({ x: 0, y: 0 }, { x: 2, y: 0 }, 1);
     close(arc.c.x, 1);
@@ -100,6 +222,15 @@ describe('intersections', () => {
     const h = intersectCurves(line, circle);
     expect(h).toHaveLength(1);
     close(h[0].p.x, 0, 1e-6);
+  });
+  it('returns a finite parameter for an intersection with a zero-sweep arc', () => {
+    const pointArc: Curve = { kind: 'arc', c: { x: 0, y: 0 }, r: 1, a0: 0, sweep: 0 };
+    const tangent: Curve = { kind: 'line', a: { x: 1, y: -2 }, b: { x: 1, y: 2 } };
+    const hits = intersectCurves(tangent, pointArc);
+
+    expect(hits).toHaveLength(1);
+    expect(hits[0].t2).toBe(0);
+    expect(Number.isFinite(hits[0].t2)).toBe(true);
   });
   it('circle-circle', () => {
     const a: Curve = { kind: 'arc', c: { x: 0, y: 0 }, r: 5, a0: 0, sweep: TAU };
@@ -195,6 +326,30 @@ describe('spline', () => {
       expect(nearest).toBeLessThan(1e-2);
     }
   });
+  it('aborts adaptive tessellation when the sample budget is exceeded', () => {
+    const s = splineThroughPoints([
+      { x: 0, y: 0 },
+      { x: 1, y: 2 },
+      { x: 3, y: 3 },
+      { x: 5, y: 1 },
+    ]);
+    expect(() => tessellateCurve({ kind: 'spline', s }, 1e-3, 4)).toThrow(TessellationLimitError);
+  });
+  it('reuses a spline length profile without changing the parameter lookup', () => {
+    const curve: Curve = {
+      kind: 'spline',
+      s: splineThroughPoints([
+        { x: 0, y: 0 },
+        { x: 1, y: 2 },
+        { x: 3, y: 3 },
+        { x: 5, y: 1 },
+      ]),
+    };
+    const profile = curveLengthProfile(curve);
+    for (const distance of [0, profile.totalLength / 4, profile.totalLength / 2, profile.totalLength]) {
+      expect(paramAtLength(curve, distance, profile)).toBeCloseTo(paramAtLength(curve, distance), 12);
+    }
+  });
   it('split preserves shape', () => {
     const s = splineThroughPoints([
       { x: 0, y: 0 },
@@ -211,6 +366,61 @@ describe('spline', () => {
 });
 
 describe('offset', () => {
+  it('chooses the correct side of a line with finite extreme endpoints', () => {
+    const line: LineCurve = { kind: 'line', a: { x: -1e308, y: -1e308 }, b: { x: 1e308, y: 1e308 } };
+    expect(sideOfCurve(line, { x: 0, y: 10 })).toBe(1);
+    expect(sideOfCurve(line, { x: 0, y: -10 })).toBe(-1);
+    const horizontal: LineCurve = { kind: 'line', a: { x: -1e308, y: 0 }, b: { x: -9e307, y: 0 } };
+    expect(sideOfCurve(horizontal, { x: 1e308, y: 10 })).toBe(1);
+    expect(sideOfCurve(horizontal, { x: 1e308, y: -10 })).toBe(-1);
+    const remoteDiagonal: LineCurve = { kind: 'line', a: { x: -1e308, y: -1e308 }, b: { x: -9e307, y: -9e307 } };
+    expect(sideOfCurve(remoteDiagonal, { x: 9e307, y: 1e308 })).toBe(1);
+    expect(sideOfCurve(remoteDiagonal, { x: 1e308, y: 9e307 })).toBe(-1);
+  });
+
+  it('rejects an extreme ellipse whose derived tessellation is not representable', () => {
+    const ellipse: EllipseCurve = { kind: 'ellipse', c: { x: 1e308, y: 0 }, major: { x: 1e308, y: 0 }, ratio: 1, a0: 0, sweep: Math.PI / 2 };
+    expect(tessellateCurve(ellipse)).toEqual([]);
+    expect(offsetCurve(ellipse, 10)).toBeNull();
+  });
+
+  it('rejects an offset that would overflow finite line and polyline coordinates', () => {
+    const a = { x: 1e308, y: 0 };
+    const b = { x: 1e308, y: 10 };
+    expect(offsetCurve({ kind: 'line', a, b }, -1e308)).toBeNull();
+    expect(offsetCurve({ kind: 'poly', pts: [a, b] }, -1e308)).toBeNull();
+    expect(offsetCurve({ kind: 'ray', o: a, d: { x: 0, y: 1 } }, -1e308)).toBeNull();
+    expect(offsetCurve({ kind: 'xline', o: a, d: { x: 0, y: 1 } }, -1e308)).toBeNull();
+    expect(offsetCurve({ kind: 'arc', c: { x: 0, y: 0 }, r: 1e308, a0: 0, sweep: -1 }, 1e308)).toBeNull();
+  });
+
+  it('offsets rays and infinite lines by the requested distance with non-unit directions', () => {
+    const origin = { x: 0, y: 0 };
+    const direction = { x: 2, y: 0 };
+    expect(offsetCurve({ kind: 'ray', o: origin, d: direction }, 1)).toEqual({ kind: 'ray', o: { x: 0, y: 1 }, d: direction });
+    expect(offsetCurve({ kind: 'xline', o: origin, d: direction }, -1)).toEqual({ kind: 'xline', o: { x: 0, y: -1 }, d: direction });
+    expect(offsetCurve({ kind: 'ray', o: origin, d: { x: 1e-300, y: 0 } }, 1)).toEqual({
+      kind: 'ray', o: { x: 0, y: 1 }, d: { x: 1e-300, y: 0 },
+    });
+  });
+
+  it('offsets a finite line with opposite extreme endpoints without non-finite coordinates', () => {
+    const line: LineCurve = { kind: 'line', a: { x: -1e308, y: 0 }, b: { x: 1e308, y: 0 } };
+    expect(offsetCurve(line, 10)).toEqual({ kind: 'line', a: { x: -1e308, y: 10 }, b: { x: 1e308, y: 10 } });
+    expect(offsetCurve({ kind: 'poly', pts: [line.a, line.b] }, 10)).toEqual({
+      kind: 'poly', pts: [{ x: -1e308, y: 10 }, { x: 1e308, y: 10 }],
+    });
+  });
+
+  it('does not return a partial offset when one polyline segment overflows', () => {
+    const vertices = [
+      { x: 1e308, y: 0 },
+      { x: 1e308, y: 1 },
+      { x: 0, y: 1 },
+    ];
+    expect(offsetPolyline(vertices, false, -1e308)).toEqual([]);
+  });
+
   it('offsets arc radius by side', () => {
     const arc = offsetCurve({ kind: 'arc', c: { x: 0, y: 0 }, r: 5, a0: 0, sweep: 1 }, 1);
     expect(arc && arc.kind === 'arc' && arc.r).toBe(4);
@@ -326,5 +536,23 @@ describe('polyline helpers', () => {
     ];
     expect(pointInPolygon({ x: 1, y: 1 }, sq)).toBe(true);
     expect(pointInPolygon({ x: 3, y: 1 }, sq)).toBe(false);
+  });
+
+  it('preserves area and centroid for small geometry at large world coordinates', () => {
+    const origin = 1e6;
+    const width = 0.01;
+    const vertices = [
+      { x: origin, y: origin },
+      { x: origin + width, y: origin },
+      { x: origin + width, y: origin + width },
+      { x: origin, y: origin + width },
+    ];
+    const expectedArea = width * width;
+    const expectedCentroid = { x: origin + width / 2, y: origin + width / 2 };
+
+    expect(Math.abs(polylineSignedArea(vertices) - expectedArea)).toBeLessThan(1e-9);
+    expect(Math.abs(pointsSignedArea(vertices) - expectedArea)).toBeLessThan(1e-9);
+    const centroid = polylineCentroid(vertices);
+    expect(dist(centroid, expectedCentroid)).toBeLessThan(1e-8);
   });
 });

@@ -94,22 +94,25 @@ export function drawGrid(g: CanvasRenderingContext2D, view: ViewTransform, theme
 
 /** Dibuja un viewport de papel: recorte y espacio modelo con su escala, congelación y sobrescrituras. */
 export function drawViewportContent(sink: DrawSink, editor: Editor, env: TraverseEnv, vp: ViewportEntity, paperVisible: BBox) {
-  if (!vp.on) return;
+  if (!vp.on || !Number.isFinite(vp.scale) || vp.scale <= 0) return;
   const outline = viewportOutline(vp);
   const m = viewportMatrix(vp);
   const clipBox = boxFromPoints(outline);
   const vis = { minX: Math.max(clipBox.minX, paperVisible.minX), minY: Math.max(clipBox.minY, paperVisible.minY), maxX: Math.min(clipBox.maxX, paperVisible.maxX), maxY: Math.min(clipBox.maxY, paperVisible.maxY) };
   if (vis.minX >= vis.maxX || vis.minY >= vis.maxY) return;
   sink.save();
-  sink.clip(outline.map((p, i) => ({ t: i ? 'L' : 'M', x: p.x, y: p.y }) as const).concat([{ t: 'Z' } as never]));
-  sink.transform(m);
   const prevScale = editor.ctx.annotationScale;
-  editor.ctx.annotationScale = vp.scale;
-  const modelBox = transformBox(vis, invert(m));
-  const vEnv: TraverseEnv = { ...env, viewport: vp, dashScale: editor.doc.settings.psltscale ? 1 / (vp.scale || 1) : 1, hidden: undefined, isolated: undefined };
-  drawSpace(sink, vEnv, MODEL_SPACE_ID, editor.index, modelBox);
-  editor.ctx.annotationScale = prevScale;
-  sink.restore();
+  try {
+    sink.clip(outline.map((p, i) => ({ t: i ? 'L' : 'M', x: p.x, y: p.y }) as const).concat([{ t: 'Z' } as never]));
+    sink.transform(m);
+    editor.ctx.annotationScale = vp.scale;
+    const modelBox = transformBox(vis, invert(m));
+    const vEnv: TraverseEnv = { ...env, viewport: vp, dashScale: editor.doc.settings.psltscale ? 1 / (vp.scale || 1) : 1, hidden: undefined, isolated: undefined };
+    drawSpace(sink, vEnv, MODEL_SPACE_ID, editor.index, modelBox);
+  } finally {
+    editor.ctx.annotationScale = prevScale;
+    sink.restore();
+  }
 }
 
 /**

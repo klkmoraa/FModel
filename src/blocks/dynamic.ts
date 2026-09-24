@@ -13,6 +13,7 @@ import type {
   Entity,
   Id,
   InsertEntity,
+  LookupTable,
   ValueSet,
 } from '../document/types';
 import { evaluate, topoSortExpressions } from '../lib/expr';
@@ -123,6 +124,21 @@ export function paramValue(def: DynamicBlockDefinition, p: DynParam, state: Dyna
 
 // ------------------------------------------------------------------ evaluación
 
+type LookupRow = LookupTable['rows'][number];
+
+const lookupIndexCache = new WeakMap<LookupTable, ReadonlyMap<string, LookupRow>>();
+
+function lookupRowsByLabel(table: LookupTable): ReadonlyMap<string, LookupRow> {
+  let index = lookupIndexCache.get(table);
+  if (!index) {
+    const rows = new Map<string, LookupRow>();
+    for (const row of table.rows) if (!rows.has(row.label)) rows.set(row.label, row);
+    index = rows;
+    lookupIndexCache.set(table, index);
+  }
+  return index;
+}
+
 export interface DynamicEvaluation {
   entities: Entity[];
   params: Map<Id, { param: DynParam; geom: ParamGeom; value: unknown }>;
@@ -207,7 +223,7 @@ export function evaluateDynamic(ctx: EvalContext, block: BlockRecord, baseEntiti
     if (p.type !== 'lookup') continue;
     const rowLabel = state?.values[p.id];
     const table = def.lookups.find((t) => t.id === p.tableId);
-    const row = table?.rows.find((r) => r.label === rowLabel);
+    const row = table && typeof rowLabel === 'string' ? lookupRowsByLabel(table).get(rowLabel) : undefined;
     if (table && row) {
       table.inputs.forEach((pid, i) => {
         const v = row.inputs[i];

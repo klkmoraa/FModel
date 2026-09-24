@@ -28,7 +28,8 @@ import { ModelContext } from '../model/context';
 import { kindOf } from '../model/registry';
 import { INPUT_LIMITS } from './limits';
 import { remapDynamicBlockDef, remapDynamicInstanceState } from '../blocks/remap';
-import { assertFiniteValues, assertPointLimits } from './validation';
+import { assertArrayExpansionLimits, assertDocumentRecord, assertDynamicBlockDefinition, assertEntityRecord, assertFiniteValues, assertPointLimits, InputValidationError } from './validation';
+import { assertAssetRecord, AssetValidationError } from './assets';
 
 export const CLIPBOARD_FORMAT = 'fmodel-clip';
 export const CLIPBOARD_VERSION = 2;
@@ -274,17 +275,141 @@ export function validateClipboardPackage(raw: unknown): ClipboardPackage | Legac
   }
 
   if (obj.version === 2) {
-    if (obj.blocks && Array.isArray(obj.blocks) && obj.blocks.length > INPUT_LIMITS.maxBlocks) {
+    const optionalArrays = ['blocks', 'blockEntities', 'layers', 'linetypes', 'textStyles', 'dimStyles', 'mleaderStyles', 'tableStyles', 'mlineStyles', 'assets'] as const;
+    for (const field of optionalArrays) {
+      if (obj[field] !== undefined && !Array.isArray(obj[field])) {
+        throw new ClipboardError({
+          es: `La colección «${field}» del portapapeles no es válida.`,
+          en: `Clipboard collection "${field}" is invalid.`,
+        });
+      }
+    }
+    if (Array.isArray(obj.blocks) && obj.blocks.length > INPUT_LIMITS.maxBlocks) {
       throw new ClipboardError({
         es: 'El portapapeles contiene demasiados bloques.',
         en: 'Clipboard contains too many blocks.',
       });
     }
-    if (obj.assets && Array.isArray(obj.assets) && obj.assets.length > INPUT_LIMITS.maxAssets) {
+    if (Array.isArray(obj.blockEntities) && obj.blockEntities.length > INPUT_LIMITS.maxEntities) {
+      throw new ClipboardError({
+        es: 'El portapapeles contiene demasiadas entidades de bloque.',
+        en: 'Clipboard contains too many block entities.',
+      });
+    }
+    if (Array.isArray(obj.assets) && obj.assets.length > INPUT_LIMITS.maxAssets) {
       throw new ClipboardError({
         es: 'El portapapeles contiene demasiados recursos.',
         en: 'Clipboard contains too many assets.',
       });
+    }
+    const namedCollections = ['blocks', 'layers', 'linetypes', 'textStyles', 'dimStyles', 'mleaderStyles', 'tableStyles', 'mlineStyles'] as const;
+    const collectionIds = new Map<string, Set<string>>();
+    for (const field of namedCollections) {
+      const ids = new Set<string>();
+      for (const value of (obj[field] as unknown[] | undefined) ?? []) {
+        if (!value || typeof value !== 'object' || Array.isArray(value)) {
+          throw new ClipboardError({ es: `La colección «${field}» contiene un registro inválido.`, en: `Clipboard collection "${field}" contains an invalid record.` });
+        }
+        const record = value as Record<string, unknown>;
+        if (typeof record.id !== 'string' || !record.id.trim() || typeof record.name !== 'string' || !record.name.trim()) {
+          throw new ClipboardError({ es: `La colección «${field}» contiene un registro sin identidad válida.`, en: `Clipboard collection "${field}" contains a record without a valid identity.` });
+        }
+        if (ids.has(record.id)) {
+          throw new ClipboardError({ es: `Identificador duplicado «${record.id}» en «${field}».`, en: `Duplicate ID "${record.id}" in "${field}".` });
+        }
+        try {
+          assertDocumentRecord(field, record);
+        } catch (error) {
+          if (error instanceof InputValidationError) throw new ClipboardError(error.l10n);
+          throw error;
+        }
+        ids.add(record.id);
+      }
+      collectionIds.set(field, ids);
+    }
+    for (const asset of (obj.assets as unknown[] | undefined) ?? []) {
+      try {
+        assertAssetRecord(asset);
+      } catch (error) {
+        if (error instanceof AssetValidationError) throw new ClipboardError(error.l10n);
+        throw error;
+      }
+    }
+    const assets = new Map<string, AssetRecord>();
+    for (const asset of (obj.assets as AssetRecord[] | undefined) ?? []) {
+      if (assets.has(asset.id)) {
+        throw new ClipboardError({ es: `Recurso duplicado «${asset.id}».`, en: `Duplicate asset "${asset.id}".` });
+      }
+      assets.set(asset.id, asset);
+    }
+
+    const blockIds = collectionIds.get('blocks') ?? new Set<string>();
+    const blockEntityValues = (obj.blockEntities as unknown[] | undefined) ?? [];
+    const blockEntityObjects = new Set(blockEntityValues);
+    const entities = [...obj.entities, ...blockEntityValues];
+    const entityIds = new Set<string>();
+    for (const value of entities) {
+      if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        throw new ClipboardError({ es: 'El portapapeles contiene una entidad inválida.', en: 'Clipboard contains an invalid entity.' });
+      }
+      const entity = value as Record<string, unknown>;
+      try {
+        assertEntityRecord(entity);
+      } catch (error) {
+        if (error instanceof InputValidationError) throw new ClipboardError(error.l10n);
+        throw error;
+      }
+      if (entityIds.has(entity.id as string)) {
+        throw new ClipboardError({ es: `Entidad duplicada «${entity.id}».`, en: `Duplicate entity "${entity.id}".` });
+      }
+      entityIds.add(entity.id as string);
+      if (blockEntityObjects.has(value) && !blockIds.has(entity.owner as string)) {
+        throw new ClipboardError({ es: `La entidad «${entity.id}» pertenece a un bloque inexistente.`, en: `Entity "${entity.id}" belongs to a missing block.` });
+      }
+      const requiredBlock = entity.type === 'insert'
+        ? entity.blockId
+        : entity.type === 'array'
+          ? entity.sourceBlockId
+          : entity.type === 'mleader' && typeof entity.content === 'object' && entity.content && (entity.content as { type?: unknown }).type === 'block'
+            ? (entity.content as { blockId?: unknown }).blockId
+            : undefined;
+      if (requiredBlock !== undefined && (typeof requiredBlock !== 'string' || !blockIds.has(requiredBlock))) {
+        throw new ClipboardError({ es: `La entidad «${entity.id}» apunta a un bloque inexistente.`, en: `Entity "${entity.id}" references a missing block.` });
+      }
+      if (entity.type === 'mleader' && typeof entity.overrides === 'object' && entity.overrides) {
+        const overrideBlock = (entity.overrides as { blockId?: unknown }).blockId;
+        if (overrideBlock !== undefined && (typeof overrideBlock !== 'string' || !blockIds.has(overrideBlock))) {
+          throw new ClipboardError({ es: `La entidad «${entity.id}» apunta a un bloque inexistente.`, en: `Entity "${entity.id}" references a missing block.` });
+        }
+      }
+      if (entity.type === 'image' || entity.type === 'pdfunderlay') {
+        if (typeof entity.assetId !== 'string' || !assets.has(entity.assetId)) {
+          throw new ClipboardError({ es: `La entidad «${entity.id}» apunta a un recurso inexistente.`, en: `Entity "${entity.id}" references a missing asset.` });
+        }
+        const asset = assets.get(entity.assetId)!;
+        const validMime = entity.type === 'pdfunderlay' ? asset.mime === 'application/pdf' : asset.mime.startsWith('image/');
+        if (!validMime) {
+          throw new ClipboardError({ es: `La entidad «${entity.id}» usa un recurso incompatible.`, en: `Entity "${entity.id}" uses an incompatible asset.` });
+        }
+      }
+    }
+    try {
+      assertArrayExpansionLimits(entities);
+    } catch (error) {
+      if (error instanceof InputValidationError) throw new ClipboardError(error.l10n);
+      throw error;
+    }
+    for (const block of (obj.blocks as BlockRecord[] | undefined) ?? []) {
+      if (!block.dynamic) continue;
+      const ownEntityIds = new Set((blockEntityValues as Entity[])
+        .filter((entity) => entity.owner === block.id)
+        .map((entity) => entity.id));
+      try {
+        assertDynamicBlockDefinition(block.dynamic, ownEntityIds);
+      } catch (error) {
+        if (error instanceof InputValidationError) throw new ClipboardError(error.l10n);
+        throw error;
+      }
     }
     const b = obj.base as { x?: unknown; y?: unknown } | undefined;
     if (!b || typeof b.x !== 'number' || typeof b.y !== 'number' || !Number.isFinite(b.x) || !Number.isFinite(b.y)) {
@@ -297,11 +422,46 @@ export function validateClipboardPackage(raw: unknown): ClipboardPackage | Legac
   }
 
   // Compatibilidad con paquete heredado v1 / sin versión
+  if (obj.version !== undefined && obj.version !== 1) {
+    throw new ClipboardError({
+      es: `Versión de portapapeles no compatible: ${String(obj.version)}.`,
+      en: `Unsupported clipboard version: ${String(obj.version)}.`,
+    });
+  }
+  const legacyEntities = obj.entities.map((value, index) => {
+    const normalized = value && typeof value === 'object' && !Array.isArray(value) && !Number.isFinite((value as Record<string, unknown>).order)
+      ? { ...(value as Record<string, unknown>), order: index + 1 }
+      : value;
+    try {
+      assertEntityRecord(normalized);
+    } catch (error) {
+      if (error instanceof InputValidationError) throw new ClipboardError(error.l10n);
+      throw error;
+    }
+    return normalized;
+  });
+  try {
+    assertArrayExpansionLimits(legacyEntities);
+  } catch (error) {
+    if (error instanceof InputValidationError) throw new ClipboardError(error.l10n);
+    throw error;
+  }
+  obj.entities = legacyEntities;
+  if (obj.base !== undefined && (!obj.base || typeof obj.base !== 'object' || Array.isArray(obj.base) ||
+    typeof (obj.base as Record<string, unknown>).x !== 'number' || typeof (obj.base as Record<string, unknown>).y !== 'number')) {
+    throw new ClipboardError({ es: 'El punto base del portapapeles no es válido.', en: 'Clipboard base point is invalid.' });
+  }
   return obj as unknown as LegacyClipboardPackage;
 }
 
 /** Parsea y valida texto JSON de portapapeles. */
 export function parseClipboardPackage(text: string): ClipboardPackage | LegacyClipboardPackage {
+  if (text.length > INPUT_LIMITS.maxEntryBytes) {
+    throw new ClipboardError({
+      es: 'El contenido del portapapeles es demasiado grande.',
+      en: 'Clipboard content is too large.',
+    });
+  }
   let parsed: unknown;
   try {
     parsed = JSON.parse(text);
@@ -920,8 +1080,37 @@ export function pasteClipboardPackage(
     }
   }
 
+  if (!Number.isFinite(targetPoint.x) || !Number.isFinite(targetPoint.y)) {
+    throw new ClipboardError({
+      es: 'El punto de inserción contiene coordenadas no finitas.',
+      en: 'Insertion point contains non-finite coordinates.',
+    });
+  }
+
   const dx = targetPoint.x - baseX;
   const dy = targetPoint.y - baseY;
+  if (!Number.isFinite(dx) || !Number.isFinite(dy)) {
+    throw new ClipboardError({
+      es: 'El desplazamiento de pegado excede el rango numérico admitido.',
+      en: 'Paste offset exceeds the supported numeric range.',
+    });
+  }
+  const tMat = translation(dx, dy);
+  try {
+    for (const entity of pkg.entities) {
+      const moved = kindOf(entity).transform(entity, tMat, modelCtx);
+      if (moved) assertFiniteValues(moved);
+    }
+  } catch (error) {
+    if (error instanceof InputValidationError) {
+      throw new ClipboardError({
+        es: 'El pegado produciría valores numéricos no finitos.',
+        en: 'Pasting would produce non-finite numeric values.',
+      });
+    }
+    throw error;
+  }
+
   const warnings: string[] = [];
   const insertedIds: Id[] = [];
 
@@ -1196,6 +1385,10 @@ export function pasteClipboardPackage(
         }
       }
 
+      if (clone.type === 'leader' && clone.annotation) {
+        clone.annotation = blockEntityMap.get(clone.annotation);
+      }
+
       // Asociatividad de sombreados (hatch) dentro del bloque
       if (clone.type === 'hatch' && clone.associative) {
         const mappedAssoc = clone.associative.map((id) => blockEntityMap.get(id)).filter(Boolean) as Id[];
@@ -1215,8 +1408,6 @@ export function pasteClipboardPackage(
     for (const e of pkg.entities) {
       topEntityMap.set(e.id, newId());
     }
-
-    const tMat = translation(dx, dy);
 
     for (const e of pkg.entities) {
       const moved = kindOf(e).transform(e, tMat, modelCtx) as Entity | null;
@@ -1294,6 +1485,10 @@ export function pasteClipboardPackage(
         } else {
           delete (clone as Partial<DimensionEntity>).assoc;
         }
+      }
+
+      if (clone.type === 'leader' && clone.annotation) {
+        clone.annotation = topEntityMap.get(clone.annotation);
       }
 
       // Asociatividad de sombreados (hatch)

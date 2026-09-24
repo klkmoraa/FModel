@@ -6,7 +6,7 @@ import type {
   TableEntity,
   TextEntity,
 } from '../../document/types';
-import { add as addEntity, K, L, make } from '../helpers';
+import { add as addEntity, fail, K, L, make } from '../helpers';
 import type { CommandDef } from '../types';
 
 // ============================================================================ TEXT
@@ -19,7 +19,7 @@ export const TEXT: CommandDef = {
   description: L('Crea textos de una línea con justificación, altura y rotación; Intro crea la línea siguiente.', 'Creates single-line text with justification, height and rotation; Enter starts the next line.'),
   icon: 'text',
   async run(api) {
-    const s = api.editor.doc.settings;
+    let s = api.editor.doc.settings;
     let halign: TextEntity['halign'] = 'left';
     let valign: TextEntity['valign'] = 'baseline';
     let start: Vec2 | null = null;
@@ -38,7 +38,10 @@ export const TEXT: CommandDef = {
         const st = await api.getString({ prompt: L('Nombre del estilo de texto', 'Enter style name'), defaultValue: api.editor.doc.data.textStyles.get(s.currentTextStyle)?.name });
         if (st.kind === 'string') {
           const found = api.editor.doc.findByName('textStyles', st.value);
-          if (found) api.apply('TEXTSTYLE', (tx) => tx.setSettings({ currentTextStyle: found.id }));
+          if (found) {
+            api.apply('TEXTSTYLE', (tx) => tx.setSettings({ currentTextStyle: found.id }));
+            s = api.editor.doc.settings;
+          }
           else api.warn(L(`No existe el estilo «${st.value}».`, `Style "${st.value}" not found.`));
         }
       } else return;
@@ -92,6 +95,7 @@ export const MTEXT: CommandDef = {
       });
       if (b.kind === 'point') {
         width = Math.abs(b.p.x - a.p.x);
+        if (!Number.isFinite(width)) fail('La anchura del texto excede el rango de coordenadas válido.', 'The text width exceeds the valid coordinate range.');
         break;
       }
       if (b.kind !== 'keyword') return;
@@ -114,6 +118,7 @@ export const MTEXT: CommandDef = {
     }
     const text = await api.getString({ prompt: L('Escriba el texto (use \\P para párrafo)', 'Enter text (use \\P for paragraph)'), allowSpaces: true, multiline: true });
     if (text.kind !== 'string' || !text.value.trim()) return;
+    if (!Number.isFinite(height) || height <= 0) fail('La altura del texto no es válida.', 'The text height is invalid.');
     addEntity<MTextEntity>(api, 'MTEXT', { type: 'mtext', position: a.p, width, height, rotation, style: s.currentTextStyle, attachment, lineSpacing: 1, contents: text.value.replace(/\r?\n/g, '\\P'), annotative: style?.annotative || undefined });
   },
 };

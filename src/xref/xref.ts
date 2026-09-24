@@ -463,6 +463,95 @@ export function attachXref(
   return tx.doc.data.blocks.get(block.id)!;
 }
 
+/** Elimina recursos de la versión anterior del xref solo si no tienen referencias vivas en el anfitrión. */
+function cleanupObsoleteResources(tx: Transaction, host: CadDocument, previous: XrefInfo, next: PopulateResult): void {
+  const obsolete = (oldIds: Id[] | undefined, nextIds: Id[]) => (oldIds ?? []).filter((id) => !nextIds.includes(id));
+  const entities = [...host.data.entities.values()];
+
+  const usedDimStyles = new Set<Id>([host.data.settings.currentDimStyle]);
+  const usedMLeaderStyles = new Set<Id>([host.data.settings.currentMLeaderStyle]);
+  const usedTableStyles = new Set<Id>([host.data.settings.currentTableStyle]);
+  const usedMLineStyles = new Set<Id>([host.data.settings.currentMLineStyle]);
+  for (const e of entities) {
+    if (e.type === 'dimension' || e.type === 'leader') usedDimStyles.add(e.style);
+    if (e.type === 'mleader') usedMLeaderStyles.add(e.style);
+    if (e.type === 'table') usedTableStyles.add(e.style);
+    if (e.type === 'mline') usedMLineStyles.add(e.style);
+  }
+  for (const id of obsolete(previous.ownedDimStyles, next.ownedDimStyles)) {
+    if (!usedDimStyles.has(id)) tx.remove('dimStyles', id);
+  }
+  for (const id of obsolete(previous.ownedMLeaderStyles, next.ownedMLeaderStyles)) {
+    if (!usedMLeaderStyles.has(id)) tx.remove('mleaderStyles', id);
+  }
+  for (const id of obsolete(previous.ownedTableStyles, next.ownedTableStyles)) {
+    if (!usedTableStyles.has(id)) tx.remove('tableStyles', id);
+  }
+  for (const id of obsolete(previous.ownedMLineStyles, next.ownedMLineStyles)) {
+    if (!usedMLineStyles.has(id)) tx.remove('mlineStyles', id);
+  }
+
+  const usedLayers = new Set<Id>([host.data.settings.currentLayer]);
+  const usedLinetypes = new Set<string>([host.data.settings.currentLinetype]);
+  for (const e of entities) {
+    usedLayers.add(e.layer);
+    if (e.linetype) usedLinetypes.add(e.linetype);
+    if (e.type === 'viewport') {
+      for (const id of e.frozenLayers) usedLayers.add(id);
+      for (const [id, override] of Object.entries(e.layerOverrides)) {
+        usedLayers.add(id);
+        if (override.linetype) usedLinetypes.add(override.linetype);
+      }
+    }
+  }
+  for (const filter of host.data.layerFilters.values()) {
+    for (const id of filter.layers ?? []) usedLayers.add(id);
+  }
+  for (const state of host.data.layerStates.values()) {
+    usedLayers.add(state.currentLayer);
+    for (const [id, layer] of Object.entries(state.layers)) {
+      usedLayers.add(id);
+      if (layer.linetype) usedLinetypes.add(layer.linetype);
+    }
+  }
+  for (const id of obsolete(previous.ownedLayers, next.ownedLayers)) {
+    if (!usedLayers.has(id)) tx.remove('layers', id);
+  }
+
+  const usedTextStyles = new Set<Id>([host.data.settings.currentTextStyle]);
+  for (const e of entities) {
+    if (e.type === 'text' || e.type === 'mtext' || e.type === 'attdef') usedTextStyles.add(e.style);
+    if (e.type === 'dimension' && e.overrides.textStyle) usedTextStyles.add(e.overrides.textStyle);
+    if (e.type === 'mleader' && e.overrides?.textStyle) usedTextStyles.add(e.overrides.textStyle);
+  }
+  for (const style of host.data.dimStyles.values()) usedTextStyles.add(style.textStyle);
+  for (const style of host.data.mleaderStyles.values()) usedTextStyles.add(style.textStyle);
+  for (const style of host.data.tableStyles.values()) usedTextStyles.add(style.textStyle);
+  for (const id of obsolete(previous.ownedTextStyles, next.ownedTextStyles)) {
+    if (!usedTextStyles.has(id)) tx.remove('textStyles', id);
+  }
+
+  for (const layer of host.data.layers.values()) {
+    if (layer.linetype) usedLinetypes.add(layer.linetype);
+  }
+  for (const style of host.data.mlineStyles.values()) {
+    for (const element of style.elements ?? []) {
+      if (element.linetype) usedLinetypes.add(element.linetype);
+    }
+  }
+  for (const block of host.data.blocks.values()) {
+    for (const override of Object.values(block.xref?.layerOverrides ?? {})) {
+      if (override.linetype) usedLinetypes.add(override.linetype);
+    }
+  }
+  for (const id of obsolete(previous.ownedLinetypes, next.ownedLinetypes)) {
+    const linetype = host.data.linetypes.get(id);
+    if (linetype && !usedLinetypes.has(linetype.id) && !usedLinetypes.has(linetype.name)) {
+      tx.remove('linetypes', id);
+    }
+  }
+}
+
 /** Vuelve a leer el origen conservando las propiedades locales de sus capas. */
 export function reloadXref(tx: Transaction, host: CadDocument, blockId: Id, source: XrefSource): void {
   const block = host.data.blocks.get(blockId);
@@ -486,6 +575,8 @@ export function reloadXref(tx: Transaction, host: CadDocument, blockId: Id, sour
   };
   tx.put('blocks', fresh);
   const res = populate(tx, host, fresh, source);
+
+  cleanupObsoleteResources(tx, host, block.xref, res);
 
   // Limpiar bloques poseídos que ya no existan en el nuevo origen y no estén usados por el anfitrión
   const usedBlocks = new Set<Id>();

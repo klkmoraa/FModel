@@ -1,4 +1,6 @@
 import type { Id } from '../document/types';
+import { assertInputBytes, InputLimitError } from '../io/limits';
+import { readBrowserFile } from '../storage/fileAccess';
 import { idbDelete, idbGet, idbPut } from '../storage/idb';
 import type { StoredDrawing } from '../storage/persistence';
 
@@ -54,7 +56,9 @@ export interface ResolvedBytes {
 export async function readXrefBytes(blockId: Id, path: string, interactive: boolean): Promise<ResolvedBytes | null> {
   if (path.startsWith(LIBRARY_PREFIX)) {
     const rec = await idbGet<StoredDrawing>('drawings', path.slice(LIBRARY_PREFIX.length)).catch(() => undefined);
-    return rec ? { bytes: rec.bytes, name: rec.name } : null;
+    if (!rec || !(rec.bytes instanceof Uint8Array)) return null;
+    assertInputBytes(rec.bytes, 'referencia');
+    return { bytes: rec.bytes, name: rec.name };
   }
   const rec = await idbGet<HandleRecord>('meta', key(blockId)).catch(() => undefined);
   if (!rec?.handle?.getFile) return null;
@@ -63,8 +67,9 @@ export async function readXrefBytes(blockId: Id, path: string, interactive: bool
     if (state !== 'granted' && interactive) state = (await rec.handle.requestPermission?.({ mode: 'read' })) ?? 'denied';
     if (state !== 'granted') return null;
     const file = await rec.handle.getFile();
-    return { bytes: new Uint8Array(await file.arrayBuffer()), name: file.name };
-  } catch {
+    return { bytes: await readBrowserFile(file), name: file.name };
+  } catch (error) {
+    if (error instanceof InputLimitError) throw error;
     return null;
   }
 }

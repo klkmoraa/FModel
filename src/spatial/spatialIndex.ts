@@ -14,11 +14,32 @@ interface Item {
   id: Id;
 }
 
+const finiteItem = (item: Item): boolean =>
+  Number.isFinite(item.minX) && Number.isFinite(item.minY) &&
+  Number.isFinite(item.maxX) && Number.isFinite(item.maxY);
+
 class OwnerIndex {
   tree = new RBush<Item>(9);
   items = new Map<Id, Item>();
   unbounded = new Set<Id>();
 }
+
+interface ContextSnapshot {
+  documentVersion: number;
+  blocksVersion: number;
+  annotationScale: number;
+  sheetName: string;
+  fileName: string;
+  measureText: ModelContext['measureText'];
+  dynamicEvaluator: ModelContext['dynamicEvaluator'];
+}
+
+interface CachedContextIndex {
+  snapshot: ContextSnapshot;
+  owners: Map<Id, OwnerIndex>;
+}
+
+const MAX_CACHED_CONTEXTS = 4;
 
 /**
  * Índice espacial R-tree por espacio propietario (modelo, cada layout, cada bloque).
@@ -28,12 +49,13 @@ class OwnerIndex {
 export class SpatialIndex {
   private owners = new Map<Id, OwnerIndex>();
   private unsubscribe: () => void;
-  private lastBlocksVersion: number;
+  private lastBlocksVersion = -1;
+  private contextSnapshot: ContextSnapshot | null = null;
+  private cachedContexts: CachedContextIndex[] = [];
   version = 0;
 
   constructor(private ctx: ModelContext) {
     this.rebuild();
-    this.lastBlocksVersion = ctx.blocksVersion;
     this.unsubscribe = ctx.doc.subscribe((e) => this.onChange(e));
   }
 
@@ -51,12 +73,29 @@ export class SpatialIndex {
   }
 
   rebuild() {
-    this.owners.clear();
+    this.cachedContexts = [];
+    const previousContext = this.contextSnapshot;
+    if (
+      previousContext &&
+      previousContext.documentVersion === this.ctx.doc.version &&
+      previousContext.blocksVersion === this.ctx.blocksVersion &&
+      !this.sameContext(previousContext, this.captureContext())
+    ) {
+      // These values affect field text and annotative geometry but can change
+      // without a document event. Clear block geometry caches before measuring.
+      this.ctx.invalidateBlocks();
+    }
+
+    this.buildCurrentIndex();
+  }
+
+  private buildCurrentIndex() {
+    this.owners = new Map();
     const groups = new Map<Id, Item[]>();
     for (const e of this.ctx.doc.data.entities.values()) {
       const item = this.itemFor(e);
       if (!item) continue;
-      if (!Number.isFinite(item.minX) || !Number.isFinite(item.maxX)) {
+      if (!finiteItem(item)) {
         this.ownerIndex(e.owner).unbounded.add(e.id);
         continue;
       }
@@ -69,7 +108,39 @@ export class SpatialIndex {
       oi.tree.load(items);
       for (const it of items) oi.items.set(it.id, it);
     }
+    this.lastBlocksVersion = this.ctx.blocksVersion;
+    this.contextSnapshot = this.captureContext();
     this.version++;
+  }
+
+  private captureContext(): ContextSnapshot {
+    return {
+      documentVersion: this.ctx.doc.version,
+      blocksVersion: this.ctx.blocksVersion,
+      annotationScale: this.ctx.annotationScale,
+      sheetName: this.ctx.sheetName,
+      fileName: this.ctx.fileName,
+      measureText: this.ctx.measureText,
+      dynamicEvaluator: this.ctx.dynamicEvaluator,
+    };
+  }
+
+  /** Compara las entradas que determinan una caja; ignora blocksVersion del cache. */
+  private sameContext(a: ContextSnapshot, b: ContextSnapshot): boolean {
+    return (
+      a.documentVersion === b.documentVersion &&
+      a.annotationScale === b.annotationScale &&
+      a.sheetName === b.sheetName &&
+      a.fileName === b.fileName &&
+      a.measureText === b.measureText &&
+      a.dynamicEvaluator === b.dynamicEvaluator
+    );
+  }
+
+  private rememberContext(snapshot: ContextSnapshot, owners: Map<Id, OwnerIndex>) {
+    this.cachedContexts = this.cachedContexts.filter((entry) => !this.sameContext(entry.snapshot, snapshot));
+    this.cachedContexts.unshift({ snapshot, owners });
+    if (this.cachedContexts.length > MAX_CACHED_CONTEXTS) this.cachedContexts.length = MAX_CACHED_CONTEXTS;
   }
 
   private itemFor(e: Entity): Item | null {
@@ -91,13 +162,14 @@ export class SpatialIndex {
       oi.items.delete(id);
     }
     oi.unbounded.delete(id);
+    if (!oi.items.size && !oi.unbounded.size) this.owners.delete(owner);
   }
 
   private insert(e: Entity) {
     const item = this.itemFor(e);
     if (!item) return;
     const oi = this.ownerIndex(e.owner);
-    if (!Number.isFinite(item.minX) || !Number.isFinite(item.maxX)) {
+    if (!finiteItem(item)) {
       oi.unbounded.add(e.id);
       return;
     }
@@ -106,8 +178,9 @@ export class SpatialIndex {
   }
 
   private onChange(ev: DocChangeEvent) {
+    // Any document edit invalidates indexes cached for other evaluation contexts.
+    this.cachedContexts = [];
     if (ev.source === 'load' || ev.source === 'reset') {
-      this.lastBlocksVersion = this.ctx.blocksVersion;
       this.rebuild();
       return;
     }
@@ -130,6 +203,7 @@ export class SpatialIndex {
       for (const e of this.ctx.doc.data.entities.values()) if (e.type === 'insert' || e.type === 'array' || e.type === 'mleader') dependents.push(e.id);
       this.refresh(dependents);
     }
+    this.contextSnapshot = this.captureContext();
     this.version++;
   }
 
@@ -145,6 +219,7 @@ export class SpatialIndex {
   }
 
   query(owner: Id, box: BBox): Id[] {
+    this.ensureFresh();
     const oi = this.owners.get(owner);
     if (!oi) return [];
     const res = oi.tree.search(box).map((i) => i.id);
@@ -153,11 +228,13 @@ export class SpatialIndex {
   }
 
   bboxOf(owner: Id, id: Id): BBox | undefined {
+    this.ensureFresh();
     return this.owners.get(owner)?.items.get(id);
   }
 
   /** Extensión de un espacio (sin geometría infinita). */
   extents(owner: Id, filter?: (id: Id) => boolean): BBox {
+    this.ensureFresh();
     const oi = this.owners.get(owner);
     const b = emptyBox();
     if (!oi) return b;
@@ -171,7 +248,38 @@ export class SpatialIndex {
   }
 
   count(owner: Id): number {
+    this.ensureFresh();
     const oi = this.owners.get(owner);
     return oi ? oi.items.size + oi.unbounded.size : 0;
+  }
+
+  private ensureFresh() {
+    const snapshot = this.contextSnapshot;
+    if (!snapshot) return;
+    const current = this.captureContext();
+    if (snapshot.blocksVersion === current.blocksVersion && this.sameContext(snapshot, current)) return;
+
+    // A document edit or external block-cache invalidation cannot reuse older
+    // boxes. Context-only changes are common while rendering viewports, so keep
+    // a small LRU of those indexes and restore a matching one when available.
+    if (snapshot.documentVersion !== current.documentVersion || snapshot.blocksVersion !== current.blocksVersion) {
+      this.cachedContexts = [];
+      this.buildCurrentIndex();
+      return;
+    }
+
+    this.rememberContext(snapshot, this.owners);
+    this.ctx.invalidateBlocks();
+    const refreshed = this.captureContext();
+    const cachedIndex = this.cachedContexts.findIndex((entry) => this.sameContext(entry.snapshot, refreshed));
+    if (cachedIndex >= 0) {
+      this.owners = this.cachedContexts[cachedIndex].owners;
+      this.cachedContexts.splice(cachedIndex, 1);
+      this.lastBlocksVersion = this.ctx.blocksVersion;
+      this.contextSnapshot = refreshed;
+      this.version++;
+      return;
+    }
+    this.buildCurrentIndex();
   }
 }

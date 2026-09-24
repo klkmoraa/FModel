@@ -6,6 +6,7 @@ import { rotation, scaling, compose, translation } from '../geometry/matrix';
 import { evaluate, topoSortExpressions } from '../lib/expr';
 import { createContext } from './context';
 import { buildDimension } from './dimension';
+import { resolveFieldsText } from './fields';
 import { formatAngle, formatLength } from './format';
 import { findPattern, generateHatch } from './hatchPatterns';
 import { kindOf } from './registry';
@@ -55,6 +56,18 @@ describe('document transactions', () => {
 });
 
 describe('entity kinds', () => {
+  it('resolves a field at the center of large finite coordinates', () => {
+    const { doc, ctx } = setup();
+    const line: LineEntity = { ...entityDefaults(doc), id: 'large-line', order: 1, type: 'line', start: { x: 1e308, y: 0 }, end: { x: 1.1e308, y: 0 } };
+    expect(resolveFieldsText('{{self.x}}', ctx, line)).toBe('1.05e+308');
+  });
+
+  it('shows an unavailable field when finite circle properties overflow derived geometry', () => {
+    const { doc, ctx } = setup();
+    const circle: CircleEntity = { ...entityDefaults(doc), id: 'large-circle', order: 1, type: 'circle', center: { x: 0, y: 1e308 }, radius: 1e308 };
+    expect(resolveFieldsText('{{self.y}} / {{self.length}} / {{self.area}}', ctx, circle)).toBe('#### / #### / ####');
+  });
+
   it('circle under non-uniform scale becomes ellipse', () => {
     const { doc, ctx } = setup();
     const c: CircleEntity = { ...entityDefaults(doc), id: 'c1', order: 1, type: 'circle', center: { x: 0, y: 0 }, radius: 2 };
@@ -176,6 +189,12 @@ describe('dimensions', () => {
 });
 
 describe('formatting', () => {
+  it('formats finite extreme lengths without non-finite feet or inches', () => {
+    for (const format of ['engineering', 'architectural'] as const) {
+      expect(formatLength(Number.MAX_VALUE, format, 2)).not.toMatch(/NaN|Infinity/);
+    }
+  });
+
   it('architectural and dms', () => {
     expect(formatLength(30.5, 'architectural', 2)).toBe(`2'-6 1/2"`);
     expect(formatAngle(Math.PI / 4, 'degrees', 0)).toBe('45°');

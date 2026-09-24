@@ -4,20 +4,26 @@ import { closestPoint, curvePoint } from './curves';
 import { intersectCurves } from './intersect';
 import { offsetCurve } from './offset';
 import type { Vec2 } from './vec';
+import { linearTol } from './tolerance';
 import { add, cross, dist, len, mid, normalize, perp, scale, sub } from './vec';
 
 /** Circunferencia por tres puntos. */
 export function circleFrom3Points(a: Vec2, b: Vec2, c: Vec2): { center: Vec2; radius: number } | null {
-  const d = 2 * (a.x * (b.y - c.y) + b.x * (c.y - a.y) + c.x * (a.y - b.y));
-  if (Math.abs(d) < 1e-14) return null;
-  const a2 = a.x * a.x + a.y * a.y;
-  const b2 = b.x * b.x + b.y * b.y;
-  const c2 = c.x * c.x + c.y * c.y;
+  const ab = sub(b, a);
+  const ac = sub(c, a);
+  const maxEdge = Math.max(len(ab), len(ac), dist(b, c));
+  const magnitude = Math.max(Math.abs(a.x), Math.abs(a.y), Math.abs(b.x), Math.abs(b.y), Math.abs(c.x), Math.abs(c.y));
+  const tol = linearTol(magnitude);
+  const d = 2 * cross(ab, ac);
+  if (!Number.isFinite(d) || maxEdge <= tol || Math.abs(d) <= 2 * tol * maxEdge) return null;
+  const b2 = ab.x * ab.x + ab.y * ab.y;
+  const c2 = ac.x * ac.x + ac.y * ac.y;
   const center = {
-    x: (a2 * (b.y - c.y) + b2 * (c.y - a.y) + c2 * (a.y - b.y)) / d,
-    y: (a2 * (c.x - b.x) + b2 * (a.x - c.x) + c2 * (b.x - a.x)) / d,
+    x: a.x + (b2 * ac.y - c2 * ab.y) / d,
+    y: a.y + (c2 * ab.x - b2 * ac.x) / d,
   };
-  return { center, radius: dist(center, a) };
+  const radius = dist(center, a);
+  return Number.isFinite(center.x) && Number.isFinite(center.y) && Number.isFinite(radius) ? { center, radius } : null;
 }
 
 /** Arco que empieza en a, pasa por b y termina en c. */

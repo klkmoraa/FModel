@@ -1,4 +1,4 @@
-import { Home, Moon, Redo2, Search, Sun, Undo2 } from 'lucide-react';
+import { Monitor, Moon, Redo2, Search, Sun, Undo2 } from 'lucide-react';
 import { QuickProperties } from './QuickProperties';
 import { Onboarding } from './Onboarding';
 import { comboOf } from './keys';
@@ -14,14 +14,15 @@ import type { DynamicInputHandle } from './DynamicInput';
 import { DynamicInput } from './DynamicInput';
 import { useEditorEvents, useMediaQuery } from './hooks';
 import { BrandMark, CadIcon } from './icons';
-import { Ribbon } from './Ribbon';
 import { SpaceTabs } from './SpaceTabs';
 import { StatusBar } from './StatusBar';
-import { Docks } from './Docks';
+import { Docks, FloatingPanel } from './Docks';
 import { Dialogs, type DialogState } from './Dialogs';
 import { MobileBar, TouchHud } from './MobileBar';
 import { WelcomeScreen } from './welcome/WelcomeScreen';
 import { ConfirmHost } from './ConfirmHost';
+import { PrecisionDeck } from './PrecisionDeck';
+import { isWorkspacePanelId } from '../editor/workspaceChrome';
 
 export function App({ editor }: { editor: Editor }) {
   useEditorEvents(editor, ['prefs', 'command', 'space']);
@@ -34,6 +35,9 @@ export function App({ editor }: { editor: Editor }) {
   const [dialog, setDialog] = useState<DialogState | null>(null);
   const dialogReturnFocusRef = useRef<HTMLElement | null>(null);
   const [mobileSheet, setMobileSheet] = useState<string | null>(null);
+  const [floatingPanel, setFloatingPanel] = useState<string | null>(null);
+  const [deckOpen, setDeckOpen] = useState(false);
+  const floatingPanelReturnFocusRef = useRef<HTMLElement | null>(null);
   // en el teléfono la línea de comandos solo ocupa lienzo cuando hace falta: con comando en marcha o al pedirla
   const [cmdOpen, setCmdOpen] = useState(false);
   const cmdRef = useRef<CommandLineHandle>(null);
@@ -79,27 +83,73 @@ export function App({ editor }: { editor: Editor }) {
       return;
     }
     if (ui.startsWith('panel:')) {
-      if (isMobile) setMobileSheet(ui.slice(6));
-      editor.emit('prefs');
-      window.dispatchEvent(new CustomEvent('fmodel:panel', { detail: ui.slice(6) }));
+      const id = ui.slice(6);
+      if (isMobile) {
+        setMobileSheet(id);
+        return;
+      }
+      setDeckOpen(false);
+      setPalette(false);
+      if (isWorkspacePanelId(id) && editor.prefs.panels.floating.includes(id)) {
+        floatingPanelReturnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        setFloatingPanel((current) => (current === id ? null : id));
+        return;
+      }
+      window.dispatchEvent(new CustomEvent('fmodel:panel', { detail: id }));
       return;
     }
     const active = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     if (!active?.closest('[role="dialog"][aria-modal="true"]')) dialogReturnFocusRef.current = active;
+    setDeckOpen(false);
+    setFloatingPanel(null);
     setDialog({ id: ui, cmd, payload });
   }, [editor, isMobile]);
 
   // Los comandos con UI abren su panel o diálogo
   useEffect(() => {
     const handler = (e: Event) => {
-      const d = (e as CustomEvent<{ ui: string; cmd?: string; payload?: unknown }>).detail;
-      openUi(d.ui, d.cmd, d.payload);
+      const d = (e as CustomEvent<unknown>).detail;
+      if (!d || typeof d !== 'object' || typeof (d as { ui?: unknown }).ui !== 'string') return;
+      const request = d as { ui: string; cmd?: unknown; payload?: unknown };
+      openUi(request.ui, typeof request.cmd === 'string' ? request.cmd : undefined, request.payload);
     };
     window.addEventListener('fmodel:ui', handler);
     return () => window.removeEventListener('fmodel:ui', handler);
   }, [openUi]);
 
   const runCommand = useCallback((name: string, args?: string[]) => editor.command(name, args), [editor]);
+  const closeFloatingPanel = useCallback((restoreFocus = true) => {
+    setFloatingPanel(null);
+    if (restoreFocus) requestAnimationFrame(() => floatingPanelReturnFocusRef.current?.focus());
+  }, []);
+  const changeDeckOpen = useCallback((next: boolean) => {
+    setDeckOpen(next);
+    if (next) {
+      setFloatingPanel(null);
+      setPalette(false);
+    }
+  }, []);
+  const openPalette = useCallback(() => {
+    setDeckOpen(false);
+    setFloatingPanel(null);
+    setPalette(true);
+  }, []);
+  const cycleTheme = useCallback(() => {
+    const next = editor.prefs.theme === 'system' ? 'dia' : editor.prefs.theme === 'dia' ? 'noche' : 'system';
+    editor.setPrefs({ theme: next });
+  }, [editor]);
+  const themeTitle =
+    lang === 'es'
+      ? editor.prefs.theme === 'system'
+        ? 'Tema automático · cambiar a claro'
+        : editor.prefs.theme === 'dia'
+          ? 'Tema claro · cambiar a oscuro'
+          : 'Tema oscuro · cambiar a automático'
+      : editor.prefs.theme === 'system'
+        ? 'Automatic theme · switch to light'
+        : editor.prefs.theme === 'dia'
+          ? 'Light theme · switch to dark'
+          : 'Dark theme · switch to automatic';
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -109,7 +159,11 @@ export function App({ editor }: { editor: Editor }) {
       if (palette || dialog || !editor.prefs.onboardingDone) return;
       if (combo === 'Ctrl+K' || combo === 'Ctrl+Shift+P') {
         e.preventDefault();
-        setPalette(true);
+        openPalette();
+        return;
+      }
+      if (e.key === 'Escape' && floatingPanel) {
+        closeFloatingPanel();
         return;
       }
       if (inField && !target.classList.contains('cmdline__input')) return;
@@ -148,7 +202,7 @@ export function App({ editor }: { editor: Editor }) {
       window.removeEventListener('keydown', onKey);
       window.removeEventListener('keyup', onUp);
     };
-  }, [editor, palette, dialog, runCommand, openUi]);
+  }, [editor, palette, dialog, runCommand, openUi, floatingPanel, closeFloatingPanel, openPalette]);
 
   const toggleFullscreen = () => {
     setClean((c) => !c);
@@ -184,15 +238,6 @@ export function App({ editor }: { editor: Editor }) {
             <small>2D CAD · FS-M01</small>
           </div>
         </button>
-        <button
-          type="button"
-          className="icon-btn"
-          onClick={() => setSurface('welcome')}
-          title={lang === 'es' ? 'Inicio (HOME)' : 'Home (HOME)'}
-          aria-label={lang === 'es' ? 'Inicio' : 'Home'}
-        >
-          <Home size={17} />
-        </button>
         <div className="doc-tabs">
           <span className="doc-tab is-active" title={editor.doc.settings.title}>
             {editor.doc.dirty && <span className="doc-tab__dirty" aria-label={lang === 'es' ? 'Cambios sin guardar' : 'Unsaved changes'} />}
@@ -200,40 +245,43 @@ export function App({ editor }: { editor: Editor }) {
           </span>
         </div>
         <span className="topbar__spacer" />
-        <button className="search-trigger" onClick={() => setPalette(true)} aria-label={lang === 'es' ? 'Buscar comandos' : 'Search commands'}>
+        <button className="search-trigger" onClick={openPalette} aria-label={lang === 'es' ? 'Buscar comandos' : 'Search commands'}>
           <Search size={15} />
           <span>{lang === 'es' ? 'Buscar comando o acción' : 'Search command or action'}</span>
           <kbd>Ctrl K</kbd>
         </button>
-        <button className="icon-btn" onClick={() => runCommand('U')} disabled={!editor.doc.history.canUndo()} title={lang === 'es' ? 'Deshacer (Ctrl+Z)' : 'Undo (Ctrl+Z)'}>
-          <Undo2 size={17} />
-        </button>
-        <button className="icon-btn" onClick={() => runCommand('REDO')} disabled={!editor.doc.history.canRedo()} title={lang === 'es' ? 'Rehacer (Ctrl+Y)' : 'Redo (Ctrl+Y)'}>
-          <Redo2 size={17} />
-        </button>
-        <button className="icon-btn" onClick={() => editor.setPrefs({ theme: dark ? 'dia' : 'noche' })} title={lang === 'es' ? 'Día / noche' : 'Day / night'}>
-          {dark ? <Sun size={17} /> : <Moon size={17} />}
-        </button>
-        <button className="icon-btn topbar__lang" onClick={() => editor.setPrefs({ lang: lang === 'es' ? 'en' : 'es' })} title={lang === 'es' ? 'Cambiar a inglés' : 'Switch to Spanish'} style={{ font: '600 11px var(--fs-font-data)' }}>
-          {lang.toUpperCase()}
-        </button>
-        <button className="icon-btn" onClick={() => openUi('file-menu')} title={lang === 'es' ? 'Archivo' : 'File'}>
-          <CadIcon name="properties" size={18} />
-        </button>
+        <nav className="topbar__actions" aria-label={lang === 'es' ? 'Acciones del dibujo' : 'Drawing actions'}>
+          <button className="icon-btn" onClick={() => runCommand('U')} disabled={!editor.doc.history.canUndo()} title={lang === 'es' ? 'Deshacer (Ctrl+Z)' : 'Undo (Ctrl+Z)'} aria-label={lang === 'es' ? 'Deshacer' : 'Undo'}>
+            <Undo2 size={17} />
+          </button>
+          <button className="icon-btn" onClick={() => runCommand('REDO')} disabled={!editor.doc.history.canRedo()} title={lang === 'es' ? 'Rehacer (Ctrl+Y)' : 'Redo (Ctrl+Y)'} aria-label={lang === 'es' ? 'Rehacer' : 'Redo'}>
+            <Redo2 size={17} />
+          </button>
+          <button className="icon-btn" onClick={cycleTheme} title={themeTitle} aria-label={themeTitle}>
+            {editor.prefs.theme === 'system' ? <Monitor size={17} /> : dark ? <Sun size={17} /> : <Moon size={17} />}
+          </button>
+          <button className="icon-btn topbar__lang" onClick={() => editor.setPrefs({ lang: lang === 'es' ? 'en' : 'es' })} title={lang === 'es' ? 'Cambiar a inglés' : 'Switch to Spanish'} aria-label={lang === 'es' ? 'Cambiar a inglés' : 'Switch to Spanish'}>
+            {lang.toUpperCase()}
+          </button>
+          <button className="icon-btn" onClick={() => openUi('file-menu')} title={lang === 'es' ? 'Archivo' : 'File'} aria-label={lang === 'es' ? 'Archivo' : 'File'}>
+            <CadIcon name="properties" size={18} />
+          </button>
+        </nav>
       </header>
-      <Ribbon editor={editor} onUi={(ui, cmd) => openUi(ui, cmd)} />
       <main className="workspace">
         <Docks editor={editor} side="left" mobileSheet={mobileSheet} onCloseSheet={() => setMobileSheet(null)} onUi={openUi} />
         <section className="stage">
-          <div className={`stage__canvas${isMobile && !cmdOpen && !editor.runner.busy ? ' stage__canvas--nocmd' : ''}`}>
+          <div className={`stage__canvas${isMobile && !cmdOpen && !editor.runner.busy ? ' stage__canvas--nocmd' : ''}${deckOpen && !editor.runner.pending ? ' stage__canvas--deck-open' : ''}`}>
             <CanvasView editor={editor} theme={theme} />
             <DynamicInput ref={dynRef} editor={editor} />
             <CommandLine ref={cmdRef} editor={editor} onDismiss={isMobile ? () => setCmdOpen(false) : undefined} />
             <CyclingList editor={editor} />
             <QuickProperties editor={editor} onMore={() => openUi('panel:properties')} />
+            {!isMobile && <PrecisionDeck editor={editor} open={deckOpen} onOpenChange={changeDeckOpen} onUi={openUi} onRun={runCommand} onOpenPalette={openPalette} activePanel={floatingPanel} />}
             {isMobile && <TouchHud editor={editor} />}
           </div>
           <SpaceTabs editor={editor} onUi={openUi} />
+          {!isMobile && <FloatingPanel editor={editor} panelId={floatingPanel} onClose={closeFloatingPanel} onUi={openUi} />}
         </section>
         <Docks editor={editor} side="right" mobileSheet={mobileSheet} onCloseSheet={() => setMobileSheet(null)} onUi={openUi} />
       </main>

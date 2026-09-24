@@ -806,12 +806,22 @@ export const DONUT: CommandDef = {
     if (outer.kind !== 'value') return;
     if (outer.value <= inner.value) fail('El diámetro exterior debe ser mayor que el interior.', 'Outside diameter must exceed inside diameter.');
     const w = (outer.value - inner.value) / 2;
-    const rMid = (outer.value + inner.value) / 4;
-    const donut = (c: Vec2) => make<LwPolylineEntity>(api, { type: 'lwpolyline', vertices: [{ x: c.x - rMid, y: c.y, bulge: 1 }, { x: c.x + rMid, y: c.y, bulge: 1 }], closed: true, constantWidth: w });
+    const rMid = outer.value / 4 + inner.value / 4;
+    const donut = (c: Vec2) => {
+      const left = c.x - rMid;
+      const right = c.x + rMid;
+      if (!Number.isFinite(left) || !Number.isFinite(right) || !Number.isFinite(c.y)) return null;
+      return make<LwPolylineEntity>(api, { type: 'lwpolyline', vertices: [{ x: left, y: c.y, bulge: 1 }, { x: right, y: c.y, bulge: 1 }], closed: true, constantWidth: w });
+    };
     for (;;) {
-      const c = await api.getPoint({ prompt: L('Precise el centro', 'Specify center'), allowNone: true, preview: (p) => ({ entities: [donut(p)] }) });
+      const c = await api.getPoint({ prompt: L('Precise el centro', 'Specify center'), allowNone: true, preview: (p) => {
+        const entity = donut(p);
+        return entity ? { entities: [entity] } : null;
+      } });
       if (c.kind !== 'point') return;
-      addEntity<LwPolylineEntity>(api, 'DONUT', { ...donut(c.p), id: undefined, order: undefined } as never);
+      const entity = donut(c.p);
+      if (!entity) fail('La arandela excede el rango de coordenadas válido.', 'The donut exceeds the valid coordinate range.');
+      addEntity<LwPolylineEntity>(api, 'DONUT', { ...entity, id: undefined, order: undefined } as never);
     }
   },
 };

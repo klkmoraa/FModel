@@ -101,11 +101,18 @@
   --fs-ease-firm: cubic-bezier(0.65, 0, 0.35, 1);
 
   /* densidad CAD */
-  --fm-topbar-h: 46px;
+  --fm-topbar-h: 42px;
   --fm-ribbon-h: 92px;
-  --fm-status-h: 32px;
-  --fm-control-h: 30px;
-  --fm-gap: 8px;
+  --fm-status-h: 28px;
+  --fm-control-h: 32px;
+  --fm-control-compact-h: 28px;
+  --fm-panel-width: 344px;
+  --fm-panel-inset: 14px;
+  --fm-space-1: 4px;
+  --fm-space-2: 8px;
+  --fm-space-3: 12px;
+  --fm-space-4: 16px;
+  --fm-gap: var(--fm-space-2);
 
   color-scheme: light;
 }

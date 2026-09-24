@@ -42,6 +42,7 @@ export function offsetEntity(e: Entity, distance: number, side: Vec2, ctx: EvalC
   if (e.type === 'lwpolyline' || e.type === 'polyline2d') {
     const verts = e.vertices;
     const segs = polylineSegments(verts, e.closed);
+    if (!segs.length) return [];
     const i = nearestCurveIndex(segs, side);
     const s = sideOfCurve(segs[i], side);
     const res = offsetPolyline(verts, e.closed, s * distance);

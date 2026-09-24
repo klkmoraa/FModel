@@ -9,6 +9,7 @@ import type {
   Id,
   InsertEntity,
   LineEntity,
+  MLeaderEntity,
   PolarStretchAction,
   VisibilityParam,
 } from '../document/types';
@@ -541,6 +542,72 @@ describe('remapDynamicInstanceState y remapDynamicState', () => {
 });
 
 describe('Integración con importBlockPackage', () => {
+  it('incluye y remapea bloques usados como contenido de MLEADER', () => {
+    const source = createDocument();
+    const rootId = 'blk_container';
+    const contentId = 'blk_marker';
+
+    source.transact('seed', (tx) => {
+      tx.add('blocks', {
+        id: rootId,
+        name: 'Contenedor',
+        kind: 'normal',
+        basePoint: { x: 0, y: 0 },
+        description: '',
+        units: 'mm',
+        explodable: true,
+        scaleUniformly: false,
+        annotative: false,
+        revision: 1,
+      });
+      tx.add('blocks', {
+        id: contentId,
+        name: 'Marca',
+        kind: 'normal',
+        basePoint: { x: 0, y: 0 },
+        description: '',
+        units: 'mm',
+        explodable: true,
+        scaleUniformly: false,
+        annotative: false,
+        revision: 1,
+      });
+      tx.addEntity<LineEntity>({
+        ...entityDefaults(source, contentId),
+        id: 'e_marker',
+        type: 'line',
+        start: { x: 0, y: 0 },
+        end: { x: 10, y: 0 },
+      });
+      tx.addEntity<MLeaderEntity>({
+        ...entityDefaults(source, rootId),
+        id: 'e_mleader',
+        type: 'mleader',
+        style: source.settings.currentMLeaderStyle,
+        leaders: [{ vertices: [{ x: 0, y: 0 }, { x: 5, y: 5 }] }],
+        landing: { x: 5, y: 5 },
+        doglegLength: 2,
+        direction: 1,
+        content: { type: 'block', blockId: contentId, scale: 1, rotation: 0, attributes: {} },
+      });
+    });
+
+    const pkg = packageBlock(source, rootId);
+    expect(pkg.blocks.map((block) => block.id)).toContain(contentId);
+
+    const target = createDocument();
+    const importedName = importBlockPackage(target, pkg);
+    const importedRoot = target.findByName('blocks', importedName)!;
+    const importedContent = target.findByName('blocks', 'Marca')!;
+    const importedMLeader = target.entitiesOf(importedRoot.id).find((entity) => entity.type === 'mleader');
+    expect(importedMLeader?.type).toBe('mleader');
+    if (importedMLeader?.type === 'mleader' && importedMLeader.content.type === 'block') {
+      expect(importedMLeader.content.blockId).toBe(importedContent.id);
+    } else {
+      throw new Error('La directriz con contenido de bloque no se importó.');
+    }
+  });
+
   it('conserva dinámicos y remapea entidades correctamente al instalar paquete de biblioteca', () => {
     const doc = createDocument();
     let rootBlockId = '';

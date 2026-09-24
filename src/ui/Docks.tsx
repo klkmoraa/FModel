@@ -1,4 +1,4 @@
-import { PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, X } from 'lucide-react';
+import { PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Pin, PinOff, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { Editor } from '../editor/editor';
 import { useEditorEvents, useMediaQuery } from './hooks';
@@ -9,6 +9,7 @@ import { BlocksPanel } from './panels/BlocksPanel';
 import { ToolPalettesPanel } from './panels/ToolPalettesPanel';
 import { BlockAuthoringPanel } from './panels/BlockAuthoringPanel';
 import { tr } from './controls';
+import { isWorkspacePanelId, normalizeDockWidth, setPanelFloating, type WorkspacePanelId } from '../editor/workspaceChrome';
 
 export const PANELS: Record<string, { icon: string; label: { es: string; en: string }; render: (editor: Editor, onUi: (ui: string, cmd?: string) => void) => React.ReactNode }> = {
   properties: { icon: 'properties', label: { es: 'Propiedades', en: 'Properties' }, render: (e) => <PropertiesPanel editor={e} /> },
@@ -19,9 +20,9 @@ export const PANELS: Record<string, { icon: string; label: { es: string; en: str
 };
 
 /** Paneles de un lado; «Autoría» solo existe durante una sesión del Editor de bloques. */
-function dockPanels(editor: Editor, side: 'left' | 'right'): string[] {
+function dockPanels(editor: Editor, side: 'left' | 'right', includeFloating = false): WorkspacePanelId[] {
   const { left, right } = editor.prefs.panels;
-  const list = (side === 'left' ? left : right).filter((p) => PANELS[p] && (p !== 'authoring' || editor.blockEdit));
+  const list = (side === 'left' ? left : right).filter((panel) => (includeFloating || !editor.prefs.panels.floating.includes(panel)) && (panel !== 'authoring' || editor.blockEdit));
   if (editor.blockEdit && side === 'right' && ![...left, ...right].includes('authoring')) return ['authoring', ...list];
   return list;
 }
@@ -30,20 +31,21 @@ export function Docks({ editor, side, mobileSheet, onCloseSheet, onUi }: { edito
   useEditorEvents(editor, ['prefs', 'space']);
   const lang = editor.lang;
   const isMobile = useMediaQuery('(max-width: 820px)');
-  const panels = dockPanels(editor, side);
+  const panels = dockPanels(editor, side, isMobile);
   const editing = !!editor.blockEdit;
-  const [active, setActive] = useState(panels[0] ?? '');
+  const [active, setActive] = useState<string>(panels[0] ?? '');
+  const defaultWidth = side === 'right' ? 340 : 260;
   const [width, setWidth] = useState(() => {
     try {
-      return Number(localStorage.getItem(`fmodel.dock.${side}`)) || (side === 'right' ? 340 : 260);
+      return normalizeDockWidth(localStorage.getItem(`fmodel.dock.${side}`), defaultWidth);
     } catch {
-      return side === 'right' ? 340 : 260;
+      return defaultWidth;
     }
   });
   const collapsed = editor.prefs.panels.collapsed.includes(side);
-  const drag = useRef<{ x: number; w: number } | null>(null);
+  const drag = useRef<{ x: number; w: number; current: number } | null>(null);
   const setDockWidth = (next: number) => {
-    const value = Math.max(200, Math.min(720, Math.round(next)));
+    const value = normalizeDockWidth(next, defaultWidth);
     setWidth(value);
     try {
       localStorage.setItem(`fmodel.dock.${side}`, String(value));
@@ -55,7 +57,7 @@ export function Docks({ editor, side, mobileSheet, onCloseSheet, onUi }: { edito
   useEffect(() => {
     const onPanel = (e: Event) => {
       const id = (e as CustomEvent<string>).detail;
-      if (panels.includes(id)) {
+      if (isWorkspacePanelId(id) && panels.includes(id)) {
         setActive(id);
         if (collapsed) editor.setPrefs({ panels: { ...editor.prefs.panels, collapsed: editor.prefs.panels.collapsed.filter((c) => c !== side) } });
       }
@@ -66,25 +68,30 @@ export function Docks({ editor, side, mobileSheet, onCloseSheet, onUi }: { edito
 
   // al abrir el Editor de bloques se muestra la autoría en el lado donde viva
   useEffect(() => {
-    if (!editing || !dockPanels(editor, side).includes('authoring')) return;
+    if (!editing || !dockPanels(editor, side, isMobile).includes('authoring')) return;
     setActive('authoring');
     if (editor.prefs.panels.collapsed.includes(side)) editor.setPrefs({ panels: { ...editor.prefs.panels, collapsed: editor.prefs.panels.collapsed.filter((c) => c !== side) } });
-  }, [editing, editor, side]);
+  }, [editing, editor, isMobile, side]);
 
-  const sheetPanel = isMobile && mobileSheet && panels.includes(mobileSheet) ? mobileSheet : null;
+  const sheetPanel = isMobile && mobileSheet && isWorkspacePanelId(mobileSheet) && panels.includes(mobileSheet) ? mobileSheet : null;
   if (isMobile && !sheetPanel) return null;
   if (!panels.length) return null;
-  const shown = sheetPanel ?? (panels.includes(active) ? active : panels[0]);
+  const shown: WorkspacePanelId = sheetPanel ?? (isWorkspacePanelId(active) && panels.includes(active) ? active : panels[0]);
 
   const toggleCollapse = () => {
     const c = editor.prefs.panels.collapsed;
     editor.setPrefs({ panels: { ...editor.prefs.panels, collapsed: collapsed ? c.filter((x) => x !== side) : [...c, side] } });
   };
 
-  const moveTo = (id: string) => {
+  const moveTo = (id: WorkspacePanelId) => {
     const other = side === 'left' ? 'right' : 'left';
     const p = editor.prefs.panels;
     editor.setPrefs({ panels: { ...p, [side]: p[side].filter((x) => x !== id), [other]: [...p[other], id] } });
+  };
+
+  const floatPanel = (id: WorkspacePanelId) => {
+    editor.setPrefs({ panels: setPanelFloating(editor.prefs.panels, id, true) });
+    onUi(`panel:${id}`);
   };
 
   return (
@@ -94,17 +101,19 @@ export function Docks({ editor, side, mobileSheet, onCloseSheet, onUi }: { edito
           className="dock__resize"
           onPointerDown={(e) => {
             (e.target as HTMLElement).setPointerCapture(e.pointerId);
-            drag.current = { x: e.clientX, w: width };
+            drag.current = { x: e.clientX, w: width, current: width };
           }}
           onPointerMove={(e) => {
             if (!drag.current) return;
             const dx = e.clientX - drag.current.x;
             const w = Math.max(200, Math.min(720, drag.current.w + (side === 'left' ? dx : -dx)));
+            drag.current.current = w;
             setWidth(w);
           }}
           onPointerUp={() => {
+            const value = drag.current?.current ?? width;
             drag.current = null;
-            setDockWidth(width);
+            setDockWidth(value);
           }}
           onKeyDown={(e) => {
             const step = e.shiftKey ? 40 : 10;
@@ -152,14 +161,51 @@ export function Docks({ editor, side, mobileSheet, onCloseSheet, onUi }: { edito
             <X size={16} />
           </button>
         ) : (
-          <button className="icon-btn" onClick={toggleCollapse} aria-label={tr(lang, collapsed ? 'Expandir panel' : 'Contraer panel', collapsed ? 'Expand dock' : 'Collapse dock')}>
-            {side === 'left' ? collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} /> : collapsed ? <PanelRightOpen size={16} /> : <PanelRightClose size={16} />}
-          </button>
+          <>
+            <button className="icon-btn" onClick={() => floatPanel(shown)} title={tr(lang, 'Convertir en panel flotante', 'Make panel floating')} aria-label={tr(lang, `Hacer flotante ${PANELS[shown].label.es}`, `Float ${PANELS[shown].label.en}`)}>
+              <PinOff size={15} />
+            </button>
+            <button className="icon-btn" onClick={toggleCollapse} aria-label={tr(lang, collapsed ? 'Expandir panel' : 'Contraer panel', collapsed ? 'Expand dock' : 'Collapse dock')}>
+              {side === 'left' ? collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} /> : collapsed ? <PanelRightOpen size={16} /> : <PanelRightClose size={16} />}
+            </button>
+          </>
         )}
       </div>
       <div className="dock__body" role="tabpanel">
         {PANELS[shown]?.render(editor, onUi)}
       </div>
+    </aside>
+  );
+}
+
+export function FloatingPanel({ editor, panelId, onClose, onUi }: { editor: Editor; panelId: string | null; onClose: () => void; onUi: (ui: string, cmd?: string) => void }) {
+  useEditorEvents(editor, ['prefs', 'space']);
+  if (!panelId || !isWorkspacePanelId(panelId) || !editor.prefs.panels.floating.includes(panelId)) return null;
+  if (panelId === 'authoring' && !editor.blockEdit) return null;
+  const panel = PANELS[panelId];
+  const lang = editor.lang;
+  const pin = () => {
+    const current = editor.prefs.panels;
+    const right = current.right.includes(panelId) ? current.right : [...current.right, panelId];
+    editor.setPrefs({ panels: { ...setPanelFloating(current, panelId, false), right } });
+    onClose();
+    requestAnimationFrame(() => window.dispatchEvent(new CustomEvent('fmodel:panel', { detail: panelId })));
+  };
+
+  return (
+    <aside className="floating-panel" aria-label={panel.label[lang]}>
+      <div className="floating-panel__head">
+        <CadIcon name={panel.icon} size={16} />
+        <strong>{panel.label[lang]}</strong>
+        <span />
+        <button type="button" className="icon-btn" onClick={pin} title={tr(lang, 'Fijar a la derecha', 'Pin to the right')} aria-label={tr(lang, `Fijar ${panel.label.es}`, `Pin ${panel.label.en}`)}>
+          <Pin size={15} />
+        </button>
+        <button type="button" className="icon-btn" onClick={onClose} aria-label={tr(lang, 'Cerrar panel', 'Close panel')}>
+          <X size={16} />
+        </button>
+      </div>
+      <div className="floating-panel__body">{panel.render(editor, onUi)}</div>
     </aside>
   );
 }

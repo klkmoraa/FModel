@@ -46,6 +46,10 @@
 
 **Evidencia:** existen índice espacial y render por lotes, pero no hay benchmarks ni presupuestos versionados. La complejidad puede crecer en selección, snap, render, auditoría, bloques dinámicos y undo con documentos grandes.
 
+**Avance 2026-09-23:** `DIVIDE`, `MEASURE` y la conversión de objeto de `REVCLOUD` reutilizan perfiles de longitud de spline/elipse y localizan cada marca mediante búsqueda binaria. `src/geometry/geometry.test.ts` pasó 53/53, `src/commands/behavior/draw.test.ts` pasó 23/23 y `pnpm typecheck` pasó. Aún faltan benchmarks y presupuestos versionados.
+
+**Avance 2026-09-23:** `ARRAYPATH` limita a 100.000 las muestras de curva durante el teselado adaptativo; al exceder el tope falla antes de mover las entidades fuente. `arrayTransforms` precalcula las longitudes de los segmentos y recorre la ruta con un cursor. `src/model/kinds/insert.bounds.test.ts` pasó 6/6 y `pnpm typecheck` pasó. Los benchmarks y presupuestos siguen pendientes.
+
 **Archivos previstos:**
 
 - Crear: `src/perf/fixtures.ts`, `src/perf/core.bench.ts`
@@ -62,6 +66,30 @@
 - [ ] Los resultados distinguen tiempo de cálculo, serialización de worker y render.
 
 **Verificación:** `pnpm perf` y `pnpm verify`
+
+---
+
+## GEO-003 — Seleccionar líneas infinitas con cualquier magnitud de dirección
+
+- [>] **Estado:** En curso
+- **Responsable:** Codex · **Inicio:** 2026-09-23
+- **Prioridad:** P2 — selección por captura incorrecta
+- **Depende de:** GEO-001
+- **Bloquea:** —
+
+**Evidencia:** `selectInBox` aproximaba rayos y líneas infinitas con un segmento de longitud `1e9 * dirección`. El formato permite cualquier vector finito no nulo, por lo que una `XLINE` con dirección `(1e-12, 0)` se representaba con solo 0,001 unidades y no se seleccionaba al cruzar una ventana en `x=100`. La regresión falló antes del cambio y pasó después.
+
+**Implementación:**
+
+- [x] Resolver el cruce con una caja mediante intervalos sobre la dirección normalizada, respetando el sentido de los rayos.
+- [x] Añadir regresión de selección de ventana para una `XLINE` con vector pequeño.
+
+**Criterios de aceptación:**
+
+- [x] Una línea infinita seleccionable cruza cajas lejanas sin depender de la magnitud almacenada en su vector de dirección.
+- [ ] Puerta general de cierre del backlog: `pnpm verify`.
+
+**Evidencia focalizada:** la prueba falló antes del cambio (`[]` no incluía la XLINE) y `src/selection/selection.test.ts` pasó 12/12 después; `pnpm typecheck` pasó.
 
 ---
 

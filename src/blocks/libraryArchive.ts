@@ -1,11 +1,15 @@
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
 import type {
+  AssetRecord,
   BlockRecord,
+  DimStyleRecord,
   Entity,
   Id,
   LayerRecord,
   LinetypeRecord,
-  PolarStretchAction,
+  MLeaderStyleRecord,
+  MLineStyleRecord,
+  TableStyleRecord,
   TextStyleRecord,
 } from '../document/types';
 import {
@@ -19,9 +23,9 @@ import {
   TABLESTYLE_STANDARD_ID,
   TEXTSTYLE_STANDARD_ID,
 } from '../document/defaults';
-import { assertInputBytes, assertZipLimits, INPUT_LIMITS } from '../io/limits';
-import { NativeFormatError } from '../io/native';
-import { assertFiniteValues, assertPointLimits, ENTITY_TYPES } from '../io/validation';
+import { assertInputBytes, assertZipLimits, assertZipOutputEntries, INPUT_LIMITS } from '../io/limits';
+import { assertAssetRecord, AssetValidationError } from '../io/assets';
+import { assertDocumentRecord, assertDynamicBlockDefinition, assertEntityRecord, assertFiniteValues, assertPointLimits, ENTITY_TYPES, InputValidationError } from '../io/validation';
 import type { BlockPackage, LibraryBlock } from './library';
 import type { LibraryCategory } from './libraryCategories';
 
@@ -160,130 +164,57 @@ export function validateLibraryCategories(categories: unknown): asserts categori
 }
 
 /** Valida referencias internas de definiciones de bloques dinámicos. */
-function validateDynamicBlockDefinition(blockId: string, dyn: unknown, entityIds: Set<string>): void {
-  if (!dyn || typeof dyn !== 'object') {
-    throw new LibraryFormatError(`Definición dinámica no válida en el bloque «${blockId}». / Invalid dynamic definition in block "${blockId}".`);
+function validateDynamicBlockDefinition(dyn: unknown, entityIds: Set<string>): void {
+  try {
+    assertDynamicBlockDefinition(dyn, entityIds);
+  } catch (error) {
+    if (error instanceof InputValidationError) throw new LibraryFormatError(error.message);
+    throw error;
   }
-  const d = dyn as Record<string, unknown>;
+}
 
-  const paramIds = new Set<string>();
-  if (d.parameters !== undefined) {
-    if (!Array.isArray(d.parameters)) {
-      throw new LibraryFormatError(`Parámetros dinámicos no válidos en el bloque «${blockId}». / Invalid dynamic parameters in block "${blockId}".`);
-    }
-    for (const p of d.parameters) {
-      if (!p || typeof p !== 'object' || typeof (p as Record<string, unknown>).id !== 'string') {
-        throw new LibraryFormatError(`Parámetro dinámico no válido en el bloque «${blockId}». / Invalid dynamic parameter in block "${blockId}".`);
-      }
-      const pid = (p as Record<string, unknown>).id as string;
-      if (paramIds.has(pid)) {
-        throw new LibraryFormatError(`Parámetro dinámico duplicado «${pid}» en el bloque «${blockId}». / Duplicate dynamic parameter "${pid}" in block "${blockId}".`);
-      }
-      paramIds.add(pid);
-    }
+function validateStyleCollection(
+  collection: 'dimStyles' | 'mleaderStyles' | 'tableStyles' | 'mlineStyles',
+  value: unknown,
+): Set<Id> {
+  if (value === undefined) return new Set();
+  if (!Array.isArray(value)) {
+    throw new LibraryFormatError(`La colección «${collection}» del paquete de bloque no es válida. / Collection "${collection}" in block package is invalid.`);
   }
+  if (value.length > INPUT_LIMITS.maxEntities) {
+    throw new LibraryFormatError(`El paquete contiene demasiados registros en «${collection}». / Package contains too many records in "${collection}".`);
+  }
+  const ids = new Set<Id>();
+  const names = new Set<string>();
+  for (const record of value) {
+    if (!record || typeof record !== 'object' || Array.isArray(record)) {
+      throw new LibraryFormatError(`Registro no válido en «${collection}». / Invalid record in "${collection}".`);
+    }
+    const item = record as Record<string, unknown>;
+    if (typeof item.id !== 'string' || !item.id.trim() || typeof item.name !== 'string' || !item.name.trim()) {
+      throw new LibraryFormatError(`Registro sin identidad válida en «${collection}». / Record without a valid identity in "${collection}".`);
+    }
+    try {
+      assertDocumentRecord(collection, item);
+    } catch (error) {
+      if (error instanceof InputValidationError) throw new LibraryFormatError(error.message);
+      throw error;
+    }
+    if (ids.has(item.id)) {
+      throw new LibraryFormatError(`Identificador duplicado «${item.id}» en «${collection}». / Duplicate ID "${item.id}" in "${collection}".`);
+    }
+    if (names.has(item.name.toLowerCase())) {
+      throw new LibraryFormatError(`Nombre duplicado «${item.name}» en «${collection}». / Duplicate name "${item.name}" in "${collection}".`);
+    }
+    ids.add(item.id);
+    names.add(item.name.toLowerCase());
+  }
+  return ids;
+}
 
-  const lookupIds = new Set<string>();
-  if (d.lookups !== undefined) {
-    if (!Array.isArray(d.lookups)) {
-      throw new LibraryFormatError(`Tablas de consulta dinámicas no válidas en el bloque «${blockId}». / Invalid dynamic lookups in block "${blockId}".`);
-    }
-    for (const l of d.lookups) {
-      if (!l || typeof l !== 'object' || typeof (l as Record<string, unknown>).id !== 'string') {
-        throw new LibraryFormatError(`Tabla de consulta no válida en el bloque «${blockId}». / Invalid lookup table in block "${blockId}".`);
-      }
-      lookupIds.add((l as Record<string, unknown>).id as string);
-    }
-  }
-
-  // Comprobar parámetros
-  if (Array.isArray(d.parameters)) {
-    for (const p of d.parameters as Record<string, unknown>[]) {
-      if (p.type === 'visibility' && Array.isArray(p.states)) {
-        for (const st of p.states as Record<string, unknown>[]) {
-          if (Array.isArray(st.visible)) {
-            for (const entId of st.visible) {
-              if (typeof entId !== 'string' || !entityIds.has(entId)) {
-                throw new LibraryFormatError(`El bloque dinámico «${blockId}» contiene una referencia inexistente: «${String(entId)}». / Dynamic block "${blockId}" contains a missing reference: "${String(entId)}".`);
-              }
-            }
-          }
-        }
-      }
-      if (p.type === 'lookup' && typeof p.tableId === 'string' && !lookupIds.has(p.tableId)) {
-        throw new LibraryFormatError(`El bloque dinámico «${blockId}» contiene una referencia inexistente: «${p.tableId}». / Dynamic block "${blockId}" contains a missing reference: "${p.tableId}".`);
-      }
-    }
-  }
-
-  // Comprobar acciones
-  if (d.actions !== undefined) {
-    if (!Array.isArray(d.actions)) {
-      throw new LibraryFormatError(`Acciones dinámicas no válidas en el bloque «${blockId}». / Invalid dynamic actions in block "${blockId}".`);
-    }
-    for (const a of d.actions) {
-      if (!a || typeof a !== 'object') {
-        throw new LibraryFormatError(`Acción dinámica no válida en el bloque «${blockId}». / Invalid dynamic action in block "${blockId}".`);
-      }
-      const act = a as Record<string, unknown>;
-      if (typeof act.paramId === 'string' && !paramIds.has(act.paramId)) {
-        throw new LibraryFormatError(`El bloque dinámico «${blockId}» contiene una referencia inexistente: «${act.paramId}». / Dynamic block "${blockId}" contains a missing reference: "${act.paramId}".`);
-      }
-      if (Array.isArray(act.selection)) {
-        for (const refId of act.selection) {
-          if (typeof refId !== 'string' || (!entityIds.has(refId) && !paramIds.has(refId))) {
-            throw new LibraryFormatError(`El bloque dinámico «${blockId}» contiene una referencia inexistente: «${String(refId)}». / Dynamic block "${blockId}" contains a missing reference: "${String(refId)}".`);
-          }
-        }
-      }
-      if (act.type === 'polarstretch') {
-        const polar = act as unknown as PolarStretchAction;
-        if (Array.isArray(polar.rotateOnly)) {
-          for (const refId of polar.rotateOnly) {
-            if (typeof refId !== 'string' || !entityIds.has(refId)) {
-              throw new LibraryFormatError(`El bloque dinámico «${blockId}» contiene una referencia inexistente: «${String(refId)}». / Dynamic block "${blockId}" contains a missing reference: "${String(refId)}".`);
-            }
-          }
-        }
-      }
-      if (act.type === 'lookup' && typeof act.tableId === 'string' && !lookupIds.has(act.tableId)) {
-        throw new LibraryFormatError(`El bloque dinámico «${blockId}» contiene una referencia inexistente: «${act.tableId}». / Dynamic block "${blockId}" contains a missing reference: "${act.tableId}".`);
-      }
-    }
-  }
-
-  // Comprobar restricciones
-  if (d.constraints !== undefined) {
-    if (!Array.isArray(d.constraints)) {
-      throw new LibraryFormatError(`Restricciones dinámicas no válidas en el bloque «${blockId}». / Invalid dynamic constraints in block "${blockId}".`);
-    }
-    for (const c of d.constraints) {
-      if (!c || typeof c !== 'object') {
-        throw new LibraryFormatError(`Restricción dinámica no válida en el bloque «${blockId}». / Invalid dynamic constraint in block "${blockId}".`);
-      }
-      const con = c as Record<string, unknown>;
-      if (Array.isArray(con.refs)) {
-        for (const r of con.refs as Record<string, unknown>[]) {
-          if (typeof r.entityId === 'string' && r.entityId && !entityIds.has(r.entityId)) {
-            throw new LibraryFormatError(`El bloque dinámico «${blockId}» contiene una referencia inexistente: «${r.entityId}». / Dynamic block "${blockId}" contains a missing reference: "${r.entityId}".`);
-          }
-        }
-      }
-    }
-  }
-
-  // Comprobar lookups
-  if (Array.isArray(d.lookups)) {
-    for (const l of d.lookups as Record<string, unknown>[]) {
-      if (Array.isArray(l.inputs)) {
-        for (const inputId of l.inputs) {
-          if (typeof inputId !== 'string' || !paramIds.has(inputId)) {
-            throw new LibraryFormatError(`El bloque dinámico «${blockId}» contiene una referencia inexistente: «${String(inputId)}». / Dynamic block "${blockId}" contains a missing reference: "${String(inputId)}".`);
-          }
-        }
-      }
-    }
-  }
+function requireStyleReference(id: string, ids: Set<Id>, legacyIds: Set<string>, entityId: string): void {
+  if (id === 'Standard' || ids.has(id) || legacyIds.has(id)) return;
+  throw new LibraryFormatError(`La entidad «${entityId}» apunta a un estilo no incluido: «${id}». / Entity "${entityId}" references a style not included in the package: "${id}".`);
 }
 
 /** Valida profundamente la estructura, números finitos y referencias de un BlockPackage. */
@@ -306,12 +237,22 @@ export function validateBlockPackage(value: unknown): asserts value is BlockPack
       throw new LibraryFormatError(`La colección «${c}» del paquete de bloque no es válida. / Collection "${c}" in block package is invalid.`);
     }
   }
+  for (const c of ['dimStyles', 'mleaderStyles', 'tableStyles', 'mlineStyles', 'assets'] as const) {
+    if (pkg[c] !== undefined && !Array.isArray(pkg[c])) {
+      throw new LibraryFormatError(`La colección «${c}» del paquete de bloque no es válida. / Collection "${c}" in block package is invalid.`);
+    }
+  }
 
   const blocks = pkg.blocks as BlockRecord[];
   const entities = pkg.entities as Entity[];
   const layers = pkg.layers as LayerRecord[];
   const linetypes = pkg.linetypes as LinetypeRecord[];
   const textStyles = pkg.textStyles as TextStyleRecord[];
+  const dimStyles = (pkg.dimStyles as DimStyleRecord[] | undefined) ?? [];
+  const mleaderStyles = (pkg.mleaderStyles as MLeaderStyleRecord[] | undefined) ?? [];
+  const tableStyles = (pkg.tableStyles as TableStyleRecord[] | undefined) ?? [];
+  const mlineStyles = (pkg.mlineStyles as MLineStyleRecord[] | undefined) ?? [];
+  const assets = (pkg.assets as AssetRecord[] | undefined) ?? [];
 
   if (blocks.length > INPUT_LIMITS.maxBlocks) {
     throw new LibraryFormatError('El paquete contiene demasiados bloques. / Package contains too many blocks.');
@@ -319,12 +260,15 @@ export function validateBlockPackage(value: unknown): asserts value is BlockPack
   if (entities.length > INPUT_LIMITS.maxEntities) {
     throw new LibraryFormatError('El paquete contiene demasiadas entidades. / Package contains too many entities.');
   }
+  if (assets.length > INPUT_LIMITS.maxAssets) {
+    throw new LibraryFormatError('El paquete contiene demasiados recursos. / Package contains too many assets.');
+  }
 
   try {
     assertFiniteValues(pkg);
     assertPointLimits(entities);
   } catch (err) {
-    if (err instanceof NativeFormatError) {
+    if (err instanceof InputValidationError) {
       throw new LibraryFormatError(err.message);
     }
     throw err;
@@ -428,7 +372,62 @@ export function validateBlockPackage(value: unknown): asserts value is BlockPack
     textStyleNames.add(ts.name.toLowerCase());
   }
 
+  const dimStyleIds = validateStyleCollection('dimStyles', dimStyles);
+  const mleaderStyleIds = validateStyleCollection('mleaderStyles', mleaderStyles);
+  const tableStyleIds = validateStyleCollection('tableStyles', tableStyles);
+  const mlineStyleIds = validateStyleCollection('mlineStyles', mlineStyles);
+  const mleaderStylesById = new Map(mleaderStyles.map((style) => [style.id, style]));
+  const assetIds = new Set<Id>();
+  for (const asset of assets) {
+    try {
+      assertAssetRecord(asset);
+    } catch (error) {
+      if (error instanceof AssetValidationError) throw new LibraryFormatError(`${error.l10n.es} / ${error.l10n.en}`);
+      throw error;
+    }
+    if (assetIds.has(asset.id)) {
+      throw new LibraryFormatError(`Recurso duplicado «${asset.id}» en el paquete. / Duplicate asset "${asset.id}" in package.`);
+    }
+    // La biblioteca se comparte entre dibujos; una ruta local no basta para mantener el recurso.
+    if (!asset.dataUrl) {
+      throw new LibraryFormatError(`El recurso «${asset.name}» no tiene datos incrustados y no puede compartirse en la biblioteca. / Asset "${asset.name}" has no embedded data and cannot be shared in the library.`);
+    }
+    assetIds.add(asset.id);
+  }
+  const assetsById = new Map(assets.map((asset) => [asset.id, asset]));
+
+  const textStyleRefs = new Set(textStyleIds);
+  const legacyTextStyles = new Set([TEXTSTYLE_STANDARD_ID, 'Standard']);
+  const linetypeRefs = new Set(linetypeIds);
+  const legacyLinetypes = new Set(['Continuous', LT_CONTINUOUS_ID, 'ByLayer', 'ByBlock']);
+  for (const style of dimStyles) {
+    if (!textStyleRefs.has(style.textStyle) && !legacyTextStyles.has(style.textStyle)) {
+      throw new LibraryFormatError(`El estilo de cota «${style.id}» apunta a un estilo de texto no incluido. / Dimension style "${style.id}" references a text style not included in the package.`);
+    }
+  }
+  for (const style of mleaderStyles) {
+    if (!textStyleRefs.has(style.textStyle) && !legacyTextStyles.has(style.textStyle)) {
+      throw new LibraryFormatError(`El estilo de directriz «${style.id}» apunta a un estilo de texto no incluido. / Multileader style "${style.id}" references a text style not included in the package.`);
+    }
+    if (style.blockId && !blockIds.has(style.blockId)) {
+      throw new LibraryFormatError(`El estilo de directriz «${style.id}» apunta a un bloque no incluido. / Multileader style "${style.id}" references a block not included in the package.`);
+    }
+  }
+  for (const style of tableStyles) {
+    if (!textStyleRefs.has(style.textStyle) && !legacyTextStyles.has(style.textStyle)) {
+      throw new LibraryFormatError(`El estilo de tabla «${style.id}» apunta a un estilo de texto no incluido. / Table style "${style.id}" references a text style not included in the package.`);
+    }
+  }
+  for (const style of mlineStyles) {
+    for (const element of style.elements) {
+      if (!linetypeRefs.has(element.linetype) && !legacyLinetypes.has(element.linetype)) {
+        throw new LibraryFormatError(`El estilo de multilínea «${style.id}» apunta a un tipo de línea no incluido. / Mline style "${style.id}" references a linetype not included in the package.`);
+      }
+    }
+  }
+
   const entityIds = new Set<Id>();
+  const entitiesById = new Map<Id, Entity>();
   const blockChildren = new Map<Id, Set<Id>>();
   const blockEntitiesMap = new Map<Id, Set<Id>>();
   for (const id of blockIds) {
@@ -449,7 +448,14 @@ export function validateBlockPackage(value: unknown): asserts value is BlockPack
     if (entityIds.has(e.id)) {
       throw new LibraryFormatError(`Identificador de entidad duplicado «${e.id}» en el paquete. / Duplicate entity ID "${e.id}" in package.`);
     }
+    try {
+      assertEntityRecord(e);
+    } catch (error) {
+      if (error instanceof InputValidationError) throw new LibraryFormatError(error.message);
+      throw error;
+    }
     entityIds.add(e.id);
+    entitiesById.set(e.id, e);
 
     if (typeof e.owner !== 'string' || !blockIds.has(e.owner)) {
       throw new LibraryFormatError(`La entidad «${e.id}» tiene un propietario inexistente: «${e.owner}». / Entity "${e.id}" has a missing owner: "${e.owner}".`);
@@ -464,38 +470,33 @@ export function validateBlockPackage(value: unknown): asserts value is BlockPack
       throw new LibraryFormatError(`La entidad «${e.id}» apunta a un tipo de línea inexistente: «${e.linetype}». / Entity "${e.id}" references a missing linetype: "${e.linetype}".`);
     }
 
-    // Validación de estilos según tipo de entidad
+    // Paquetes v1 antiguos no tenían estas colecciones; solo pueden referir a los estilos integrados.
     if (e.type === 'dimension' || e.type === 'leader') {
-      const dimStyle = (e as { style?: unknown }).style;
-      if (
-        typeof dimStyle === 'string' &&
-        dimStyle.trim() &&
-        dimStyle !== 'Standard' &&
-        dimStyle !== DIMSTYLE_ISO_ID &&
-        dimStyle !== DIMSTYLE_STANDARD_ID &&
-        dimStyle !== 'ds-annotative'
-      ) {
-        throw new LibraryFormatError(`La entidad «${e.id}» apunta a un estilo inexistente: «${dimStyle}». / Entity "${e.id}" references a missing style: "${dimStyle}".`);
+      requireStyleReference(e.style, dimStyleIds, new Set([DIMSTYLE_ISO_ID, DIMSTYLE_STANDARD_ID, 'ds-annotative']), e.id);
+      if (e.type === 'dimension' && e.overrides.textStyle) {
+        requireStyleReference(e.overrides.textStyle, textStyleIds, legacyTextStyles, e.id);
       }
     } else if (e.type === 'mleader') {
-      const mlStyle = (e as { style?: unknown }).style;
-      if (typeof mlStyle === 'string' && mlStyle.trim() && mlStyle !== 'Standard' && mlStyle !== MLEADERSTYLE_STANDARD_ID) {
-        throw new LibraryFormatError(`La entidad «${e.id}» apunta a un estilo inexistente: «${mlStyle}». / Entity "${e.id}" references a missing style: "${mlStyle}".`);
+      requireStyleReference(e.style, mleaderStyleIds, new Set([MLEADERSTYLE_STANDARD_ID]), e.id);
+      if (e.overrides?.textStyle) requireStyleReference(e.overrides.textStyle, textStyleIds, legacyTextStyles, e.id);
+      if (e.overrides?.blockId && !blockIds.has(e.overrides.blockId)) {
+        throw new LibraryFormatError(`La directriz «${e.id}» apunta a un bloque de sobrescritura no incluido. / Multileader "${e.id}" references an override block not included in the package.`);
       }
     } else if (e.type === 'table') {
-      const tblStyle = (e as { style?: unknown }).style;
-      if (typeof tblStyle === 'string' && tblStyle.trim() && tblStyle !== 'Standard' && tblStyle !== TABLESTYLE_STANDARD_ID) {
-        throw new LibraryFormatError(`La entidad «${e.id}» apunta a un estilo inexistente: «${tblStyle}». / Entity "${e.id}" references a missing style: "${tblStyle}".`);
-      }
+      requireStyleReference(e.style, tableStyleIds, new Set([TABLESTYLE_STANDARD_ID]), e.id);
     } else if (e.type === 'mline') {
-      const mlnStyle = (e as { style?: unknown }).style;
-      if (typeof mlnStyle === 'string' && mlnStyle.trim() && mlnStyle !== 'Standard' && mlnStyle !== MLINESTYLE_STANDARD_ID) {
-        throw new LibraryFormatError(`La entidad «${e.id}» apunta a un estilo inexistente: «${mlnStyle}». / Entity "${e.id}" references a missing style: "${mlnStyle}".`);
+      requireStyleReference(e.style, mlineStyleIds, new Set([MLINESTYLE_STANDARD_ID]), e.id);
+    } else if (e.type === 'text' || e.type === 'mtext' || e.type === 'attdef') {
+      requireStyleReference(e.style, textStyleIds, legacyTextStyles, e.id);
+    }
+
+    if (e.type === 'image' || e.type === 'pdfunderlay') {
+      const asset = assetsById.get(e.assetId);
+      if (!asset) {
+        throw new LibraryFormatError(`La entidad «${e.id}» apunta a un recurso no incluido: «${e.assetId}». / Entity "${e.id}" references an asset not included in the package: "${e.assetId}".`);
       }
-    } else {
-      const textStyle = (e as { style?: unknown }).style;
-      if (typeof textStyle === 'string' && textStyle.trim() && textStyle !== 'Standard' && textStyle !== TEXTSTYLE_STANDARD_ID && !textStyleIds.has(textStyle)) {
-        throw new LibraryFormatError(`La entidad «${e.id}» apunta a un estilo inexistente: «${textStyle}». / Entity "${e.id}" references a missing style: "${textStyle}".`);
+      if ((e.type === 'image' && !asset.mime.toLowerCase().startsWith('image/')) || (e.type === 'pdfunderlay' && asset.mime.toLowerCase() !== 'application/pdf')) {
+        throw new LibraryFormatError(`La entidad «${e.id}» usa un recurso incompatible. / Entity "${e.id}" uses an incompatible asset.`);
       }
     }
 
@@ -516,12 +517,29 @@ export function validateBlockPackage(value: unknown): asserts value is BlockPack
     }
 
     if (e.type === 'mleader') {
-      const ml = e as unknown as { content?: { type?: unknown; blockId?: unknown } };
-      if (ml.content && ml.content.type === 'block') {
-        if (typeof ml.content.blockId !== 'string' || !blockIds.has(ml.content.blockId)) {
-          throw new LibraryFormatError(`La directriz «${e.id}» apunta a un bloque inexistente: «${String(ml.content.blockId)}». / Multileader "${e.id}" references a missing block: "${String(ml.content.blockId)}".`);
+      const style = mleaderStylesById.get(e.style);
+      const requiredBlocks = [e.content.type === 'block' ? e.content.blockId : undefined, e.overrides?.blockId, style?.blockId].filter(Boolean) as Id[];
+      for (const blockId of requiredBlocks) {
+        if (!blockIds.has(blockId)) {
+          throw new LibraryFormatError(`La directriz «${e.id}» apunta a un bloque inexistente: «${blockId}». / Multileader "${e.id}" references a missing block: "${blockId}".`);
         }
-        blockChildren.get(e.owner)?.add(ml.content.blockId);
+        blockChildren.get(e.owner)?.add(blockId);
+      }
+    }
+  }
+
+  // Todas las referencias asociativas deben quedar dentro de su bloque y sobrevivir al remapeo.
+  for (const e of entities) {
+    const refs = e.type === 'dimension'
+      ? (e.assoc ?? []).map((ref) => ref.entityId)
+      : e.type === 'hatch'
+        ? (e.associative ?? [])
+        : e.type === 'leader' && e.annotation
+          ? [e.annotation]
+          : [];
+    for (const ref of refs) {
+      if (entitiesById.get(ref)?.owner !== e.owner) {
+        throw new LibraryFormatError(`La entidad «${e.id}» apunta a una referencia asociativa no incluida en su bloque: «${ref}». / Entity "${e.id}" references an associative target not included in its block: "${ref}".`);
       }
     }
   }
@@ -550,7 +568,7 @@ export function validateBlockPackage(value: unknown): asserts value is BlockPack
   for (const b of blocks) {
     if (b.dynamic) {
       const ownEntities = blockEntitiesMap.get(b.id) ?? new Set();
-      validateDynamicBlockDefinition(b.id, b.dynamic, ownEntities);
+      validateDynamicBlockDefinition(b.dynamic, ownEntities);
     }
   }
 }
@@ -619,6 +637,9 @@ export function isLibraryBlock(value: unknown): value is LibraryBlock {
 
 export function writeLibraryArchive(a: LibraryArchive): Uint8Array {
   validateLibraryCategories(a.categories);
+  if (a.blocks.length + 1 > INPUT_LIMITS.maxZipEntries) {
+    throw new LibraryFormatError('La biblioteca es demasiado grande. / Library is too large.');
+  }
   const seenIds = new Set<string>();
   for (const b of a.blocks) {
     if (seenIds.has(b.id)) {
@@ -636,7 +657,10 @@ export function writeLibraryArchive(a: LibraryArchive): Uint8Array {
   };
   const files: Record<string, Uint8Array> = { 'manifest.json': strToU8(JSON.stringify(manifest, null, 1)) };
   for (const b of a.blocks) files[`blocks/${b.id}.json`] = strToU8(JSON.stringify(b));
-  return zipSync(files, { level: 6 });
+  assertZipOutputEntries(files, 'biblioteca');
+  const bytes = zipSync(files, { level: 6 });
+  assertZipLimits(bytes, 'biblioteca');
+  return bytes;
 }
 
 export function readLibraryArchive(bytes: Uint8Array): LibraryArchive {

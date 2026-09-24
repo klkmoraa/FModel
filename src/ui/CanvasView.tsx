@@ -7,8 +7,7 @@ import { drawTouchLoupe } from '../render/loupe';
 import type { RenderTheme } from '../render/theme';
 import { WheelClassifier } from './wheelInput';
 import { DND_MIME } from './dnd';
-import type { DropPayload } from './dropOnCanvas';
-import { dropOnCanvas } from './dropOnCanvas';
+import { dropOnCanvas, parseDropPayload } from './dropOnCanvas';
 import { TouchGestureController } from './touchGesture';
 import { effectiveDpr } from './dpr';
 
@@ -94,6 +93,16 @@ export function CanvasView({ editor, theme, onContextMenu }: Props) {
     return () => offs.forEach((o) => o());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editor]);
+
+  useEffect(() => {
+    const off = editor.doc.subscribe((event) => {
+      if (event.source === 'load' || event.changes.some((change) => change.coll === 'assets')) images.clear();
+    });
+    return () => {
+      off();
+      images.clear();
+    };
+  }, [editor, images]);
 
   // tamaño
   useEffect(() => {
@@ -275,12 +284,8 @@ export function CanvasView({ editor, theme, onContextMenu }: Props) {
       if (!carries(e)) return;
       e.preventDefault();
       const at = editor.dropAt(local(e));
-      let item: DropPayload;
-      try {
-        item = JSON.parse(e.dataTransfer!.getData(DND_MIME)) as DropPayload;
-      } catch {
-        return;
-      }
+      const item = parseDropPayload(e.dataTransfer!.getData(DND_MIME));
+      if (!item) return;
       void dropOnCanvas(editor, item, at);
     };
     host.addEventListener('dragover', dragover);

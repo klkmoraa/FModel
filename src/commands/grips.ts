@@ -3,8 +3,9 @@ import { reflection, rotation, scaling, translation } from '../geometry/matrix';
 import type { Vec2 } from '../geometry/vec';
 import { angleOf, dist, sub } from '../geometry/vec';
 import type { Entity } from '../document/types';
+import { assertFiniteValues } from '../io/validation';
 import { kindOf } from '../model/registry';
-import { K, L } from './helpers';
+import { fail, K, L } from './helpers';
 import type { CommandDef } from './types';
 
 type Mode = 'STRETCH' | 'MOVE' | 'ROTATE' | 'SCALE' | 'MIRROR';
@@ -40,17 +41,31 @@ export const GRIP: CommandDef = {
       if (dynamicRef && /:(menu|flip)$/.test(dynamicRef.gripId)) {
         const e = doc.entity(dynamicRef.entityId)!;
         const next = kindOf(e).moveGrip(e, dynamicRef.gripId, dynamicRef.p, editor.ctx);
-        if (next) api.apply('GRIP', (tx) => tx.put('entities', next as Entity));
+        if (next) {
+          try {
+            assertFiniteValues(next);
+          } catch {
+            fail('El pinzamiento excede el rango de coordenadas válido.', 'The grip exceeds the valid coordinate range.');
+          }
+          api.apply('GRIP', (tx) => tx.put('entities', next as Entity));
+        }
         return;
       }
-      const stretchPreview = (p: Vec2): Entity[] => {
+      const stretchPreview = (p: Vec2): Entity[] | null => {
         const out: Entity[] = [];
         const byEntity = new Map<string, Entity>();
         for (const r of refs) {
           const cur = byEntity.get(r.entityId) ?? doc.entity(r.entityId);
           if (!cur) continue;
           const moved = kindOf(cur).moveGrip(cur, r.gripId, r.gripId.startsWith('dyn:') ? p : { x: r.p.x + (p.x - base.x), y: r.p.y + (p.y - base.y) }, editor.ctx);
-          if (moved) byEntity.set(r.entityId, moved as Entity);
+          if (moved) {
+            try {
+              assertFiniteValues(moved);
+            } catch {
+              return null;
+            }
+            byEntity.set(r.entityId, moved as Entity);
+          }
         }
         for (const e of byEntity.values()) out.push(e);
         return out;
@@ -72,8 +87,21 @@ export const GRIP: CommandDef = {
         }
       };
       const transformed = (m: Mat2D | null): Entity[] => {
-        if (!m) return [];
-        return ids.map((id) => doc.entity(id)).filter(Boolean).map((e) => kindOf(e!).transform(e!, m, editor.ctx)).filter(Boolean) as Entity[];
+        if (!m || Object.values(m).some((value) => !Number.isFinite(value))) return [];
+        const entities: Entity[] = [];
+        for (const id of ids) {
+          const current = doc.entity(id);
+          if (!current) continue;
+          const moved = kindOf(current).transform(current, m, editor.ctx);
+          if (!moved) continue;
+          try {
+            assertFiniteValues(moved);
+          } catch {
+            return [];
+          }
+          entities.push(moved);
+        }
+        return entities;
       };
       for (;;) {
         const mode = MODES[modeIdx];
@@ -82,7 +110,13 @@ export const GRIP: CommandDef = {
           base,
           allowNone: true,
           keywords: [K('Base', 'punto Base', 'Base point', ['b']), K('Copy', 'Copiar', 'Copy', ['c']), K('Undo', 'desHacer', 'Undo', ['h', 'u']), K('eXit', 'Salir', 'eXit', ['s', 'x'])],
-          preview: (p) => ({ entities: mode === 'STRETCH' ? stretchPreview(p) : transformed(transformOf(mode, p)) }),
+          preview: (p) => {
+            if (mode === 'STRETCH') {
+              const entities = stretchPreview(p);
+              return entities ? { entities } : null;
+            }
+            return { entities: transformed(transformOf(mode, p)) };
+          },
         });
         if (r.kind === 'none') {
           modeIdx = (modeIdx + 1) % MODES.length;
@@ -102,6 +136,7 @@ export const GRIP: CommandDef = {
         const p = r.p;
         if (mode === 'STRETCH') {
           const moved = stretchPreview(p);
+          if (!moved) fail('El pinzamiento excede el rango de coordenadas válido.', 'The grip exceeds the valid coordinate range.');
           api.apply('GRIP STRETCH', (tx) => {
             for (const e of moved) {
               if (copy) {

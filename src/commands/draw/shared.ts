@@ -1,7 +1,6 @@
 import type { ArcCurve, Curve } from '../../geometry/curves';
-import { curvePoint } from '../../geometry/curves';
+import { distanceToCurve } from '../../geometry/curves';
 import type { Vec2 } from '../../geometry/vec';
-import { dist } from '../../geometry/vec';
 import type { ArcEntity, Id } from '../../document/types';
 import { kindOf } from '../../model/registry';
 import { make } from '../helpers';
@@ -18,8 +17,7 @@ export function nearestCurve(api: CommandApi, id: Id, p: Vec2): Curve | null {
   let best: Curve | null = null;
   let bd = Infinity;
   for (const c of kindOf(e).curves(e, api.editor.ctx)) {
-    const t = c.kind === 'line' ? Math.min(1, Math.max(0, ((p.x - c.a.x) * (c.b.x - c.a.x) + (p.y - c.a.y) * (c.b.y - c.a.y)) / Math.max(1e-30, (c.b.x - c.a.x) ** 2 + (c.b.y - c.a.y) ** 2))) : 0;
-    const d = c.kind === 'line' ? dist(curvePoint(c, t), p) : c.kind === 'arc' ? Math.abs(dist(c.c, p) - c.r) : Infinity;
+    const d = c.kind === 'line' || c.kind === 'arc' || c.kind === 'ray' || c.kind === 'xline' ? distanceToCurve(c, p) : Infinity;
     if (d < bd) {
       bd = d;
       best = c;

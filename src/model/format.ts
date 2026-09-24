@@ -42,14 +42,14 @@ export function formatLength(value: number, format: UnitFormat, precision: numbe
       const sign = value < 0 ? '−' : '';
       const v = Math.abs(value);
       const ft = Math.floor(v / 12);
-      const inches = v - ft * 12;
+      const inches = v % 12;
       return `${sign}${ft}'-${formatDecimal(inches, precision, sep, opts.suppressTrailing)}"`;
     }
     case 'architectural': {
       const sign = value < 0 ? '−' : '';
       const v = Math.abs(value);
       let ft = Math.floor(v / 12);
-      let inches = v - ft * 12;
+      let inches = v % 12;
       const den = 2 ** Math.max(0, Math.min(8, precision));
       if (Math.round(inches * den) / den >= 12) {
         ft += 1;

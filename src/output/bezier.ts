@@ -5,6 +5,7 @@ import { sweepOf } from '../model/graphics';
 
 /** Comando de trazado de salida: solo segmentos rectos y Bézier cúbicas (invariantes afines). */
 export type OutCmd = { t: 'M'; x: number; y: number } | { t: 'L'; x: number; y: number } | { t: 'C'; x1: number; y1: number; x2: number; y2: number; x: number; y: number } | { t: 'Z' };
+const MAX_ARC_CUBICS = 4096;
 
 /**
  * Arco de elipse (centro, semiejes, rotación, ángulos paramétricos) como cúbicas de ≤ 90°.
@@ -13,6 +14,7 @@ export type OutCmd = { t: 'M'; x: number; y: number } | { t: 'L'; x: number; y: 
  */
 export function ellipseArcToCubics(cx: number, cy: number, rx: number, ry: number, rot: number, a0: number, sweep: number): OutCmd[] {
   const n = Math.max(1, Math.ceil(Math.abs(sweep) / (Math.PI / 2) - 1e-9));
+  if (!Number.isFinite(n) || n > MAX_ARC_CUBICS) throw new RangeError('El arco necesita demasiados segmentos. / The arc needs too many segments.');
   const step = sweep / n;
   const k = (4 / 3) * Math.tan(step / 4);
   const cr = Math.cos(rot);

@@ -10,6 +10,7 @@ import {
   splineDomain,
   splinePoint,
   splitSpline,
+  TessellationLimitError,
   tessellateSpline,
 } from './spline';
 import { clamp, TOL } from './tolerance';
@@ -68,6 +69,13 @@ export interface PolyCurve {
 
 export type Curve = LineCurve | RayCurve | XLineCurve | ArcCurve | EllipseCurve | SplineCurve | PolyCurve;
 
+export interface CurveLengthProfile {
+  readonly curve: Curve;
+  readonly samples: readonly { p: Vec2; t: number }[];
+  readonly cumulativeLengths: readonly number[];
+  readonly totalLength: number;
+}
+
 export const lineCurve = (a: Vec2, b: Vec2): LineCurve => ({ kind: 'line', a, b });
 export const arcCurve = (c: Vec2, r: number, a0: number, sweep: number): ArcCurve => ({ kind: 'arc', c, r, a0, sweep });
 export const circleCurve = (c: Vec2, r: number): ArcCurve => ({ kind: 'arc', c, r, a0: 0, sweep: TAU });
@@ -100,10 +108,19 @@ export function ellipsePointAtAngle(e: EllipseCurve, theta: number): Vec2 {
   return { x: e.c.x + e.major.x * c + mn.x * s, y: e.c.y + e.major.y * c + mn.y * s };
 }
 
+function interpolateSegment(a: Vec2, b: Vec2, t: number): Vec2 {
+  const xSpan = b.x - a.x;
+  const ySpan = b.y - a.y;
+  return {
+    x: Number.isFinite(xSpan) ? a.x + xSpan * t : a.x * (1 - t) + b.x * t,
+    y: Number.isFinite(ySpan) ? a.y + ySpan * t : a.y * (1 - t) + b.y * t,
+  };
+}
+
 export function curvePoint(c: Curve, t: number): Vec2 {
   switch (c.kind) {
     case 'line':
-      return { x: c.a.x + (c.b.x - c.a.x) * t, y: c.a.y + (c.b.y - c.a.y) * t };
+      return interpolateSegment(c.a, c.b, t);
     case 'ray':
     case 'xline':
       return { x: c.o.x + c.d.x * t, y: c.o.y + c.d.y * t };
@@ -125,7 +142,7 @@ export function curvePoint(c: Curve, t: number): Vec2 {
       const lt = f - i;
       const a = c.pts[i];
       const b = c.pts[i + 1];
-      return { x: a.x + (b.x - a.x) * lt, y: a.y + (b.y - a.y) * lt };
+      return interpolateSegment(a, b, lt);
     }
   }
 }
@@ -165,6 +182,16 @@ export function curveDerivative(c: Curve, t: number): Vec2 {
 }
 
 export function curveTangent(c: Curve, t: number): Vec2 {
+  if (c.kind === 'line') return unitDisplacement(c.a, c.b);
+  if (c.kind === 'ray' || c.kind === 'xline') {
+    const magnitude = Math.max(Math.abs(c.d.x), Math.abs(c.d.y));
+    return magnitude ? normalize({ x: c.d.x / magnitude, y: c.d.y / magnitude }) : { x: 0, y: 0 };
+  }
+  if (c.kind === 'poly' && c.pts.length > 1) {
+    const n = c.pts.length - 1;
+    const i = Math.min(n - 1, Math.max(0, Math.floor(clamp(t, 0, 1) * n)));
+    return unitDisplacement(c.pts[i], c.pts[i + 1]);
+  }
   return normalize(curveDerivative(c, t));
 }
 
@@ -195,34 +222,39 @@ export function curveLength(c: Curve): number {
   }
 }
 
-/** Longitud desde t=0 hasta t. */
-export function curveLengthTo(c: Curve, t: number): number {
-  if (c.kind === 'line') return dist(c.a, c.b) * t;
-  if (c.kind === 'arc') return Math.abs(c.sweep) * c.r * t;
-  if (c.kind === 'ray' || c.kind === 'xline') return t;
-  if (t <= 0) return 0;
-  return curveLength(subCurve(c, 0, t));
+/** Precalcula los tramos muestreados y sus longitudes acumuladas para consultas repetidas. */
+export function curveLengthProfile(c: Curve, tol = 1e-4): CurveLengthProfile {
+  const samples = tessellateWithParams(c, tol);
+  const cumulativeLengths = [0];
+  for (let i = 1; i < samples.length; i++) {
+    cumulativeLengths.push(cumulativeLengths[i - 1] + dist(samples[i - 1].p, samples[i].p));
+  }
+  return { curve: c, samples, cumulativeLengths, totalLength: cumulativeLengths[cumulativeLengths.length - 1] ?? 0 };
 }
 
 /** Parámetro al recorrer una longitud de arco desde el inicio. */
-export function paramAtLength(c: Curve, length: number): number {
+export function paramAtLength(c: Curve, length: number, cachedProfile?: CurveLengthProfile): number {
   if (c.kind === 'line') {
     const l = dist(c.a, c.b);
     return l === 0 ? 0 : length / l;
   }
   if (c.kind === 'arc') return length / (Math.abs(c.sweep) * c.r || 1);
   if (c.kind === 'ray' || c.kind === 'xline') return length;
-  const samples = tessellateWithParams(c, 1e-4);
-  let acc = 0;
-  for (let i = 1; i < samples.length; i++) {
-    const seg = dist(samples[i - 1].p, samples[i].p);
-    if (acc + seg >= length) {
-      const f = seg === 0 ? 0 : (length - acc) / seg;
-      return samples[i - 1].t + (samples[i].t - samples[i - 1].t) * f;
-    }
-    acc += seg;
+  if (Number.isNaN(length)) return 1;
+  const profile = cachedProfile?.curve === c ? cachedProfile : curveLengthProfile(c);
+  const { samples, cumulativeLengths, totalLength } = profile;
+  if (length > totalLength || samples.length < 2) return 1;
+  let lo = 1;
+  let hi = samples.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1;
+    if (cumulativeLengths[mid] >= length) hi = mid;
+    else lo = mid + 1;
   }
-  return 1;
+  const before = cumulativeLengths[lo - 1];
+  const seg = cumulativeLengths[lo] - before;
+  const f = seg === 0 ? 0 : (length - before) / seg;
+  return samples[lo - 1].t + (samples[lo].t - samples[lo - 1].t) * f;
 }
 
 export function curveBBox(c: Curve): BBox {
@@ -263,67 +295,112 @@ export function curveBBox(c: Curve): BBox {
   }
 }
 
-export function tessellateWithParams(c: Curve, tol: number = TOL.TESSELLATION): { p: Vec2; t: number }[] {
+function finiteSamples(samples: { p: Vec2; t: number }[]): { p: Vec2; t: number }[] {
+  return samples.every(({ p, t }) => Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(t)) ? samples : [];
+}
+
+export function tessellateWithParams(c: Curve, tol: number = TOL.TESSELLATION, maxSamples = Infinity): { p: Vec2; t: number }[] {
+  if ((!Number.isSafeInteger(maxSamples) && maxSamples !== Infinity) || maxSamples < 1) throw new RangeError('Invalid curve tessellation sample limit.');
+  const assertSampleBudget = (count: number) => {
+    if (count > maxSamples) throw new TessellationLimitError();
+  };
   switch (c.kind) {
     case 'line':
-      return [
+      assertSampleBudget(2);
+      return finiteSamples([
         { p: c.a, t: 0 },
         { p: c.b, t: 1 },
-      ];
+      ]);
     case 'ray':
     case 'xline':
-      return [
+      assertSampleBudget(2);
+      return finiteSamples([
         { p: c.o, t: 0 },
         { p: add(c.o, c.d), t: 1 },
-      ];
+      ]);
     case 'arc':
     case 'ellipse': {
       const r = c.kind === 'arc' ? c.r : Math.max(len(c.major), len(c.major) * c.ratio);
       const segs = arcSegments(r, Math.abs(c.sweep), tol);
+      if (!segs) return [];
+      assertSampleBudget(segs + 1);
       const out: { p: Vec2; t: number }[] = [];
       for (let i = 0; i <= segs; i++) {
         const t = i / segs;
-        out.push({ p: curvePoint(c, t), t });
+        const p = curvePoint(c, t);
+        if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) return [];
+        out.push({ p, t });
       }
       return out;
     }
     case 'spline': {
       const [u0, u1] = splineDomain(c.s);
       const span = u1 - u0 || 1;
-      return tessellateSpline(c.s, tol).map((q) => ({ p: q.p, t: (q.u - u0) / span }));
+      return finiteSamples(tessellateSpline(c.s, tol, maxSamples).map((q) => ({ p: q.p, t: (q.u - u0) / span })));
     }
     case 'poly': {
+      assertSampleBudget(c.pts.length);
       const n = c.pts.length - 1;
-      return c.pts.map((p, i) => ({ p, t: n > 0 ? i / n : 0 }));
+      return finiteSamples(c.pts.map((p, i) => ({ p, t: n > 0 ? i / n : 0 })));
     }
   }
 }
 
-export function tessellateCurve(c: Curve, tol: number = TOL.TESSELLATION): Vec2[] {
-  return tessellateWithParams(c, tol).map((s) => s.p);
+export function tessellateCurve(c: Curve, tol: number = TOL.TESSELLATION, maxSamples = Infinity): Vec2[] {
+  return tessellateWithParams(c, tol, maxSamples).map((s) => s.p);
 }
 
 /** Número de segmentos para que la flecha cordal no exceda `tol`. */
 export function arcSegments(r: number, sweep: number, tol: number): number {
-  if (r <= tol) return Math.max(2, Math.ceil(sweep / (Math.PI / 4)));
+  if (!Number.isFinite(r) || !Number.isFinite(sweep) || !Number.isFinite(tol) || r < 0 || sweep < 0 || tol < 0) return 0;
+  if (r <= tol) return Math.max(2, Math.min(4096, Math.ceil(sweep / (Math.PI / 4))));
   const maxAngle = 2 * Math.acos(Math.max(-1, Math.min(1, 1 - tol / r)));
   const n = Math.ceil(sweep / Math.max(maxAngle, 1e-4));
   return Math.max(2, Math.min(4096, n));
+}
+
+function scaledDisplacement(from: Vec2, to: Vec2): { x: number; y: number; scale: number } {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  if (Number.isFinite(dx) && Number.isFinite(dy)) {
+    const scale = Math.max(Math.abs(dx), Math.abs(dy));
+    return scale ? { x: dx / scale, y: dy / scale, scale } : { x: 0, y: 0, scale: 0 };
+  }
+  const scale = Math.max(Math.abs(from.x), Math.abs(from.y), Math.abs(to.x), Math.abs(to.y));
+  return { x: to.x / scale - from.x / scale, y: to.y / scale - from.y / scale, scale };
+}
+
+function unitDisplacement(from: Vec2, to: Vec2): Vec2 {
+  const d = scaledDisplacement(from, to);
+  if (d.scale * Math.hypot(d.x, d.y) <= TOL.LINEAR) return { x: 0, y: 0 };
+  return normalize({ x: d.x, y: d.y });
 }
 
 /** Parámetro del punto de la curva más cercano a p (dentro del dominio). */
 export function closestParam(c: Curve, p: Vec2): number {
   switch (c.kind) {
     case 'line': {
-      const d = sub(c.b, c.a);
-      const l2 = dot(d, d);
-      if (l2 === 0) return 0;
-      return clamp(dot(sub(p, c.a), d) / l2, 0, 1);
+      const d = scaledDisplacement(c.a, c.b);
+      if (!d.scale) return 0;
+      const q = scaledDisplacement(c.a, p);
+      if (!q.scale) return 0;
+      const projection = q.x * d.x + q.y * d.y;
+      if (!projection) return 0;
+      return clamp((q.scale / d.scale) * (projection / (d.x * d.x + d.y * d.y)), 0, 1);
     }
     case 'ray':
-      return Math.max(0, dot(sub(p, c.o), c.d));
-    case 'xline':
-      return dot(sub(p, c.o), c.d);
+    case 'xline': {
+      const directionScale = Math.max(Math.abs(c.d.x), Math.abs(c.d.y));
+      if (!directionScale) return 0;
+      const displacement = scaledDisplacement(c.o, p);
+      if (!displacement.scale) return 0;
+      const dx = c.d.x / directionScale;
+      const dy = c.d.y / directionScale;
+      const projection = displacement.x * dx + displacement.y * dy;
+      if (!projection) return 0;
+      const t = (displacement.scale / directionScale) * (projection / (dx * dx + dy * dy));
+      return c.kind === 'ray' ? Math.max(0, t) : t;
+    }
     case 'arc': {
       if (Math.abs(c.sweep) >= TAU - 1e-12) {
         const a = Math.atan2(p.y - c.c.y, p.x - c.c.x);

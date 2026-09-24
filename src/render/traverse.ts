@@ -75,13 +75,44 @@ export interface TraverseEnv {
 // ------------------------------------------------------------------ cachés
 
 const itemCache = new WeakMap<Entity, { key: string; items: DisplayItem[] }>();
+const fieldCache = new WeakMap<Entity, { hasFields: boolean; hasClockFields: boolean }>();
 
-function cacheKey(ctx: ModelContext): string {
-  return `${ctx.blocksVersion}|${ctx.annotationScale}`;
+function fieldTexts(e: Entity): string[] {
+  switch (e.type) {
+    case 'text': return [e.text];
+    case 'mtext': return [e.contents];
+    case 'dimension': return e.textOverride ? [e.textOverride] : [];
+    case 'insert': return e.attributes.map((attribute) => attribute.value);
+    case 'mleader':
+      return e.content.type === 'mtext' ? [e.content.text] : e.content.type === 'block' ? Object.values(e.content.attributes) : [];
+    case 'table': return e.cells.flatMap((row) => row.map((cell) => cell.text));
+    default: return [];
+  }
+}
+
+function fieldsFor(e: Entity): { hasFields: boolean; hasClockFields: boolean } {
+  const cached = fieldCache.get(e);
+  if (cached) return cached;
+  const texts = fieldTexts(e);
+  const fields = texts.flatMap((text) => [...text.matchAll(/\{\{\s*([^}]+?)\s*\}\}/g)].map((match) => match[1].trim()));
+  const value = {
+    hasFields: fields.length > 0,
+    hasClockFields: fields.some((field) => /^(date|time)(?::|$)/i.test(field)),
+  };
+  fieldCache.set(e, value);
+  return value;
+}
+
+function cacheKey(e: Entity, ctx: ModelContext): string {
+  const base = `${ctx.blocksVersion}|${ctx.annotationScale}`;
+  const fields = fieldsFor(e);
+  if (!fields.hasFields) return base;
+  const clock = fields.hasClockFields ? Math.floor(Date.now() / 1000) : '';
+  return `${base}|${ctx.doc.version}|${ctx.sheetName}|${ctx.fileName}|${clock}`;
 }
 
 export function displayItems(e: Entity, ctx: ModelContext): DisplayItem[] {
-  const key = cacheKey(ctx);
+  const key = cacheKey(e, ctx);
   const c = itemCache.get(e);
   if (c && c.key === key) return c.items;
   let items: DisplayItem[];
@@ -196,21 +227,24 @@ export function drawEntity(sink: DrawSink, env: TraverseEnv, e: Entity, parent: 
       case 'block': {
         const ev = env.ctx.evaluateBlock(it.blockId, (e as { dynamic?: never }).dynamic);
         sink.save();
-        sink.transform(it.m);
-        for (const be of ev.entities) {
-          if (be.type === 'attdef' && !be.constant) continue;
-          if (!be.visible) continue;
-          const bl = layerOf(env.doc, be.layer);
-          if (be.layer === LAYER0_ID ? !layerVisible(inh.layer, { viewport: env.viewport, plotting: env.plotting }) : !layerVisible(bl, { viewport: env.viewport, plotting: env.plotting })) continue;
-          if (env.plotting && be.construction) continue;
-          if (be.type === 'attdef') {
-            // atributo constante: se muestra su valor
-            drawEntity(sink, env, { ...be, type: 'text', text: be.defaultValue, widthFactor: 1, oblique: 0 } as unknown as Entity, inh, depth + 1);
-            continue;
+        try {
+          sink.transform(it.m);
+          for (const be of ev.entities) {
+            if (be.type === 'attdef' && !be.constant) continue;
+            if (!be.visible) continue;
+            const bl = layerOf(env.doc, be.layer);
+            if (be.layer === LAYER0_ID ? !layerVisible(inh.layer, { viewport: env.viewport, plotting: env.plotting }) : !layerVisible(bl, { viewport: env.viewport, plotting: env.plotting })) continue;
+            if (env.plotting && be.construction) continue;
+            if (be.type === 'attdef') {
+              // atributo constante: se muestra su valor
+              drawEntity(sink, env, { ...be, type: 'text', text: be.defaultValue, widthFactor: 1, oblique: 0 } as unknown as Entity, inh, depth + 1);
+              continue;
+            }
+            drawEntity(sink, env, be, inh, depth + 1);
           }
-          drawEntity(sink, env, be, inh, depth + 1);
+        } finally {
+          sink.restore();
         }
-        sink.restore();
         break;
       }
     }

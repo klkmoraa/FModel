@@ -101,7 +101,7 @@ export function colorCss(c: string, dark: boolean): string {
 }
 
 /** Selector de color: PorCapa, PorBloque, índice ACI y color verdadero. */
-export function ColorPicker({ value, onChange, lang, allowByLayer = true, mixed }: { value: string; onChange: (c: string) => void; lang: Lang; allowByLayer?: boolean; mixed?: boolean }) {
+export function ColorPicker({ value, onChange, lang, allowByLayer = true, mixed, ariaLabel }: { value: string; onChange: (c: string) => void; lang: Lang; allowByLayer?: boolean; mixed?: boolean; ariaLabel?: string }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -135,7 +135,7 @@ export function ColorPicker({ value, onChange, lang, allowByLayer = true, mixed 
   };
   return (
     <div ref={ref} style={{ position: 'relative' }}>
-      <button type="button" className="input" style={{ display: 'flex', alignItems: 'center', gap: 6, textAlign: 'left' }} onClick={() => setOpen((o) => !o)} aria-haspopup="dialog" aria-expanded={open}>
+      <button type="button" className="input" style={{ display: 'flex', alignItems: 'center', gap: 6, textAlign: 'left' }} onClick={() => setOpen((o) => !o)} aria-haspopup="dialog" aria-expanded={open} aria-label={ariaLabel}>
         <span className="swatch" style={{ background: mixed ? 'repeating-linear-gradient(45deg,var(--line),var(--line) 2px,transparent 2px,transparent 4px)' : colorCss(value, dark) }} />
         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{mixed ? MIXED : colorLabel(value, lang)}</span>
       </button>
@@ -170,9 +170,9 @@ export function ColorPicker({ value, onChange, lang, allowByLayer = true, mixed 
   );
 }
 
-export function LineweightSelect({ value, onChange, lang, allowBy = true, mixed }: { value: number; onChange: (v: number) => void; lang: Lang; allowBy?: boolean; mixed?: boolean }) {
+export function LineweightSelect({ value, onChange, lang, allowBy = true, mixed, ariaLabel }: { value: number; onChange: (v: number) => void; lang: Lang; allowBy?: boolean; mixed?: boolean; ariaLabel?: string }) {
   return (
-    <select className="select" value={mixed ? 'mixed' : String(value)} onChange={(e) => onChange(Number(e.target.value))}>
+    <select className="select" value={mixed ? 'mixed' : String(value)} onChange={(e) => onChange(Number(e.target.value))} aria-label={ariaLabel}>
       {mixed && <option value="mixed">{MIXED}</option>}
       {allowBy && <option value="-1">{tr(lang, 'PorCapa', 'ByLayer')}</option>}
       {allowBy && <option value="-2">{tr(lang, 'PorBloque', 'ByBlock')}</option>}
@@ -186,10 +186,10 @@ export function LineweightSelect({ value, onChange, lang, allowBy = true, mixed 
   );
 }
 
-export function LinetypeSelect({ doc, value, onChange, lang, allowBy = true, mixed }: { doc: CadDocument; value: string; onChange: (v: string) => void; lang: Lang; allowBy?: boolean; mixed?: boolean }) {
+export function LinetypeSelect({ doc, value, onChange, lang, allowBy = true, mixed, ariaLabel }: { doc: CadDocument; value: string; onChange: (v: string) => void; lang: Lang; allowBy?: boolean; mixed?: boolean; ariaLabel?: string }) {
   const lts = [...doc.data.linetypes.values()];
   return (
-    <select className="select" value={mixed ? 'mixed' : value} onChange={(e) => onChange(e.target.value)}>
+    <select className="select" value={mixed ? 'mixed' : value} onChange={(e) => onChange(e.target.value)} aria-label={ariaLabel}>
       {mixed && <option value="mixed">{MIXED}</option>}
       {allowBy && <option value="ByLayer">{tr(lang, 'PorCapa', 'ByLayer')}</option>}
       {allowBy && <option value="ByBlock">{tr(lang, 'PorBloque', 'ByBlock')}</option>}

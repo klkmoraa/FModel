@@ -1,8 +1,9 @@
 import { TAU } from '../../geometry/angle';
-import { curveLength, curvePoint, curveTangent, isBounded, paramAtLength } from '../../geometry/curves';
+import { closestParam, curveLength, curveLengthProfile, curvePoint, curveTangent, isBounded, paramAtLength } from '../../geometry/curves';
 import type { PolyVertex } from '../../geometry/polyline';
 import type { Vec2 } from '../../geometry/vec';
-import { add, angleOf, dist, len, normalize, perp, scale, sub } from '../../geometry/vec';
+import { add, angleOf, dist, isFiniteVec, len, normalize, perp, scale, sub } from '../../geometry/vec';
+import { INPUT_LIMITS } from '../../io/limits';
 import type {
   Entity,
   Id,
@@ -37,6 +38,8 @@ export const POINT: CommandDef = {
 
 // ============================================================================ RAY
 
+const directionBetween = (from: Vec2, to: Vec2): Vec2 => curveTangent({ kind: 'line', a: from, b: to }, 0);
+
 export const RAY: CommandDef = {
   name: 'RAY',
   aliases: ['RAYO'],
@@ -52,11 +55,15 @@ export const RAY: CommandDef = {
         prompt: L('Precise el punto a través', 'Specify through point'),
         base: s.p,
         allowNone: true,
-        preview: (p) => (dist(p, s.p) > 1e-12 ? { entities: [make<RayEntity>(api, { type: 'ray', origin: s.p, direction: normalize(sub(p, s.p)) })] } : null),
+        preview: (p) => {
+          const direction = directionBetween(s.p, p);
+          return len(direction) ? { entities: [make<RayEntity>(api, { type: 'ray', origin: s.p, direction })] } : null;
+        },
       });
       if (t.kind !== 'point') return;
-      if (dist(t.p, s.p) < 1e-12) continue;
-      addEntity<RayEntity>(api, 'RAY', { type: 'ray', origin: s.p, direction: normalize(sub(t.p, s.p)) });
+      const direction = directionBetween(s.p, t.p);
+      if (!len(direction)) continue;
+      addEntity<RayEntity>(api, 'RAY', { type: 'ray', origin: s.p, direction });
     }
   },
 };
@@ -86,9 +93,13 @@ export const XLINE: CommandDef = {
     };
     if (r.kind === 'point') {
       for (;;) {
-        const t = await api.getPoint({ prompt: L('Precise el punto a través', 'Specify through point'), base: r.p, allowNone: true, preview: (p) => (dist(p, r.p) > 1e-12 ? { entities: [xl(r.p, sub(p, r.p))] } : null) });
+        const t = await api.getPoint({ prompt: L('Precise el punto a través', 'Specify through point'), base: r.p, allowNone: true, preview: (p) => {
+          const direction = directionBetween(r.p, p);
+          return len(direction) ? { entities: [xl(r.p, direction)] } : null;
+        } });
         if (t.kind !== 'point') return;
-        if (dist(t.p, r.p) > 1e-12) addX(r.p, sub(t.p, r.p));
+        const direction = directionBetween(r.p, t.p);
+        if (len(direction)) addX(r.p, direction);
       }
     }
     if (r.kind !== 'keyword') return;
@@ -104,11 +115,23 @@ export const XLINE: CommandDef = {
       if (v.kind !== 'point') return;
       const s = await api.getPoint({ prompt: L('Precise el punto inicial del ángulo', 'Specify angle start point'), base: v.p, rubber: 'line' });
       if (s.kind !== 'point') return;
+      const initial = directionBetween(v.p, s.p);
+      if (!len(initial)) fail('El primer lado del ángulo debe tener longitud.', 'The first angle side must have length.');
       for (;;) {
-        const e = await api.getPoint({ prompt: L('Precise el punto final del ángulo', 'Specify angle end point'), base: v.p, rubber: 'line', allowNone: true, preview: (p) => ({ entities: [xl(v.p, add(normalize(sub(s.p, v.p)), normalize(sub(p, v.p))))] }) });
+        const e = await api.getPoint({ prompt: L('Precise el punto final del ángulo', 'Specify angle end point'), base: v.p, rubber: 'line', allowNone: true, preview: (p) => {
+          const next = directionBetween(v.p, p);
+          if (!len(next)) return null;
+          const d = add(initial, next);
+          return { entities: [xl(v.p, len(d) > 1e-12 ? d : perp(initial))] };
+        } });
         if (e.kind !== 'point') return;
-        const d = add(normalize(sub(s.p, v.p)), normalize(sub(e.p, v.p)));
-        addX(v.p, len(d) > 1e-12 ? d : perp(normalize(sub(s.p, v.p))));
+        const next = directionBetween(v.p, e.p);
+        if (!len(next)) {
+          api.warn(L('El segundo lado del ángulo debe tener longitud.', 'The second angle side must have length.'));
+          continue;
+        }
+        const d = add(initial, next);
+        addX(v.p, len(d) > 1e-12 ? d : perp(initial));
       }
     }
     // Desfase
@@ -118,29 +141,37 @@ export const XLINE: CommandDef = {
       const obj = await api.getEntity({ prompt: L('Designe un objeto lineal', 'Select a line object'), types: ['line', 'xline', 'ray', 'lwpolyline'] });
       if (obj.kind !== 'entity') return;
       const c = nearestCurve(api, obj.id, obj.p);
-      if (!c || c.kind !== 'line') {
-        api.warn(L('Se requiere un segmento recto.', 'A straight segment is required.'));
+      if (!c || (c.kind !== 'line' && c.kind !== 'ray' && c.kind !== 'xline')) {
+        api.warn(L('Se requiere una curva recta.', 'A straight curve is required.'));
         continue;
       }
       const side = await api.getPoint({ prompt: L('Precise el lado de desfase', 'Specify side to offset') });
       if (side.kind !== 'point') return;
-      const d = normalize(sub(c.b, c.a));
+      const d = curveTangent(c, 0);
+      if (!len(d)) {
+        api.warn(L('El segmento no tiene dirección.', 'The segment has no direction.'));
+        continue;
+      }
       const n = perp(d);
-      const s = Math.sign((side.p.x - c.a.x) * n.x + (side.p.y - c.a.y) * n.y) || 1;
-      addX(add(c.a, scale(n, s * dist0.value)), d);
+      const foot = curvePoint(c, closestParam(c, side.p));
+      const delta = sub(side.p, foot);
+      const s = Math.sign((n.x ? delta.x * n.x : 0) + (n.y ? delta.y * n.y : 0)) || 1;
+      addX(add(c.kind === 'line' ? c.a : c.o, scale(n, s * dist0.value)), d);
     }
   },
 };
 
 // ============================================================================ REVCLOUD
 
-export function revcloudVertices(poly: Vec2[], closed: boolean, arcLen: number, ccwOutward: boolean): PolyVertex[] {
+export function revcloudVertices(poly: Vec2[], closed: boolean, arcLen: number, ccwOutward: boolean): PolyVertex[] | null {
   const out: PolyVertex[] = [];
   const n = poly.length;
+  if (n < 2 || !Number.isFinite(arcLen) || arcLen <= 0 || poly.some((p) => !isFiniteVec(p))) return null;
   const segs = closed ? n : n - 1;
   // orientación del contorno para abombar hacia fuera
   let area = 0;
   for (let i = 0; i < n; i++) area += poly[i].x * poly[(i + 1) % n].y - poly[(i + 1) % n].x * poly[i].y;
+  if (!Number.isFinite(area)) return null;
   const sign = (area >= 0 ? -1 : 1) * (ccwOutward ? 1 : -1);
   const bulge = Math.tan((sign * (Math.PI * 0.6)) / 4);
   for (let i = 0; i < segs; i++) {
@@ -148,8 +179,10 @@ export function revcloudVertices(poly: Vec2[], closed: boolean, arcLen: number, 
     const b = poly[(i + 1) % n];
     const L0 = dist(a, b);
     const k = Math.max(1, Math.round(L0 / arcLen));
+    if (!Number.isFinite(k) || out.length + k + (closed ? 0 : 1) > INPUT_LIMITS.maxPointsPerEntity) return null;
     for (let j = 0; j < k; j++) {
       const p = { x: a.x + ((b.x - a.x) * j) / k, y: a.y + ((b.y - a.y) * j) / k };
+      if (!isFiniteVec(p)) return null;
       out.push({ x: p.x, y: p.y, bulge });
     }
   }
@@ -183,15 +216,26 @@ export const REVCLOUD: CommandDef = {
           if (obj.kind !== 'entity') return;
           const e = api.editor.doc.entity(obj.id)!;
           const curves = kindOf(e).curves(e, api.editor.ctx);
-          const pts = curves.flatMap((c, i) => {
-            const total = curveLength(c);
+          const pts: Vec2[] = [];
+          for (const c of curves) {
+            const profile = c.kind === 'ellipse' || c.kind === 'poly' || c.kind === 'spline' ? curveLengthProfile(c) : undefined;
+            const total = profile?.totalLength ?? curveLength(c);
             const k = Math.max(2, Math.round(total / arcLen));
-            return Array.from({ length: k }, (_, j) => curvePoint(c, paramAtLength(c, (total * j) / k))).slice(i > 0 ? 0 : 0);
-          });
+            if (!Number.isFinite(k) || k > INPUT_LIMITS.maxPointsPerEntity - pts.length) {
+              fail('La nube de revisión excede el límite de vértices.', 'The revision cloud exceeds the vertex limit.');
+            }
+            for (let j = 0; j < k; j++) {
+              const p = curvePoint(c, paramAtLength(c, (total * j) / k, profile));
+              if (!isFiniteVec(p)) fail('La nube de revisión contiene geometría no representable.', 'The revision cloud contains unrepresentable geometry.');
+              pts.push(p);
+            }
+          }
           const closed = e.type === 'circle' || e.type === 'ellipse' || (e.type === 'lwpolyline' && e.closed);
+          const vertices = revcloudVertices(pts, closed, 1e12, true);
+          if (!vertices) fail('La nube de revisión excede el límite de vértices o contiene geometría no representable.', 'The revision cloud exceeds the vertex limit or contains unrepresentable geometry.');
+          const { id: _i, order: _o, ...rest } = make<LwPolylineEntity>(api, { type: 'lwpolyline', vertices, closed, layer: e.layer, color: e.color, shape: { kind: 'revcloud', arcLength: arcLen, style: 'normal' } });
           api.apply('REVCLOUD', (tx) => {
             tx.removeEntity(e.id);
-            const { id: _i, order: _o, ...rest } = make<LwPolylineEntity>(api, { type: 'lwpolyline', vertices: revcloudVertices(pts, closed, 1e12, true).map((v) => ({ ...v })), closed, layer: e.layer, color: e.color, shape: { kind: 'revcloud', arcLength: arcLen, style: 'normal' } });
             tx.addEntity(rest as never);
           });
           return;
@@ -199,22 +243,36 @@ export const REVCLOUD: CommandDef = {
         continue;
       }
       if (r.kind !== 'point') return;
-      const cloud = (pts: Vec2[], closed: boolean) => make<LwPolylineEntity>(api, { type: 'lwpolyline', vertices: revcloudVertices(pts, closed, arcLen, true), closed });
+      const cloud = (pts: Vec2[], closed: boolean) => {
+        const vertices = revcloudVertices(pts, closed, arcLen, true);
+        return vertices ? make<LwPolylineEntity>(api, { type: 'lwpolyline', vertices, closed }) : null;
+      };
+      const addCloud = (pts: Vec2[]) => {
+        const entity = cloud(pts, true);
+        if (!entity) fail('La nube de revisión excede el límite de vértices o contiene geometría no representable.', 'The revision cloud exceeds the vertex limit or contains unrepresentable geometry.');
+        addEntity<LwPolylineEntity>(api, 'REVCLOUD', { ...entity, id: undefined, order: undefined, shape: { kind: 'revcloud', arcLength: arcLen, style: 'normal' } } as never);
+      };
       if (mode === 'Rectangular') {
-        const o = await api.getPoint({ prompt: L('Precise la esquina opuesta', 'Specify opposite corner'), base: r.p, rubber: 'rect', preview: (p) => ({ entities: [cloud([r.p, { x: p.x, y: r.p.y }, p, { x: r.p.x, y: p.y }], true)] }) });
+        const o = await api.getPoint({ prompt: L('Precise la esquina opuesta', 'Specify opposite corner'), base: r.p, rubber: 'rect', preview: (p) => {
+          const entity = cloud([r.p, { x: p.x, y: r.p.y }, p, { x: r.p.x, y: p.y }], true);
+          return entity ? { entities: [entity] } : null;
+        } });
         if (o.kind !== 'point') return;
         const pts = [r.p, { x: o.p.x, y: r.p.y }, o.p, { x: r.p.x, y: o.p.y }];
-        addEntity<LwPolylineEntity>(api, 'REVCLOUD', { ...cloud(pts, true), id: undefined, order: undefined, shape: { kind: 'revcloud', arcLength: arcLen, style: 'normal' } } as never);
+        addCloud(pts);
         return;
       }
       const pts = [r.p];
       for (;;) {
-        const n = await api.getPoint({ prompt: L('Precise el punto siguiente', 'Specify next point'), base: pts[pts.length - 1], rubber: 'line', allowNone: true, preview: (p) => ({ entities: [cloud([...pts, p], true)] }) });
+        const n = await api.getPoint({ prompt: L('Precise el punto siguiente', 'Specify next point'), base: pts[pts.length - 1], rubber: 'line', allowNone: true, preview: (p) => {
+          const entity = cloud([...pts, p], true);
+          return entity ? { entities: [entity] } : null;
+        } });
         if (n.kind !== 'point') break;
         pts.push(n.p);
       }
       if (pts.length < 3) fail('La nube poligonal necesita al menos tres puntos.', 'A polygonal cloud needs at least three points.');
-      addEntity<LwPolylineEntity>(api, 'REVCLOUD', { ...cloud(pts, true), id: undefined, order: undefined, shape: { kind: 'revcloud', arcLength: arcLen, style: 'normal' } } as never);
+      addCloud(pts);
       return;
     }
   },
@@ -227,7 +285,10 @@ async function divideOrMeasure(api: CommandApi, measure: boolean) {
   if (obj.kind !== 'entity') return;
   const e = api.editor.doc.entity(obj.id)!;
   const curves = kindOf(e).curves(e, api.editor.ctx).filter(isBounded);
-  const total = curves.reduce((s, c) => s + curveLength(c), 0);
+  const curveProfiles = curves.map((c) => c.kind === 'ellipse' || c.kind === 'poly' || c.kind === 'spline' ? curveLengthProfile(c) : null);
+  const curveLengths = curves.map((c, i) => curveProfiles[i]?.totalLength ?? curveLength(c));
+  const total = curveLengths.reduce((s, length) => s + length, 0);
+  if (!Number.isFinite(total)) fail('La longitud del objeto no es representable.', 'The object length is not representable.');
   let blockId: Id | null = null;
   let align = false;
   const ask = async (): Promise<number | null> => {
@@ -248,30 +309,40 @@ async function divideOrMeasure(api: CommandApi, measure: boolean) {
   };
   const v = await ask();
   if (v === null) return;
+  if (!Number.isFinite(v) || v <= 0) fail('La distancia o cantidad debe ser positiva.', 'The distance or count must be positive.');
   const closed = (e.type === 'circle' || (e.type === 'ellipse' && Math.abs(e.endParam - e.startParam) >= TAU - 1e-9) || ((e.type === 'lwpolyline' || e.type === 'polyline2d') && e.closed));
+  const count = measure ? Math.max(0, Math.ceil((total - 1e-9) / v) - 1) : v - 1 + Number(closed);
+  if (!Number.isSafeInteger(count) || count > INPUT_LIMITS.maxEntities - api.editor.doc.data.entities.size) {
+    fail('La operación excede el límite de entidades del dibujo.', 'The operation exceeds the drawing entity limit.');
+  }
   const distances: number[] = [];
   if (measure) {
-    for (let s = v; s < total - 1e-9; s += v) distances.push(s);
+    for (let i = 1; i <= count; i++) {
+      const s = i * v;
+      if (s >= total - 1e-9) break;
+      distances.push(s);
+    }
   } else {
     for (let i = 1; i < v; i++) distances.push((total * i) / v);
     if (closed) distances.unshift(0);
   }
   const entities: Entity[] = [];
+  let curveIndex = 0;
+  let curveStart = 0;
   for (const s of distances) {
-    let acc = 0;
-    for (const c of curves) {
-      const l = curveLength(c);
-      if (acc + l >= s - 1e-12) {
-        const t = paramAtLength(c, s - acc);
-        const p = curvePoint(c, t);
-        if (blockId) {
-          const rot = align ? angleOf(curveTangent(c, t)) : 0;
-          entities.push(make<InsertEntity>(api, { type: 'insert', blockId, position: p, scale: { x: 1, y: 1 }, rotation: rot, attributes: [] }));
-        } else entities.push(make<PointEntity>(api, { type: 'point', position: p }));
-        break;
-      }
-      acc += l;
+    while (curveIndex < curves.length - 1 && curveStart + curveLengths[curveIndex] < s - 1e-12) {
+      curveStart += curveLengths[curveIndex];
+      curveIndex++;
     }
+    const c = curves[curveIndex];
+    if (!c || curveStart + curveLengths[curveIndex] < s - 1e-12) continue;
+    const t = paramAtLength(c, s - curveStart, curveProfiles[curveIndex] ?? undefined);
+    const p = curvePoint(c, t);
+    if (!isFiniteVec(p)) fail('La operación produciría un punto no representable.', 'The operation would create an unrepresentable point.');
+    if (blockId) {
+      const rot = align ? angleOf(curveTangent(c, t)) : 0;
+      entities.push(make<InsertEntity>(api, { type: 'insert', blockId, position: p, scale: { x: 1, y: 1 }, rotation: rot, attributes: [] }));
+    } else entities.push(make<PointEntity>(api, { type: 'point', position: p }));
   }
   addMany(api, measure ? 'MEASURE' : 'DIVIDE', entities);
   api.info(L(`${entities.length} marcas creadas sobre una longitud de ${total.toFixed(4)}.`, `${entities.length} markers created along a length of ${total.toFixed(4)}.`));

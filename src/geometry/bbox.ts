@@ -1,6 +1,7 @@
 import type { Mat2D } from './matrix';
 import { applyToPoint } from './matrix';
 import type { Vec2 } from './vec';
+import { mid } from './vec';
 
 export interface BBox {
   minX: number;
@@ -67,9 +68,16 @@ export function boxContainsPoint(b: BBox, p: Vec2, tol = 0): boolean {
   return p.x >= b.minX - tol && p.x <= b.maxX + tol && p.y >= b.minY - tol && p.y <= b.maxY + tol;
 }
 
-export const boxCenter = (b: BBox): Vec2 => ({ x: (b.minX + b.maxX) / 2, y: (b.minY + b.maxY) / 2 });
+export const boxCenter = (b: BBox): Vec2 => mid({ x: b.minX, y: b.minY }, { x: b.maxX, y: b.maxY });
 export const boxWidth = (b: BBox): number => b.maxX - b.minX;
 export const boxHeight = (b: BBox): number => b.maxY - b.minY;
+
+/** Escala para encajar un intervalo finito sin desbordar su ancho. */
+export function scaleToFitSpan(min: number, max: number, available: number): number {
+  const span = max - min;
+  if (Number.isFinite(span)) return available / Math.max(span, 1e-9);
+  return (available / 2) / Math.max(max / 2 - min / 2, 5e-10);
+}
 
 export function boxCorners(b: BBox): Vec2[] {
   return [

@@ -150,7 +150,15 @@ export function splineThroughPoints(fit: Vec2[], degree = 3): SplineData {
 }
 
 /** Teselado adaptativo por tramos de nudo; devuelve pares (punto, parámetro u). */
-export function tessellateSpline(s: SplineData, tol = 1e-3): { p: Vec2; u: number }[] {
+export class TessellationLimitError extends Error {
+  constructor() {
+    super('Curve tessellation exceeds the sample limit.');
+    this.name = 'TessellationLimitError';
+  }
+}
+
+export function tessellateSpline(s: SplineData, tol = 1e-3, maxSamples = Infinity): { p: Vec2; u: number }[] {
+  if ((!Number.isSafeInteger(maxSamples) && maxSamples !== Infinity) || maxSamples < 1) throw new RangeError('Invalid curve tessellation sample limit.');
   const [u0, u1] = splineDomain(s);
   const spans: number[] = [];
   for (let i = s.degree; i < s.ctrl.length; i++) {
@@ -160,6 +168,7 @@ export function tessellateSpline(s: SplineData, tol = 1e-3): { p: Vec2; u: numbe
   }
   spans.push(u1);
   const out: { p: Vec2; u: number }[] = [{ p: splinePoint(s, u0), u: u0 }];
+  if (out.length > maxSamples) throw new TessellationLimitError();
   const recurse = (a: number, pa: Vec2, b: number, pb: Vec2, depth: number) => {
     const m = (a + b) / 2;
     const pm = splinePoint(s, m);
@@ -170,6 +179,7 @@ export function tessellateSpline(s: SplineData, tol = 1e-3): { p: Vec2; u: numbe
       recurse(a, pa, m, pm, depth + 1);
       recurse(m, pm, b, pb, depth + 1);
     } else {
+      if (out.length + 2 > maxSamples) throw new TessellationLimitError();
       out.push({ p: pm, u: m });
       out.push({ p: pb, u: b });
     }

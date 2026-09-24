@@ -163,3 +163,123 @@
 - `pnpm check:features`: documentación al día.
 - `pnpm build`: compilación de producción exitosa en 1.67s.
 - `pnpm test:e2e`: 8/8 recorridos críticos en navegador real Chromium pasando en 4.4s.
+
+---
+
+## DAT-005 — Validar la geometría derivada representable
+
+- [ ] **Estado:** Abierta
+- **Prioridad:** P2 — una entidad con campos finitos puede producir geometría derivada no finita
+- **Depende de:** DAT-003
+- **Bloquea:** —
+
+**Evidencia:** un círculo con centro `y=1e308` y radio `1e308` cumple la validación de campos primitivos, pero `circleKind.bbox` devuelve `maxY=Infinity`. La prueba en `src/spatial/spatialIndex.test.ts` reproduce el caso; el índice espacial ya conserva la entidad como candidata sin introducir esa caja en RBush. Los campos y `LIST` muestran `####` para medidas derivadas no finitas; impresión y miniaturas omiten la caja inválida al calcular extensiones. Las pruebas en `src/model/model.test.ts`, `src/commands/behavior/management.test.ts`, `src/output/output.test.ts` y `src/render/thumbnail.test.ts` reproducen esas rutas. La impresión y miniatura ajustan una línea de extremos opuestos enormes sin desbordar; la impresión rechaza una escala manual cuya matriz no es finita y la miniatura limita la escala de un objeto puntual extremo. `MVIEW Ajustar` calcula escala positiva para extremos opuestos; el comando rechaza un ancho derivado infinito antes de crear el viewport y las proporciones inválidas no se aceptan, comprobado en `src/commands/layout.test.ts`. `ARRAYRECT` conserva un punto base finito para coordenadas grandes y rechaza cajas o espaciados derivados no representables antes de modificar la fuente, comprobado en `src/commands/behavior/modify.test.ts`. El caché de bloques, las inserciones y las matrices asociativas devuelven una caja ilimitada cuando su extensión derivada no se puede representar; la regresión en `src/model/kinds/insert.bounds.test.ts` confirma que el índice espacial conserva esas entidades como candidatas y que el cálculo de extensiones de impresión omite sus cajas. SVG/PDF rechazan ahora comandos vectoriales no finitos antes de producir un archivo; la regresión en `src/output/output.test.ts` reprodujo un SVG con `NaN` e `Infinity`. El portapapeles rechaza antes de mutar un desplazamiento que vuelve no finitos los extremos de una línea, comprobado en `src/io/clipboard.test.ts`. Otros consumidores aún requieren una política coherente. Estas protecciones parciales no demuestran que todas las rutas de render y exportación de entidades extremas sean seguras.
+
+La salida vectorial también valida los números derivados de estilos, textos e imágenes antes de llamar a SVG/PDF. `src/output/output.test.ts` reproduce un texto exportado con `translate(Infinity …)` y una matriz de imagen no finita, y comprueba el rechazo temprano. También rechaza un barrido de arco que exigiría más de 4.096 segmentos Bézier antes de reservarlos; la regresión falló antes y la suite focalizada pasó 14/14. La teselación geométrica común aplica ahora su límite de 4.096 incluso si el radio es menor que la tolerancia y devuelve una lista vacía ante parámetros o puntos derivados no finitos; `src/geometry/geometry.test.ts` reprodujo el exceso y el desbordamiento desde datos finitos, y pasó 39/39. En pantalla, `src/render/canvasSink.test.ts` comprueba que `Path2D`, texto, imágenes, sus recortes, bloques transformados y marcadores de punto no reciben valores desbordados; cubre sumas derivadas para el texto simplificado y las esquinas de imágenes. Una máscara de fondo no representable se omite sin perder el texto. `src/render/sceneRenderer.test.ts` y `src/render/traverse.test.ts` verifican la restauración del estado si falla un trazo dentro de un viewport o bloque. Los calcos PDF ya omiten segmentos no finitos y limitan segmentos y comandos incluso dentro de una sola operación de trazado; `src/render/pdfGeometry.test.ts` reprodujo ambas rutas y pasó 10/10 pruebas focalizadas. Sigue pendiente verificar las demás clases de entidad extrema y demostrar los criterios completos de DAT-005.
+
+**Archivos previstos:** `src/model/kinds/*`, `src/model/context.ts`, `src/io/validation.ts` y pruebas focalizadas de importación, transformación, render y extensiones, según la solución elegida.
+
+Una línea con extremos finitos opuestos de magnitud `1e308` devolvía `NaN` al consultar sus puntos porque la resta de extremos desbordaba incluso con parámetro cero. `curvePoint` usa una combinación ponderada cuando esa resta no cabe en el rango; la regresión fue roja antes del cambio y la suite geométrica focalizada pasó 40/40. DAT-005 sigue abierta.
+
+La proyección del punto más cercano sobre líneas largas también desbordaba al elevar su longitud al cuadrado, con parámetros `NaN` que impedían calcular bien la distancia de selección. Usa desplazamientos escalados antes del producto; la regresión falló con una línea de longitud `1e200` y otra con extremos opuestos de magnitud `1e308`. La suite geométrica focalizada pasó 41/41; falta la cobertura completa de DAT-005.
+
+La tangente de líneas y polilíneas con extremos finitos opuestos podía normalizar un desplazamiento infinito y devolver `NaN`, afectando consumidores como alineación de bloques y snaps. Usa el desplazamiento escalado para obtener una dirección finita y conserva la tolerancia previa para tramos diminutos. La regresión fue roja antes del cambio; la suite focalizada pasó 42/42. DAT-005 sigue abierta.
+
+La evaluación de puntos de una curva poligonal repetía la resta desbordada que ya se había corregido para líneas. Ambas curvas comparten ahora la interpolación segura; la regresión con extremos finitos `±1e308` fue roja antes y la suite geométrica pasó 43/43 después. DAT-005 continúa abierta para otras clases y consumidores.
+
+La normalización compartida convertía en dirección cero un vector con componentes finitas `(1.5e308, 1.5e308)` porque su longitud derivada desbordaba. Escala primero los componentes, conservando la tolerancia geométrica para vectores pequeños; la regresión fue roja antes y la suite geométrica pasó 44/44 después. DAT-005 permanece abierta.
+
+`RAY` y `XLINE` por dos puntos finitos extremos restaban coordenadas opuestas antes de normalizar y guardaban direcciones `NaN`. Ambas rutas usan ahora la tangente estable de línea y omiten puntos dentro de la tolerancia; la regresión fue roja antes, comprueba dirección, ausencia de entidad degenerada y undo/redo, y la suite focalizada de dibujo pasó 16/16. DAT-005 sigue abierta para otras rutas.
+
+`XLINE Bisect` mantenía la resta directa y podía guardar una dirección `NaN` con lados finitos extremos. La vista previa y el comando usan ahora la dirección estable y rechazan un primer lado degenerado antes de mutar; la regresión fue roja y comprueba resultado, error y undo/redo. La suite de dibujo pasó 17/17 en esa etapa.
+
+El desfase de `XLINE` reveló otra proyección desbordada en `nearestCurve`: no reconocía una línea de extremos `±1e308` aunque estuviera designada. Reutiliza ahora la distancia geométrica estable; el desfase usa la tangente estable y determina el lado desde el punto más cercano, evitando productos `Infinity × 0`. La regresión fue roja antes de cada corrección y verifica ambos lados, direcciones finitas y undo/redo; la suite de dibujo pasó 18/18. DAT-005 sigue abierta.
+
+El operador geométrico `offsetCurve` aún normalizaba directamente los extremos de líneas y polilíneas finitas `±1e308`, generando vértices `NaN`. Ambas ramas usan ahora la tangente estable y conservan el caso degenerado existente. La regresión fue roja para línea y polilínea; las suites focalizadas de geometría e invariantes pasaron 59/59. DAT-005 permanece abierta para otras curvas y consumidores.
+
+Una elipse con campos finitos y teselación derivada no representable dejaba cero muestras; `offsetCurve` llamaba entonces a `samePoint(undefined, undefined)` y lanzaba una excepción. Devuelve `null` sin mutar en ese caso. También rechaza resultados no finitos de líneas, polilíneas, rayos, líneas infinitas y radios de arco antes de devolverlos. Las regresiones fueron rojas y las suites focalizadas de geometría e invariantes pasaron 61/61. DAT-005 continúa abierta para más clases y recorridos del editor.
+
+La elección del lado de `OFFSET` normalizaba la derivada no finita de una línea con extremos diagonales `±1e308` y elegía el lado derecho para un punto que estaba a la izquierda. `sideOfCurve` utiliza la tangente estable en líneas y curvas poligonales; la regresión fue roja antes y comprueba ambos lados. Las suites focalizadas de geometría e invariantes pasaron 62/62. DAT-005 sigue abierta.
+
+Un punto finito fuera de una línea horizontal extrema aún generaba un desplazamiento derivado infinito; el producto cruzado multiplicaba ese desplazamiento por una tangente vertical cero y elegía el lado incorrecto por `NaN`. La regresión fue roja antes del ajuste local y geometría e invariantes pasaron 62/62 después, junto con `pnpm typecheck`. DAT-005 permanece abierta.
+
+Una línea diagonal lejana reveló `Infinity - Infinity` en el mismo cálculo de lado, pese a tener coordenadas finitas. La orientación se recalcula con coordenadas escaladas solo cuando el resultado directo es `NaN`; la regresión fue roja para el lado izquierdo y después pasaron 48/48 pruebas de geometría y `pnpm typecheck`. DAT-005 sigue abierta.
+
+`offsetPolyline` todavía entregaba una polilínea parcial si un tramo lineal desbordaba y otro podía desplazarse. Ahora cancela el resultado completo ante un tramo no representable y mantiene la eliminación local de arcos colapsados. La regresión fue roja antes; pasaron 49/49 pruebas de geometría y `pnpm typecheck` después. DAT-005 continúa abierta.
+
+Una polilínea válida con menos de dos vértices provocaba `TypeError` al ejecutar `offsetEntity` porque no había tramo para elegir el lado. Devuelve un resultado vacío antes de calcularlo. La regresión fue roja y pasaron 27/27 pruebas focalizadas de `src/modify/modify.test.ts` y `pnpm typecheck`. DAT-005 continúa abierta para los demás casos de geometría derivada.
+
+`REVCLOUD` podía superar el límite de vértices con entradas finitas y reservar una cantidad no acotada de muestras al convertir un objeto. Ahora comprueba el presupuesto antes de iterar o reservar, omite vistas previas no representables y rechaza sin mutación el resultado excesivo; la regresión fue roja para 100.001 vértices y las 21/21 pruebas focalizadas de dibujo pasaron después, incluida la conversión válida de un objeto, junto con tipos, lint y capas. DAT-005 permanece abierta para los demás generadores y consumidores.
+
+`MEASURE` podía recibir distancia cero mediante dos clics y quedar en un bucle que no avanzaba; una distancia muy pequeña también podía generar más marcas que el límite del dibujo. Valida longitud, distancia y presupuesto antes de construir marcas, y rechaza puntos derivados no representables antes de aplicar cambios. La prueba focalizada comprobó dos clics coincidentes, una distancia normal y el exceso sin mutación; dibujo pasó 22/22 y `pnpm typecheck` pasó. DAT-005 sigue abierta.
+
+`ARRAYRECT` aceptaba hasta 25 millones de instancias y los archivos nativos podían conservar cantidades enteras sin máximo; modelar o renderizar una matriz así podía bloquear la interfaz. Un límite compartido de 250.000 acota instancias, objetos fuente y tramos de ruta en comandos, archivos/portapapeles, grips, guardado y expansión del modelo. `ARRAYPATH` ya no tesela polilíneas antes de guardarlas como trayectoria. Las pruebas focalizadas de `src/commands/behavior/modify.test.ts`, `src/io/native.test.ts` y `src/model/kinds/insert.bounds.test.ts` pasaron 66/66; las suites nativa y de portapapeles pasaron después 81/81, junto con `pnpm typecheck` y `pnpm check:layers` (595 importaciones). DAT-005 permanece abierta.
+
+**Criterios de aceptación:**
+
+- [ ] Definir una regla explícita para operaciones derivadas fuera del rango representable sin limitar arbitrariamente dibujos válidos.
+- [ ] Las rutas de entrada y comandos mutables rechazan el resultado inválido de forma atómica y bilingüe, o los consumidores admiten una representación acotada con semántica comprobada.
+- [ ] Extensiones, selección, render, miniaturas y copia no reciben `NaN`/`Infinity` inesperados de entidades con campos finitos.
+- [ ] Probar al menos círculo, inserción con escala extrema y desbordamiento en un solo eje, con éxito, error y undo/redo cuando corresponda.
+
+**Verificación prevista:** pruebas focalizadas de las rutas afectadas y `pnpm verify`.
+
+---
+
+## DAT-006 — Acotar entidades y puntos durante la importación DXF
+
+- [x] **Estado:** Cerrada
+- **Responsable:** Codex
+- **Cierre:** 2026-09-23
+- **Prioridad:** P2 — un DXF permitido por tamaño puede crear más entidades o vértices que los límites del documento
+- **Depende de:** DAT-003
+- **Bloquea:** —
+
+**Evidencia inicial:** `IMPORTDXF` pasaba el texto a `parseDxf` y después a `importDxfIntoDocument` en el hilo principal. El parser construía todos los registros y el importador no aplicaba `INPUT_LIMITS.maxEntities` ni `maxPointsPerEntity` antes de convertir; un archivo inferior a 64 MiB podía contener más de 250.000 entidades o una polilínea de más de 100.000 puntos. Los caminos `readDxf` y `readDwg` también aceptaban la estructura intermedia sin esos límites.
+
+**Archivos previstos:** `src/io/dxf/parser.ts`, `src/io/dxf/importDxf.ts`, `src/io/dxf/importDxf.test.ts`, pruebas de worker/fallback donde corresponda.
+
+**Criterios de aceptación:**
+
+- [x] Limitar registros, entidades y puntos antes de reservar o convertir cantidades excesivas.
+- [x] Aplicar la misma protección al DXF textual y a la estructura DXF procedente de DWG.
+- [x] Rechazar con error bilingüe y sin mutar el dibujo abierto; conservar el documento anterior también al usar reemplazo.
+- [x] Cubrir los umbrales y la atomicidad con pruebas focalizadas y pasar `pnpm verify`.
+
+**Evidencia de cierre:** `tokenize` recorre líneas sin duplicar todo el texto y limita bytes y pares; el parser limita registros, bloques, entidades y puntos durante la construcción. `importDxfFile` aplica los mismos límites a la estructura intermedia de DWG antes de `replaceData` y calcula las cuatro líneas de cada `3DFACE` antes de convertir. Los contadores declarados de `HATCH` se contrastan con sus pares y su conversión se detiene al agotar los datos. `src/io/dxf/importDxf.test.ts` comprueba los límites de entidades, 100.000/100.001 puntos, vértices de `POLYLINE`, expansión de `3DFACE`, conteos de `HATCH`, error bilingüe y conservación del dibujo al reemplazar. Las 8 suites DXF/DWG pasaron 59/59 pruebas; `pnpm verify` pasó 809/809 pruebas en 90 archivos, lint, tipos, capas, catálogo y build. El recorrido visible de importación/exportación DXF pasó en Chromium y WebKit después del build (2/2).
+
+---
+
+## DAT-007 — Mantener coherentes los límites del escritor y lector nativos
+
+- [x] **Estado:** Cerrada
+- **Responsable:** Codex
+- **Cierre:** 2026-09-23
+- **Prioridad:** P2 — QSAVE podía escribir un paquete nativo que luego el lector rechazaba
+- **Depende de:** DAT-003
+- **Bloquea:** —
+
+**Criterios de aceptación:**
+
+- [x] El escritor rechaza colecciones por encima de los mismos topes que usa el lector, antes de serializar.
+- [x] Un documento con más de 10.000 recursos no produce un archivo `.fmodel` que no pueda reabrirse.
+
+**Evidencia de cierre:** `toNativeFile` aplica los límites de colección que también usa `fromNativeFile`; la prueba crea 10.001 recursos y comprueba el rechazo antes de serializar. Las pruebas focalizadas de comandos, formato nativo y matrices asociativas pasaron 66/66; `pnpm typecheck` y `git diff --check` pasaron.
+
+---
+
+## DAT-008 — Rechazar bibliotecas grandes antes de serializar sus bloques
+
+- [x] **Estado:** Cerrada
+- **Responsable:** Codex
+- **Cierre:** 2026-09-23
+- **Prioridad:** P2 — exportar más bloques que entradas ZIP permitidas serializaba todo antes de rechazarlo
+- **Depende de:** DAT-003
+- **Bloquea:** —
+
+**Criterios de aceptación:**
+
+- [x] Comprobar el total de entradas antes de validar y serializar cada bloque.
+- [x] Mantener el error bilingüe de biblioteca demasiado grande.
+
+**Evidencia de cierre:** `writeLibraryArchive` comprueba `1 + blocks.length` antes de recorrer los bloques. La suite existente `src/blocks/libraryArchive.test.ts`, incluido el umbral de entradas ZIP, pasó 34/34 pruebas; `pnpm typecheck` pasó.

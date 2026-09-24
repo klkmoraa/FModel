@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { createDocument, entityDefaults } from '../document/defaults';
-import type { BlockConstraint, CircleEntity, Entity, GeoRef, Id, LineEntity } from '../document/types';
+import type { BlockConstraint, CircleEntity, Entity, GeoRef, Id, LineEntity, LwPolylineEntity } from '../document/types';
 import { solveConstraints } from './solver';
 
 const doc = createDocument();
 const line = (id: string, ax: number, ay: number, bx: number, by: number): LineEntity => ({ ...entityDefaults(doc), id, order: 1, type: 'line', start: { x: ax, y: ay }, end: { x: bx, y: by } });
 const circle = (id: string, x: number, y: number, r: number): CircleEntity => ({ ...entityDefaults(doc), id, order: 1, type: 'circle', center: { x, y }, radius: r });
+const polyline = (id: string, vertices: LwPolylineEntity['vertices'], closed = false): LwPolylineEntity => ({ ...entityDefaults(doc), id, order: 1, type: 'lwpolyline', vertices, closed });
 
 const ref = (entityId: Id, part: string): GeoRef => ({ entityId, part });
 const geo = (id: string, type: string, refs: GeoRef[]): BlockConstraint => ({ id, kind: 'geometric', type: type as never, refs, enabled: true });
@@ -97,6 +98,46 @@ describe('restricciones dimensionales', () => {
     const cota = dim('d1', 'radius', [ref('c1', 'edge')], 'R / 2');
     expect(out<CircleEntity>(solve([circle('c1', 0, 0, 5)], [cota]), 'c1').radius).toBe(5);
     expect(out<CircleEntity>(solve([circle('c1', 0, 0, 5)], [cota], { d1: 9 }), 'c1').radius).toBeCloseTo(9, 5);
+  });
+});
+
+describe('tangencia línea-círculo', () => {
+  it('converge cuando el centro inicia sobre la línea y el radio está acotado', () => {
+    const r = solve(
+      [line('l1', 0, 0, 10, 0), circle('c1', 5, 0, 5)],
+      [
+        geo('g1', 'tangent', [ref('l1', 'edge'), ref('c1', 'edge')]),
+        dim('d1', 'radius', [ref('c1', 'edge')], 'R'),
+        geo('g2', 'fixed', [ref('l1', 'edge')]),
+      ],
+      { d1: 5 },
+    );
+    const c = out<CircleEntity>(r, 'c1');
+
+    expect(r.status).toBe('solved');
+    expect(c.radius).toBeCloseTo(5, 5);
+    expect(Math.abs(c.center.y)).toBeCloseTo(c.radius, 5);
+  });
+});
+
+describe('referencias de polilínea', () => {
+  it('ignora un índice de vértice fuera de rango sin devolver residuo NaN', () => {
+    const p = polyline('p1', [{ x: 0, y: 0 }, { x: 10, y: 0 }]);
+    const r = solve([p], [geo('g1', 'coincident', [ref('p1', 'vertex:0'), ref('p1', 'vertex:99')])]);
+
+    expect(r.residual).toBe(0);
+    expect(Number.isFinite(r.residual)).toBe(true);
+    expect(r.status).toBe('unchanged');
+    expect(out<LwPolylineEntity>(r, 'p1').vertices).toEqual(p.vertices);
+  });
+
+  it('no envuelve el último segmento de una polilínea abierta', () => {
+    const p = polyline('p1', [{ x: 0, y: 0 }, { x: 10, y: 2 }]);
+    const r = solve([p], [geo('g1', 'horizontal', [ref('p1', 'segment:1')])]);
+
+    expect(r.residual).toBe(0);
+    expect(r.status).toBe('unchanged');
+    expect(out<LwPolylineEntity>(r, 'p1').vertices).toEqual(p.vertices);
   });
 });
 

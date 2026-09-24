@@ -1,5 +1,5 @@
 import type { BBox } from '../geometry/bbox';
-import { boxFromPoints, emptyBox, expandBox, isEmptyBox, transformBox } from '../geometry/bbox';
+import { boxCenter, boxFromPoints, emptyBox, expandBox, isEmptyBox, scaleToFitSpan, transformBox } from '../geometry/bbox';
 import type { Mat2D } from '../geometry/matrix';
 import { invert, multiply, scaling, translation } from '../geometry/matrix';
 import type { CadDocument } from '../document/document';
@@ -53,7 +53,7 @@ export function plotExtents(pc: PlotContext, spaceId: Id): BBox {
   for (const e of visibleEntities(env, spaceId, null, null)) {
     try {
       const eb = kindOf(e).bbox(e, pc.ctx);
-      if (Number.isFinite(eb.minX) && Number.isFinite(eb.maxX)) expandBox(b, eb);
+      if (Number.isFinite(eb.minX) && Number.isFinite(eb.minY) && Number.isFinite(eb.maxX) && Number.isFinite(eb.maxY)) expandBox(b, eb);
     } catch {
       /* entidad sin caja */
     }
@@ -84,13 +84,15 @@ export function planSheet(pc: PlotContext, spaceId: Id, pageOverride?: PageSetup
   const ph = Math.max(1, paper.height - m.top - m.bottom);
   const rw = Math.max(region.maxX - region.minX, 1e-9);
   const rh = Math.max(region.maxY - region.minY, 1e-9);
-  const k = page.plotScale > 0 ? page.plotScale : Math.min(pw / rw, ph / rh);
+  const k = page.plotScale > 0 ? page.plotScale : Math.min(scaleToFitSpan(region.minX, region.maxX, pw), scaleToFitSpan(region.minY, region.maxY, ph));
+  if (!Number.isFinite(k) || k <= 0) throw new RangeError('La escala de trazado excede el rango numérico válido. / Plot scale exceeds the valid numeric range.');
   if (page.plotScale > 0 && (rw * k > pw + 1e-6 || rh * k > ph + 1e-6)) warnings.push('A esta escala el área trazada no cabe en la zona imprimible: se recortará.');
   let tx: number;
   let ty: number;
   if (page.center) {
-    tx = m.left + pw / 2 - k * (region.minX + rw / 2);
-    ty = m.bottom + ph / 2 - k * (region.minY + rh / 2);
+    const center = boxCenter(region);
+    tx = m.left + pw / 2 - k * center.x;
+    ty = m.bottom + ph / 2 - k * center.y;
   } else {
     tx = m.left - k * region.minX;
     ty = m.bottom - k * region.minY;
@@ -98,6 +100,9 @@ export function planSheet(pc: PlotContext, spaceId: Id, pageOverride?: PageSetup
   const offsetX = page.offset?.x ?? 0;
   const offsetY = page.offset?.y ?? 0;
   const base = multiply(translation(tx + offsetX, ty + offsetY), scaling(k, k));
+  if (Object.values(base).some((value) => !Number.isFinite(value))) {
+    throw new RangeError('La escala de trazado excede el rango numérico válido. / Plot scale exceeds the valid numeric range.');
+  }
   return { spaceId, name, page, paper, base, region, scale: k, warnings };
 }
 
@@ -124,6 +129,7 @@ export function drawSheet(pc: PlotContext, plan: SheetPlan, backend: VectorBacke
   const prevSheet = ctx.sheetName;
   const prevScale = ctx.annotationScale;
   ctx.sheetName = plan.name;
+  if (doc.data.layouts.has(plan.spaceId)) ctx.annotationScale = 1;
   try {
     const layout = doc.data.layouts.get(plan.spaceId);
     if (!layout) {
@@ -152,29 +158,36 @@ export function drawSheet(pc: PlotContext, plan: SheetPlan, backend: VectorBacke
 }
 
 function drawViewport(pc: PlotContext, sink: VectorSink, env: TraverseEnv, vp: ViewportEntity) {
+  if (!Number.isFinite(vp.scale) || vp.scale <= 0) return;
   const layer = pc.doc.data.layers.get(vp.layer);
   if (!layerVisible(layer, { plotting: true })) return;
   const outline = viewportOutline(vp);
   const m = viewportMatrix(vp);
+  const prevScale = pc.ctx.annotationScale;
   sink.save();
-  sink.clip([...outline.map((p, i) => ({ t: i ? 'L' : 'M', x: p.x, y: p.y }) as const), { t: 'Z' as const }]);
-  sink.transform(m);
-  pc.ctx.annotationScale = vp.scale;
-  const modelBox = transformBox(boxFromPoints(outline), invert(m));
-  drawSpace(sink, { ...env, viewport: vp, dashScale: pc.doc.settings.psltscale ? 1 / (vp.scale || 1) : 1 }, MODEL_SPACE_ID, pc.index ?? null, pc.index ? modelBox : null);
-  sink.restore();
+  try {
+    sink.clip([...outline.map((p, i) => ({ t: i ? 'L' : 'M', x: p.x, y: p.y }) as const), { t: 'Z' as const }]);
+    sink.transform(m);
+    pc.ctx.annotationScale = vp.scale;
+    const modelBox = transformBox(boxFromPoints(outline), invert(m));
+    drawSpace(sink, { ...env, viewport: vp, dashScale: pc.doc.settings.psltscale ? 1 / (vp.scale || 1) : 1 }, MODEL_SPACE_ID, pc.index ?? null, pc.index ? modelBox : null);
+  } finally {
+    pc.ctx.annotationScale = prevScale;
+    sink.restore();
+  }
 }
 
 export interface ExportResult<T> {
   data: T;
   warnings: string[];
+  omittedAssets: string[];
 }
 
 export function exportSvg(pc: PlotContext, spaceId: Id, pageOverride?: PageSetup): ExportResult<string> {
   const plan = planSheet(pc, spaceId, pageOverride);
   const backend = new SvgBackend(plan.paper.width, plan.paper.height, { title: `${pc.doc.settings.title} — ${plan.name}`, background: '#ffffff' });
   drawSheet(pc, plan, backend);
-  return { data: backend.finish(), warnings: plan.warnings };
+  return { data: backend.finish(), warnings: plan.warnings, omittedAssets: [] };
 }
 
 /** PDF vectorial de una o varias hojas (PUBLISH). */
@@ -186,15 +199,21 @@ export async function exportPdf(pc: PlotContext, spaceIds: Id[], pageOverride?: 
   pdf.setCreator('FModel 2D CAD');
   pdf.setProducer('FModel 2D CAD');
   const warnings: string[] = [];
+  const failedAssets = new Set<Id>();
   let substituted = 0;
   for (const id of spaceIds) {
     const plan = planSheet(pc, id, spaceIds.length === 1 ? pageOverride : undefined);
     const backend = new PdfBackend(pdf, plan.paper.width, plan.paper.height);
     drawSheet(pc, plan, backend);
     await backend.finish();
+    for (const assetId of backend.failedAssets) failedAssets.add(assetId);
     substituted += backend.substitutedChars;
     for (const w of plan.warnings) warnings.push(`${plan.name}: ${w}`);
   }
   if (substituted) warnings.push(`${substituted} carácter(es) sin equivalente en las fuentes PDF estándar se sustituyeron por «?».`);
-  return { data: await pdf.save(), warnings };
+  return {
+    data: await pdf.save(),
+    warnings,
+    omittedAssets: [...failedAssets].map((id) => pc.doc.data.assets.get(id)?.name ?? id),
+  };
 }

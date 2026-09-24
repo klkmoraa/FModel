@@ -27,6 +27,8 @@ interface ActiveCommand {
   abort: AbortController;
   pending: PendingInput | null;
   lastPoint: Vec2 | null;
+  doc: Editor['doc'];
+  groupOpen: boolean;
 }
 
 const tr = (lang: 'es' | 'en', l: L10n) => l[lang];
@@ -92,7 +94,14 @@ export class CommandRunner {
   async run(def: CommandDef, args?: string[], invokedAs?: string): Promise<void> {
     if (this.busy && !def.transparent) this.cancelAll();
     const doc = this.editor.doc;
-    const active: ActiveCommand = { def, abort: new AbortController(), pending: null, lastPoint: this.lastPoint };
+    const active: ActiveCommand = {
+      def,
+      abort: new AbortController(),
+      pending: null,
+      lastPoint: this.lastPoint,
+      doc,
+      groupOpen: false,
+    };
     this.stack.push(active);
     if (!def.transparent) {
       this.lastCommand = def;
@@ -101,12 +110,19 @@ export class CommandRunner {
     this.pushLog('command', `${def.transparent && this.stack.length > 1 ? "'" : ''}${def.name}`);
     if (def.ui) requestUi(def.ui, undefined, invokedAs ?? def.name);
     const grouped = !def.readOnly;
-    if (grouped) doc.history.beginGroup(tr(this.editor.lang, def.label));
+    if (grouped) {
+      doc.history.beginGroup(tr(this.editor.lang, def.label));
+      active.groupOpen = true;
+    }
     let failed = false;
     try {
       await def.run(this.api(active), args);
     } catch (err) {
-      if (err instanceof CancelError) {
+      const abortedByCommand =
+        active.abort.signal.aborted &&
+        ((err instanceof DOMException && err.name === 'AbortError') ||
+          (err instanceof Error && err.name === 'AbortError'));
+      if (err instanceof CancelError || abortedByCommand) {
         this.pushLog('info', this.editor.lang === 'es' ? '*Cancelar*' : '*Cancel*');
       } else {
         failed = true;
@@ -116,15 +132,14 @@ export class CommandRunner {
         console.error(err);
       }
     } finally {
-      if (grouped) {
-        if (failed) doc.history.abortGroup();
-        else doc.history.endGroup();
-      }
+      this.finishGroup(active, failed);
       const i = this.stack.indexOf(active);
-      if (i >= 0) this.stack.splice(i, 1);
-      if (active.lastPoint) this.lastPoint = active.lastPoint;
-      this.editor.setPreview(null);
-      this.editor.onCommandEnd(def);
+      if (i >= 0) {
+        this.stack.splice(i, 1);
+        if (active.lastPoint) this.lastPoint = active.lastPoint;
+        this.editor.setPreview(null);
+        this.editor.onCommandEnd(def);
+      }
       this.emit();
     }
   }
@@ -177,15 +192,29 @@ export class CommandRunner {
     const p = a.pending;
     a.pending = null;
     p?.reject(new CancelError());
+    this.finishGroup(a, false);
     this.emit();
+  }
+
+  private finishGroup(active: ActiveCommand, abort: boolean) {
+    if (!active.groupOpen) return;
+    active.groupOpen = false;
+    if (abort) active.doc.history.abortGroup();
+    else active.doc.history.endGroup();
   }
 
   cancelAll() {
     while (this.stack.length) {
+      const active = this.active!;
       const before = this.stack.length;
       this.cancel();
       // el finally de run() retira el comando; si el comando no estaba esperando, sácalo
-      if (this.stack.length === before) this.stack.pop();
+      if (this.stack.length === before) {
+        this.stack.pop();
+        if (active.lastPoint) this.lastPoint = active.lastPoint;
+        this.editor.setPreview(null);
+        this.editor.onCommandEnd(active.def);
+      }
     }
   }
 
@@ -211,6 +240,7 @@ export class CommandRunner {
       },
       t: (l) => tr(editor.lang, l),
       apply<T>(label: string, fn: (tx: Transaction) => T): T {
+        if (active.abort.signal.aborted) throw new CancelError();
         return editor.doc.transact(label, fn);
       },
       request,

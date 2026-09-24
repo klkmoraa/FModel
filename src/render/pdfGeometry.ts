@@ -1,48 +1,35 @@
+import RBush from 'rbush';
 import type { BBox } from '../geometry/bbox';
 import type { Mat2D } from '../geometry/matrix';
 import { applyToPoint, IDENTITY, multiply } from '../geometry/matrix';
 import type { CadDocument } from '../document/document';
 import type { PdfSegmentIndex } from '../model/registry';
 
-/** Rejilla uniforme sobre el cuadrado unidad para consultar segmentos por caja. */
+interface SegmentItem extends BBox {
+  offset: number;
+}
+
+/** Índice espacial con una entrada por segmento, incluso si cruza toda la página. */
 export function buildSegmentIndex(segs: Float32Array, cells = 64): PdfSegmentIndex {
   const count = segs.length / 4;
-  const grid = new Map<number, number[]>();
-  const cell = (v: number) => Math.max(0, Math.min(cells - 1, Math.floor(v * cells)));
+  const items: SegmentItem[] = [];
   for (let i = 0; i < count; i++) {
     const o = i * 4;
-    const x0 = cell(Math.min(segs[o], segs[o + 2]));
-    const x1 = cell(Math.max(segs[o], segs[o + 2]));
-    const y0 = cell(Math.min(segs[o + 1], segs[o + 3]));
-    const y1 = cell(Math.max(segs[o + 1], segs[o + 3]));
-    for (let gx = x0; gx <= x1; gx++)
-      for (let gy = y0; gy <= y1; gy++) {
-        const k = gy * cells + gx;
-        const list = grid.get(k);
-        if (list) list.push(i);
-        else grid.set(k, [i]);
-      }
+    const x0 = segs[o];
+    const y0 = segs[o + 1];
+    const x1 = segs[o + 2];
+    const y1 = segs[o + 3];
+    if (!Number.isFinite(x0) || !Number.isFinite(y0) || !Number.isFinite(x1) || !Number.isFinite(y1)) continue;
+    items.push({ minX: Math.min(x0, x1), minY: Math.min(y0, y1), maxX: Math.max(x0, x1), maxY: Math.max(y0, y1), offset: o });
   }
+  const tree = new RBush<SegmentItem>(Math.max(4, Math.min(64, Math.floor(cells))));
+  tree.load(items);
   return {
     count,
     query(box: BBox) {
       if (box.maxX < 0 || box.maxY < 0 || box.minX > 1 || box.minY > 1) return [];
-      const seen = new Set<number>();
-      const out: number[][] = [];
-      for (let gx = cell(box.minX); gx <= cell(box.maxX); gx++)
-        for (let gy = cell(box.minY); gy <= cell(box.maxY); gy++)
-          for (const i of grid.get(gy * cells + gx) ?? []) {
-            if (seen.has(i)) continue;
-            seen.add(i);
-            const o = i * 4;
-            const sx0 = Math.min(segs[o], segs[o + 2]);
-            const sx1 = Math.max(segs[o], segs[o + 2]);
-            const sy0 = Math.min(segs[o + 1], segs[o + 3]);
-            const sy1 = Math.max(segs[o + 1], segs[o + 3]);
-            if (sx1 < box.minX || sx0 > box.maxX || sy1 < box.minY || sy0 > box.maxY) continue;
-            out.push([segs[o], segs[o + 1], segs[o + 2], segs[o + 3]]);
-          }
-      return out;
+      if (![box.minX, box.minY, box.maxX, box.maxY].every(Number.isFinite)) return [];
+      return tree.search(box).sort((a, b) => a.offset - b.offset).map(({ offset }) => [segs[offset], segs[offset + 1], segs[offset + 2], segs[offset + 3]]);
     },
   };
 }
@@ -63,6 +50,7 @@ const LINE = 1;
 const CURVE = 2;
 const CLOSE = 3;
 const MAX_SEGMENTS = 250_000;
+const MAX_PATH_COMMANDS = MAX_SEGMENTS * 4;
 
 /**
  * Convierte la lista de operadores de una página en segmentos en el cuadrado unidad
@@ -72,6 +60,7 @@ const MAX_SEGMENTS = 250_000;
  */
 export function segmentsFromOperators(fnArray: ArrayLike<number>, argsArray: ArrayLike<unknown>, ops: PathOps, pageToCanvas: number[], width: number, height: number): Float32Array {
   const out: number[] = [];
+  let pathCommands = 0;
   let ctm: Mat2D = IDENTITY;
   const stack: Mat2D[] = [];
   const view: Mat2D = { a: pageToCanvas[0], b: pageToCanvas[1], c: pageToCanvas[2], d: pageToCanvas[3], e: pageToCanvas[4], f: pageToCanvas[5] };
@@ -80,10 +69,11 @@ export function segmentsFromOperators(fnArray: ArrayLike<number>, argsArray: Arr
     return { x: p.x / width, y: 1 - p.y / height };
   };
   const seg = (a: { x: number; y: number }, b: { x: number; y: number }) => {
+    if (out.length >= MAX_SEGMENTS * 4 || !Number.isFinite(a.x) || !Number.isFinite(a.y) || !Number.isFinite(b.x) || !Number.isFinite(b.y)) return;
     if (Math.abs(a.x - b.x) + Math.abs(a.y - b.y) < 1e-7) return;
     out.push(a.x, a.y, b.x, b.y);
   };
-  for (let i = 0; i < fnArray.length && out.length / 4 < MAX_SEGMENTS; i++) {
+  for (let i = 0; i < fnArray.length && out.length / 4 < MAX_SEGMENTS && pathCommands < MAX_PATH_COMMANDS; i++) {
     const fn = fnArray[i];
     const args = argsArray[i] as unknown[];
     if (fn === ops.save) stack.push(ctm);
@@ -103,7 +93,7 @@ export function segmentsFromOperators(fnArray: ArrayLike<number>, argsArray: Arr
       let cur = { x: 0, y: 0 };
       let start = cur;
       let raw = { x: 0, y: 0 };
-      for (let j = 0; j < data.length; ) {
+      for (let j = 0; j < data.length && out.length / 4 < MAX_SEGMENTS && pathCommands < MAX_PATH_COMMANDS; pathCommands++) {
         const op = data[j++];
         if (op === MOVE) {
           raw = { x: data[j++], y: data[j++] };
@@ -146,6 +136,8 @@ export function segmentsFromOperators(fnArray: ArrayLike<number>, argsArray: Arr
  */
 export class PdfGeometryCache {
   private entries = new Map<string, PdfSegmentIndex | 'loading' | 'error'>();
+  private generation = 0;
+  private controller = new AbortController();
 
   constructor(
     private doc: () => CadDocument,
@@ -160,31 +152,57 @@ export class PdfGeometryCache {
     const asset = this.doc().data.assets.get(assetId);
     if (!asset?.dataUrl || asset.mime !== 'application/pdf') return null;
     this.entries.set(key, 'loading');
-    void this.extract(asset.dataUrl, page)
+    const generation = this.generation;
+    void this.extract(asset.dataUrl, page, this.controller.signal)
       .then((index) => {
+        if (generation !== this.generation) return;
         this.entries.set(key, index);
         this.onReady();
       })
       .catch((err) => {
+        if (generation !== this.generation || (err instanceof Error && err.name === 'AbortError')) return;
         console.warn('PDF geometry', err);
         this.entries.set(key, 'error');
       });
     return null;
   }
 
-  private async extract(dataUrl: string, pageNumber: number): Promise<PdfSegmentIndex> {
+  clear(): void {
+    this.generation++;
+    this.controller.abort();
+    this.controller = new AbortController();
+    this.entries.clear();
+  }
+
+  private async extract(dataUrl: string, pageNumber: number, signal: AbortSignal): Promise<PdfSegmentIndex> {
     const pdfjs = await import('pdfjs-dist');
     const worker = await import('pdfjs-dist/build/pdf.worker.min.mjs?url');
+    if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
     pdfjs.GlobalWorkerOptions.workerSrc = worker.default;
     const bin = atob(dataUrl.slice(dataUrl.indexOf(',') + 1));
     const bytes = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-    const pdf = await pdfjs.getDocument({ data: bytes }).promise;
-    const page = await pdf.getPage(Math.max(1, Math.min(pdf.numPages, pageNumber)));
-    const viewport = page.getViewport({ scale: 1 });
-    const list = await page.getOperatorList();
-    const segs = segmentsFromOperators(list.fnArray, list.argsArray, pdfjs.OPS as unknown as PathOps, viewport.transform, viewport.width, viewport.height);
-    void pdf.destroy();
-    return buildSegmentIndex(segs);
+    const loadingTask = pdfjs.getDocument({ data: bytes });
+    const abortLoading = () => void loadingTask.destroy();
+    signal.addEventListener('abort', abortLoading, { once: true });
+    let pdf: Awaited<typeof loadingTask.promise> | undefined;
+    try {
+      pdf = await loadingTask.promise;
+      if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
+      if (!Number.isInteger(pdf.numPages) || pdf.numPages < 1) throw new Error('Invalid PDF page count');
+      const page = await pdf.getPage(Math.max(1, Math.min(pdf.numPages, pageNumber)));
+      const viewport = page.getViewport({ scale: 1 });
+      if (!Number.isFinite(viewport.width) || !Number.isFinite(viewport.height) || viewport.width <= 0 || viewport.height <= 0) throw new Error('Invalid PDF page dimensions');
+      const list = await page.getOperatorList();
+      if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
+      const segs = segmentsFromOperators(list.fnArray, list.argsArray, pdfjs.OPS as unknown as PathOps, viewport.transform, viewport.width, viewport.height);
+      return buildSegmentIndex(segs);
+    } catch (error) {
+      if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
+      throw error;
+    } finally {
+      signal.removeEventListener('abort', abortLoading);
+      await (pdf ? pdf.destroy() : loadingTask.destroy()).catch(() => undefined);
+    }
   }
 }

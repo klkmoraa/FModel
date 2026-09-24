@@ -6,7 +6,8 @@ import { boxFromCorners } from '../geometry/bbox';
 import { newId } from '../document/ids';
 import type { AssetRecord, BlockRecord, Id, ImageEntity, PdfUnderlayEntity } from '../document/types';
 import { unitConversion } from '../document/defaults';
-import { assertInputBytes } from '../io/limits';
+import { assertInputBytes, INPUT_LIMITS } from '../io/limits';
+import { assertAssetBytes, assertAssetRecord, AssetValidationError } from '../io/assets';
 import { underlaySize } from '../model/kinds/media';
 import { openFile } from '../storage/fileAccess';
 import { forgetXrefHandle, LIBRARY_PREFIX, readXrefBytes, rememberXrefHandle } from '../xref/sources';
@@ -30,6 +31,24 @@ function readSource(bytes: Uint8Array, name: string): XrefSource {
     return readXrefSource(bytes, name);
   } catch (err) {
     throw new CommandError(L(`No se pudo leer «${name}»: ${err instanceof Error ? err.message : String(err)}`, `Could not read "${name}": ${err instanceof Error ? err.message : String(err)}`));
+  }
+}
+
+function validateAttachmentBytes(bytes: Uint8Array, name: string): void {
+  try {
+    assertAssetBytes(bytes, name);
+  } catch (error) {
+    if (error instanceof AssetValidationError) throw new CommandError(error.l10n);
+    throw error;
+  }
+}
+
+function validateAttachmentRecord(asset: AssetRecord): void {
+  try {
+    assertAssetRecord(asset);
+  } catch (error) {
+    if (error instanceof AssetValidationError) throw new CommandError(error.l10n);
+    throw error;
   }
 }
 
@@ -57,6 +76,7 @@ export async function reloadReference(api: CommandApi, block: BlockRecord, inter
     api.info(L(`Designa de nuevo el archivo de «${block.name}» (${path}).`, `Pick the file for "${block.name}" again (${path}).`));
     const f = await openFile(XREF_ACCEPT, 'FModel / DXF');
     if (f) {
+      if (api.signal.aborted) return false;
       res = { bytes: f.bytes, name: f.name };
       await rememberXrefHandle(block.id, f.handle, f.name);
     }
@@ -169,7 +189,8 @@ const XOPEN: CommandDef = {
     const res = await readXrefBytes(b.id, b.xref!.path, true);
     if (!res) throw new CommandError(L(`No hay acceso al origen de «${b.name}» (${b.xref!.path}). Usa XREPATH para designarlo.`, `No access to the source of "${b.name}" (${b.xref!.path}). Use XREPATH to pick it.`));
     if (!(await confirmDiscard(api))) return;
-    await openBytes(api, res.name, res.bytes);
+    const opened = await openBytes(api, res.name, res.bytes);
+    if (!opened) return;
     getServices().fileHandle = null;
     api.info(L(`Abierto «${res.name}». Al volver al dibujo anfitrión, recarga la referencia con XRELOAD.`, `Opened "${res.name}". Back in the host drawing, reload the reference with XRELOAD.`));
   },
@@ -266,11 +287,27 @@ function readAsDataUrl(bytes: Uint8Array, mime: string): string {
   return `data:${mime};base64,${btoa(bin)}`;
 }
 
-async function imageSize(dataUrl: string): Promise<{ w: number; h: number }> {
+export async function decodeImageSize(dataUrl: string, signal?: AbortSignal): Promise<{ w: number; h: number }> {
+  if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
   const img = new Image();
   img.src = dataUrl;
-  await img.decode();
-  return { w: img.naturalWidth, h: img.naturalHeight };
+  let onAbort: (() => void) | undefined;
+  const aborted = new Promise<never>((_resolve, reject) => {
+    onAbort = () => {
+      img.src = 'data:,';
+      reject(new DOMException('Aborted', 'AbortError'));
+    };
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
+  try {
+    await (signal ? Promise.race([img.decode(), aborted]) : img.decode());
+  } finally {
+    if (onAbort) signal?.removeEventListener('abort', onAbort);
+  }
+  const w = img.naturalWidth;
+  const h = img.naturalHeight;
+  if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) throw new Error('Invalid image dimensions');
+  return { w, h };
 }
 
 const IMAGEATTACH: CommandDef = {
@@ -281,14 +318,18 @@ const IMAGEATTACH: CommandDef = {
   label: L('Enlazar imagen', 'Attach image'),
   description: L('Inserta una imagen PNG, JPEG, WebP, GIF o SVG incrustada en el dibujo, con escala y rotación.', 'Inserts an embedded PNG, JPEG, WebP, GIF or SVG image with scale and rotation.'),
   async run(api) {
-    const f = await openFile({ 'image/png': ['.png'], 'image/jpeg': ['.jpg', '.jpeg'], 'image/webp': ['.webp'], 'image/gif': ['.gif'], 'image/svg+xml': ['.svg'] }, 'Imagen');
+    const f = await openFile({ 'image/png': ['.png'], 'image/jpeg': ['.jpg', '.jpeg'], 'image/webp': ['.webp'], 'image/gif': ['.gif'], 'image/svg+xml': ['.svg'] }, 'Imagen', INPUT_LIMITS.maxEntryBytes);
     if (!f) return;
+    validateAttachmentBytes(f.bytes, f.name);
     const mime = /\.svg$/i.test(f.name) ? 'image/svg+xml' : /\.jpe?g$/i.test(f.name) ? 'image/jpeg' : /\.webp$/i.test(f.name) ? 'image/webp' : /\.gif$/i.test(f.name) ? 'image/gif' : 'image/png';
     const dataUrl = readAsDataUrl(f.bytes, mime);
+    const assetBase: AssetRecord = { id: newId('asset'), name: f.name, mime, size: f.bytes.length, dataUrl };
+    validateAttachmentRecord(assetBase);
     let size: { w: number; h: number };
     try {
-      size = await imageSize(dataUrl);
-    } catch {
+      size = await decodeImageSize(dataUrl, api.signal);
+    } catch (error) {
+      if (api.signal.aborted || (error instanceof Error && error.name === 'AbortError')) throw error;
       throw new CommandError(L('El navegador no pudo decodificar la imagen.', 'The browser could not decode the image.'));
     }
     const pt = await api.getPoint({ prompt: L('Punto de inserción (esquina inferior izquierda)', 'Insertion point (lower-left corner)') });
@@ -299,7 +340,7 @@ const IMAGEATTACH: CommandDef = {
     const a = rot.kind === 'value' ? rot.value : 0;
     const width = wr.value;
     const height = (width * size.h) / size.w;
-    const asset: AssetRecord = { id: newId('asset'), name: f.name, mime, size: f.bytes.length, dataUrl, width: size.w, height: size.h };
+    const asset: AssetRecord = { ...assetBase, width: size.w, height: size.h };
     api.apply('IMAGEATTACH', (tx) => tx.add('assets', asset));
     add<ImageEntity>(api, 'IMAGEATTACH', {
       type: 'image',
@@ -324,26 +365,47 @@ const PDFATTACH: CommandDef = {
   label: L('Calco PDF', 'PDF underlay'),
   description: L('Inserta una página de un PDF como calco a escala real (1 pt = 1/72 in), con recorte, atenuación y bloqueo.', 'Inserts a PDF page as a true-scale underlay (1 pt = 1/72 in), with clipping, fade and lock.'),
   async run(api) {
-    const f = await openFile({ 'application/pdf': ['.pdf'] }, 'PDF');
+    const f = await openFile({ 'application/pdf': ['.pdf'] }, 'PDF', INPUT_LIMITS.maxEntryBytes);
     if (!f) return;
+    validateAttachmentBytes(f.bytes, f.name);
     const dataUrl = readAsDataUrl(f.bytes, 'application/pdf');
+    const assetBase: AssetRecord = { id: newId('asset'), name: f.name, mime: 'application/pdf', size: f.bytes.length, dataUrl };
+    validateAttachmentRecord(assetBase);
     const pdfjs = await import('pdfjs-dist');
     const worker = await import('pdfjs-dist/build/pdf.worker.min.mjs?url');
+    if (api.signal.aborted) throw new DOMException('Aborted', 'AbortError');
     pdfjs.GlobalWorkerOptions.workerSrc = worker.default;
-    const pdf = await pdfjs.getDocument({ data: f.bytes.slice() }).promise;
+    const loadingTask = pdfjs.getDocument({ data: f.bytes.slice() });
+    const abortLoading = () => void loadingTask.destroy();
+    api.signal.addEventListener('abort', abortLoading, { once: true });
     let page = 1;
-    if (pdf.numPages > 1) {
-      const r = await api.getNumber({ prompt: L(`Página (1–${pdf.numPages})`, `Page (1–${pdf.numPages})`), integer: true, min: 1, max: pdf.numPages, defaultValue: 1 });
-      if (r.kind !== 'value') return;
-      page = r.value;
+    let pdfInfo: { pages: number; width: number; height: number };
+    let pdf: Awaited<typeof loadingTask.promise> | undefined;
+    try {
+      pdf = await loadingTask.promise;
+      if (api.signal.aborted) throw new DOMException('Aborted', 'AbortError');
+      if (!Number.isInteger(pdf.numPages) || pdf.numPages < 1) throw new Error('Invalid PDF page count');
+      if (pdf.numPages > 1) {
+        const r = await api.getNumber({ prompt: L(`Página (1–${pdf.numPages})`, `Page (1–${pdf.numPages})`), integer: true, min: 1, max: pdf.numPages, defaultValue: 1 });
+        if (r.kind !== 'value') return;
+        page = r.value;
+      }
+      const vp = (await pdf.getPage(page)).getViewport({ scale: 1 });
+      if (!Number.isFinite(vp.width) || !Number.isFinite(vp.height) || vp.width <= 0 || vp.height <= 0) throw new Error('Invalid PDF page dimensions');
+      pdfInfo = { pages: pdf.numPages, width: vp.width, height: vp.height };
+    } catch (error) {
+      if (api.signal.aborted) throw new DOMException('Aborted', 'AbortError');
+      throw error;
+    } finally {
+      api.signal.removeEventListener('abort', abortLoading);
+      await (pdf ? pdf.destroy() : loadingTask.destroy()).catch(() => undefined);
     }
-    const vp = (await pdf.getPage(page)).getViewport({ scale: 1 });
     const pt = await api.getPoint({ prompt: L('Punto de inserción (esquina inferior izquierda)', 'Insertion point (lower-left corner)') });
     if (pt.kind !== 'point') return;
     const real = unitConversion('in', api.editor.doc.settings.units) / 72;
     const sc = await api.getNumber({ prompt: L('Factor de escala (1 = tamaño real)', 'Scale factor (1 = real size)'), defaultValue: 1, min: 1e-9 });
     if (sc.kind !== 'value') return;
-    const asset: AssetRecord = { id: newId('asset'), name: f.name, mime: 'application/pdf', size: f.bytes.length, dataUrl, width: vp.width, height: vp.height, pages: pdf.numPages };
+    const asset: AssetRecord = { ...assetBase, width: pdfInfo.width, height: pdfInfo.height, pages: pdfInfo.pages };
     api.apply('PDFATTACH', (tx) => tx.add('assets', asset));
     add<PdfUnderlayEntity>(api, 'PDFATTACH', { type: 'pdfunderlay', assetId: asset.id, page, position: pt.p, scale: real * sc.value, rotation: 0, clipEnabled: false, opacity: 1, fade: 0, monochrome: false });
   },

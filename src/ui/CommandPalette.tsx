@@ -36,11 +36,25 @@ export function CommandPalette({ editor, onClose, onRun }: { editor: Editor; onC
     editor.setPrefs({ favorites: next });
   };
   return (
-    <div className="veil" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+    <div
+      className="veil"
+      onMouseDown={(e) => e.target === e.currentTarget && onClose()}
+      onKeyDown={(e) => {
+        if (e.key !== 'Escape') return;
+        e.preventDefault();
+        e.stopPropagation();
+        onClose();
+      }}
+    >
       <div className="palette" role="dialog" aria-label={lang === 'es' ? 'Paleta de comandos' : 'Command palette'}>
         <input
           ref={inputRef}
           className="palette__input"
+          name="command-search"
+          aria-label={lang === 'es' ? 'Buscar comandos' : 'Search commands'}
+          aria-controls="command-palette-results"
+          autoComplete="off"
+          spellCheck={false}
           placeholder={lang === 'es' ? 'Busca comandos por nombre, alias o lo que quieres hacer…' : 'Search commands by name, alias or what you want to do…'}
           value={q}
           onChange={(e) => setQ(e.target.value)}
@@ -55,11 +69,13 @@ export function CommandPalette({ editor, onClose, onRun }: { editor: Editor; onC
             else if (e.key === 'Escape') onClose();
             e.stopPropagation();
           }}
-          aria-activedescendant={results[active] ? `cmd-${results[active].name}` : undefined}
         />
-        <div className="palette__list" role="listbox">
+        <span className="sr-only" role="status" aria-live="polite">
+          {results[active] ? (lang === 'es' ? `Seleccionado: ${results[active].label.es}` : `Selected: ${results[active].label.en}`) : ''}
+        </span>
+        <ul id="command-palette-results" className="palette__list">
           {results.map((c, i) => (
-            <div key={c.name} id={`cmd-${c.name}`} role="option" aria-selected={i === active} className={`palette__item${i === active ? ' is-active' : ''}`} onMouseEnter={() => setActive(i)}>
+            <li key={c.name} className={`palette__item${i === active ? ' is-active' : ''}`} onMouseEnter={() => setActive(i)}>
               <button type="button" className="palette__command" onClick={() => run(c.name)}>
                 <CadIcon name={c.icon && hasCadIcon(c.icon) ? c.icon : 'properties'} size={18} />
                 <span style={{ minWidth: 0 }}>
@@ -75,15 +91,15 @@ export function CommandPalette({ editor, onClose, onRun }: { editor: Editor; onC
                   aria-label={lang === 'es' ? `Marcar ${c.name} como favorito` : `Mark ${c.name} as favorite`}
                   aria-pressed={favs.has(c.name)}
                   onClick={() => toggleFavorite(c.name)}
-                  style={{ color: favs.has(c.name) ? 'var(--fs-signal-attention)' : 'var(--ink-faint)' }}
+                  style={{ color: favs.has(c.name) ? 'var(--fs-interaction-text)' : 'var(--ink-secondary)' }}
                 >
                   ★
                 </button>
               </span>
-            </div>
+            </li>
           ))}
-          {!results.length && <div className="empty">{lang === 'es' ? `Sin coincidencias para «${q}».` : `No matches for "${q}".`}</div>}
-        </div>
+          {!results.length && <li className="empty">{lang === 'es' ? `Sin coincidencias para «${q}».` : `No matches for "${q}".`}</li>}
+        </ul>
       </div>
     </div>
   );

@@ -64,7 +64,7 @@ export function PropertyField({ editor, row, targets }: { editor: Editor; row: P
           }} onChange={(e) => apply(row, e.target.checked)} aria-label={label} />;
       break;
     case 'color':
-      control = <ColorPicker lang={lang} value={String(first)} mixed={mixed} onChange={(c) => apply(row, c)} />;
+      control = <ColorPicker lang={lang} value={String(first)} mixed={mixed} onChange={(c) => apply(row, c)} ariaLabel={label} />;
       break;
     case 'layer':
       control = (
@@ -81,21 +81,21 @@ export function PropertyField({ editor, row, targets }: { editor: Editor; row: P
       );
       break;
     case 'linetype':
-      control = <LinetypeSelect doc={doc} lang={lang} value={String(first)} mixed={mixed} onChange={(v) => apply(row, v)} />;
+      control = <LinetypeSelect doc={doc} lang={lang} value={String(first)} mixed={mixed} onChange={(v) => apply(row, v)} ariaLabel={label} />;
       break;
     case 'lineweight':
-      control = <LineweightSelect lang={lang} value={Number(first)} mixed={mixed} onChange={(v) => apply(row, v)} />;
+      control = <LineweightSelect lang={lang} value={Number(first)} mixed={mixed} onChange={(v) => apply(row, v)} ariaLabel={label} />;
       break;
     case 'transparency':
       control = (
         <div style={{ display: 'flex', gap: 4 }}>
-          <select className="select" style={{ width: 96 }} value={mixed ? 'mixed' : typeof first === 'number' ? 'value' : String(first)} onChange={(e) => apply(row, e.target.value === 'value' ? 0 : e.target.value)}>
+          <select className="select" style={{ width: 96 }} value={mixed ? 'mixed' : typeof first === 'number' ? 'value' : String(first)} onChange={(e) => apply(row, e.target.value === 'value' ? 0 : e.target.value)} aria-label={label}>
             {mixed && <option value="mixed">{MIXED}</option>}
             <option value="ByLayer">{tr(lang, 'PorCapa', 'ByLayer')}</option>
             <option value="ByBlock">{tr(lang, 'PorBloque', 'ByBlock')}</option>
             <option value="value">{tr(lang, 'Valor', 'Value')}</option>
           </select>
-          {typeof first === 'number' && !mixed && <NumberField lang={lang} value={first} suffix="%" onCommit={(v) => apply(row, v)} />}
+          {typeof first === 'number' && !mixed && <NumberField lang={lang} value={first} suffix="%" onCommit={(v) => apply(row, v)} ariaLabel={label} />}
         </div>
       );
       break;

@@ -27,6 +27,46 @@ export interface StarterManifest {
   items: StarterItem[];
 }
 
+const STARTER_UNITS = new Set<DrawingUnits>(['unitless', 'mm', 'cm', 'm', 'km', 'in', 'ft', 'yd', 'mi']);
+
+function isSafeStarterPath(value: string): boolean {
+  if (!value || value.length > 500 || value.startsWith('/') || value.includes('\\') || /[?#\0]/.test(value) || !value.toLowerCase().endsWith('.dxf')) return false;
+  return value.split('/').every((part) => part !== '' && part !== '.' && part !== '..');
+}
+
+/** Valida el índice incluido antes de usar sus rutas para fetch o sus metadatos en el documento. */
+export function parseStarterManifest(value: unknown): StarterManifest {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Índice de biblioteca inicial no válido. / Invalid starter library index.');
+  const manifest = value as Record<string, unknown>;
+  if (
+    typeof manifest.source !== 'string' || !manifest.source.trim() || manifest.source.length > 1_000 ||
+    typeof manifest.license !== 'string' || !manifest.license.trim() || manifest.license.length > 1_000 ||
+    !Array.isArray(manifest.items) || manifest.items.length > 1_000
+  ) throw new Error('Índice de biblioteca inicial no válido. / Invalid starter library index.');
+
+  const categories = new Set(DEFAULT_CATEGORIES.map((category) => category.id));
+  const names = new Set<string>();
+  const files = new Set<string>();
+  const items: StarterItem[] = [];
+  for (const value of manifest.items) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Entrada no válida en la biblioteca inicial. / Invalid starter library entry.');
+    const item = value as Record<string, unknown>;
+    const nameKey = typeof item.name === 'string' ? item.name.trim().toLocaleLowerCase() : '';
+    if (
+      typeof item.file !== 'string' || !isSafeStarterPath(item.file) ||
+      typeof item.name !== 'string' || !item.name.trim() || item.name.length > 255 ||
+      typeof item.category !== 'string' || !categories.has(item.category) ||
+      typeof item.units !== 'string' || !STARTER_UNITS.has(item.units as DrawingUnits) ||
+      typeof item.stretchable !== 'boolean' ||
+      names.has(nameKey) || files.has(item.file)
+    ) throw new Error('Entrada no válida en la biblioteca inicial. / Invalid starter library entry.');
+    names.add(nameKey);
+    files.add(item.file);
+    items.push(item as unknown as StarterItem);
+  }
+  return { source: manifest.source, license: manifest.license, items };
+}
+
 export type ThumbFn = (doc: CadDocument, ctx: ModelContext, id: Id) => string | undefined;
 
 /**

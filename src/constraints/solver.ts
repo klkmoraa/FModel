@@ -62,9 +62,13 @@ function pointPaths(e: Entity, part: string): [string, string] | null {
     case 'point':
       return ['position.x', 'position.y'];
     case 'lwpolyline':
-      if (vert) return [`vertices.${vert[1]}.x`, `vertices.${vert[1]}.y`];
-      if (part === 'start') return ['vertices.0.x', 'vertices.0.y'];
-      if (part === 'end') return [`vertices.${e.vertices.length - 1}.x`, `vertices.${e.vertices.length - 1}.y`];
+      if (vert) {
+        const index = Number(vert[1]);
+        if (!Number.isSafeInteger(index) || index >= e.vertices.length) return null;
+        return [`vertices.${index}.x`, `vertices.${index}.y`];
+      }
+      if (part === 'start') return e.vertices.length ? ['vertices.0.x', 'vertices.0.y'] : null;
+      if (part === 'end') return e.vertices.length ? [`vertices.${e.vertices.length - 1}.x`, `vertices.${e.vertices.length - 1}.y`] : null;
       return null;
     case 'text':
     case 'mtext':
@@ -82,7 +86,9 @@ function segmentPaths(e: Entity, part: string): [[string, string], [string, stri
   if (e.type === 'line') return [['start.x', 'start.y'], ['end.x', 'end.y']];
   if (e.type === 'lwpolyline') {
     const m = /^segment:(\d+)$/.exec(part);
-    const i = m ? Number(m[1]) : 0;
+    const i = m ? Number(m[1]) : part === 'edge' ? 0 : -1;
+    const segmentCount = e.closed ? e.vertices.length : e.vertices.length - 1;
+    if (!Number.isSafeInteger(i) || i < 0 || i >= segmentCount) return null;
     const j = (i + 1) % e.vertices.length;
     return [[`vertices.${i}.x`, `vertices.${i}.y`], [`vertices.${j}.x`, `vertices.${j}.y`]];
   }
@@ -238,14 +244,20 @@ function buildResiduals(constraints: BlockConstraint[], entities: Map<Id, Entity
           const cc = r1 && C(r1);
           const rr = r1 && R(r1);
           if (s && cc && rr !== null && rr !== undefined) {
+            const dx0 = model.values[s[1][0]] - model.values[s[0][0]];
+            const dy0 = model.values[s[1][1]] - model.values[s[0][1]];
+            const l0 = Math.hypot(dx0, dy0) || 1;
+            const signed0 = (dx0 * (model.values[cc[1]] - model.values[s[0][1]]) - dy0 * (model.values[cc[0]] - model.values[s[0][0]])) / l0;
+            // Conserva la rama de tangencia inicial para evitar la cúspide de |distancia|.
+            const side = Math.sign(signed0) || 1;
             out.push({
               id: c.id,
               f: (x) => {
                 const dx = x[s[1][0]] - x[s[0][0]];
                 const dy = x[s[1][1]] - x[s[0][1]];
                 const l = Math.hypot(dx, dy) || 1;
-                const d = Math.abs(dx * (x[cc[1]] - x[s[0][1]]) - dy * (x[cc[0]] - x[s[0][0]])) / l;
-                return [d - x[rr]];
+                const signed = (dx * (x[cc[1]] - x[s[0][1]]) - dy * (x[cc[0]] - x[s[0][0]])) / l;
+                return [side * signed - x[rr]];
               },
             });
             break;

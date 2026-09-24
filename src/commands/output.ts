@@ -1,9 +1,9 @@
 import { requestUi } from '../app/services';
 import type { Id } from '../document/types';
 import { MODEL_SPACE_ID } from '../document/types';
-import type { PlotContext } from '../output/plot';
 import { exportPdf, exportSvg } from '../output/plot';
-import { prepareExportImages } from '../render/assets';
+import type { PreparedPlotContext } from '../output/prepare';
+import { preparePlotContext } from '../output/prepare';
 import { saveFile } from '../storage/fileAccess';
 import { K, L } from './helpers';
 import type { CommandApi, CommandDef } from './types';
@@ -20,33 +20,55 @@ function sheetName(api: CommandApi, id: Id): string {
   return doc.data.layouts.get(id)?.name ?? (id === MODEL_SPACE_ID ? api.t(L('Modelo', 'Model')) : (doc.data.blocks.get(id)?.name ?? id));
 }
 
-export async function plotContext(api: CommandApi): Promise<PlotContext> {
-  const editor = api.editor;
-  return { doc: editor.doc, ctx: editor.ctx, index: editor.index, images: await prepareExportImages(editor.doc) };
+export async function plotContext(api: CommandApi): Promise<PreparedPlotContext> {
+  return preparePlotContext(api.editor.doc, api.editor.ctx, api.signal);
 }
 
 function orderedLayouts(api: CommandApi): Id[] {
   return [...api.editor.doc.data.layouts.values()].sort((a, b) => a.tabOrder - b.tabOrder).map((l) => l.id);
 }
 
+function warnOmittedAssets(api: CommandApi, names: string[]) {
+  for (const name of names) api.warn(L(`No se incluyó el recurso «${name}» en la exportación.`, `The asset “${name}” could not be included in the export.`));
+}
+
 export async function savePdf(api: CommandApi, sheets: Id[], label: string) {
   if (!sheets.length) throw new CommandError(L('No hay hojas que exportar.', 'There are no sheets to export.'));
+  const filename = `${fileBase(api, label)}.pdf`;
   api.info(L(`Generando PDF vectorial (${sheets.length} hoja/s)…`, `Generating vector PDF (${sheets.length} sheet/s)…`));
-  const { data, warnings } = await exportPdf(await plotContext(api), sheets);
+  const context = await plotContext(api);
+  let result: Awaited<ReturnType<typeof exportPdf>>;
+  try {
+    result = await exportPdf(context, sheets);
+  } finally {
+    context.dispose();
+  }
+  const { data, warnings } = result;
+  if (api.signal.aborted) throw new DOMException('Aborted', 'AbortError');
+  warnOmittedAssets(api, [...new Set([...context.omittedAssets, ...result.omittedAssets])]);
   for (const w of warnings) api.warn(L(w, w));
-  const result = await saveFile(new Blob([data as BlobPart], { type: 'application/pdf' }), `${fileBase(api, label)}.pdf`, { 'application/pdf': ['.pdf'] }, 'PDF');
-  if (result.kind === 'cancelled') return;
-  const handle = result.kind === 'saved-to-handle' ? result.handle : null;
+  const saveResult = await saveFile(new Blob([data as BlobPart], { type: 'application/pdf' }), filename, { 'application/pdf': ['.pdf'] }, 'PDF');
+  if (saveResult.kind === 'cancelled') return;
+  const handle = saveResult.kind === 'saved-to-handle' ? saveResult.handle : null;
   api.info(L(`PDF exportado${handle ? `: ${handle.name}` : ''} (${Math.round(data.byteLength / 1024)} KB).`, `PDF exported${handle ? `: ${handle.name}` : ''} (${Math.round(data.byteLength / 1024)} KB).`));
 }
 
 export async function saveSvg(api: CommandApi, sheet: Id) {
-  const { data, warnings } = exportSvg(await plotContext(api), sheet);
+  const filename = `${fileBase(api, sheetName(api, sheet))}.svg`;
+  const context = await plotContext(api);
+  let result: ReturnType<typeof exportSvg>;
+  try {
+    result = exportSvg(context, sheet);
+  } finally {
+    context.dispose();
+  }
+  const { data, warnings } = result;
+  if (api.signal.aborted) throw new DOMException('Aborted', 'AbortError');
+  warnOmittedAssets(api, context.omittedAssets);
   for (const w of warnings) api.warn(L(w, w));
-  const name = sheetName(api, sheet);
-  const result = await saveFile(new Blob([data], { type: 'image/svg+xml' }), `${fileBase(api, name)}.svg`, { 'image/svg+xml': ['.svg'] }, 'SVG');
-  if (result.kind === 'cancelled') return;
-  const handle = result.kind === 'saved-to-handle' ? result.handle : null;
+  const saveResult = await saveFile(new Blob([data], { type: 'image/svg+xml' }), filename, { 'image/svg+xml': ['.svg'] }, 'SVG');
+  if (saveResult.kind === 'cancelled') return;
+  const handle = saveResult.kind === 'saved-to-handle' ? saveResult.handle : null;
   api.info(L(`SVG exportado${handle ? `: ${handle.name}` : ''}.`, `SVG exported${handle ? `: ${handle.name}` : ''}.`));
 }
 

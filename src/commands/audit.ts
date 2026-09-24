@@ -28,7 +28,7 @@ const AUDIT: CommandDef = {
       'audit-analyze',
       { es: 'Analizando salud del dibujo', en: 'Analyzing drawing health' },
       async (ctx) => runHeavy('analyze', { data: editor.doc.data }, { signal: ctx.signal }),
-      { retryable: true },
+      { signal: api.signal },
     );
     const fixable = before.issues.filter((i) => i.fixable).length;
     if (k.key === 'Yes' && fixable) {
@@ -37,7 +37,7 @@ const AUDIT: CommandDef = {
         'audit-post-fixes',
         { es: 'Comprobando correcciones de salud', en: 'Verifying health fixes' },
         async (ctx) => runHeavy('analyze', { data: editor.doc.data }, { signal: ctx.signal }),
-        { retryable: true },
+        { signal: api.signal },
       );
       api.info(L(`AUDIT: ${before.issues.length} problema(s), ${fixes} corrección(es). Puntuación ${before.score} → ${after.score}.`, `AUDIT: ${before.issues.length} issue(s), ${fixes} fix(es). Score ${before.score} → ${after.score}.`));
       requestUi('health-report', { report: after, fixed: fixes });
@@ -61,7 +61,7 @@ const HEALTHREPORT: CommandDef = {
       'health-report',
       { es: 'Calculando informe de salud', en: 'Calculating health report' },
       async (ctx) => runHeavy('analyze', { data: api.editor.doc.data }, { signal: ctx.signal }),
-      { retryable: true },
+      { signal: api.signal },
     );
     requestUi('health-report', { report, fixed: 0 });
   },
@@ -100,6 +100,7 @@ const COMPARE: CommandDef = {
     } else {
       const f = await openFile({ 'application/x-fmodel': ['.fmodel'], 'application/json': ['.json'], 'application/dxf': ['.dxf'] }, 'FModel / DXF');
       if (!f) return;
+      if (api.signal.aborted) return;
       try {
         base = readXrefSource(f.bytes, f.name).data;
       } catch (err) {
@@ -107,6 +108,7 @@ const COMPARE: CommandDef = {
       }
       label = f.name;
     }
+    if (api.signal.aborted) return;
     const diff = compareDrawings(base, editor.doc.data);
     editor.compare = { diff, label };
     editor.emit('overlay');

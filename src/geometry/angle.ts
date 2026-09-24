@@ -38,6 +38,7 @@ export function angleInSweep(a: number, start: number, sweep: number, tol = 1e-9
 
 /** Parámetro normalizado t∈[0,1] de un ángulo sobre un barrido con signo (puede salir de rango). */
 export function angleToParam(a: number, start: number, sweep: number): number {
+  if (sweep === 0) return 0;
   if (sweep >= 0) {
     let d = normAngle(a - start);
     if (d > sweep + (TAU - sweep) / 2) d -= TAU;

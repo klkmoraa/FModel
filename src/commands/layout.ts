@@ -1,4 +1,4 @@
-import { boxFromPoints, isEmptyBox } from '../geometry/bbox';
+import { boxCenter, boxFromPoints, isEmptyBox, scaleToFitSpan } from '../geometry/bbox';
 import { tessellateCurve } from '../geometry/curves';
 import { tessellatePolyline } from '../geometry/polyline';
 import type { Vec2 } from '../geometry/vec';
@@ -44,12 +44,18 @@ export function parseViewportScale(text: string, drawingUnits: Parameters<typeof
   const t = text.trim().replace(',', '.');
   const unit = unitConversion(drawingUnits, 'mm');
   const named = scales.find((s) => s.name.toLowerCase() === t.toLowerCase());
-  if (named) return { scale: (named.paper / named.drawing) * unit, name: named.name };
+  if (named) {
+    const scale = (named.paper / named.drawing) * unit;
+    return Number.isFinite(scale) && scale > 0 ? { scale, name: named.name } : null;
+  }
   const m = /^(\d+(?:\.\d+)?)\s*[:/]\s*(\d+(?:\.\d+)?)$/.exec(t);
   if (m) {
     const a = Number(m[1]);
     const b = Number(m[2]);
-    if (a > 0 && b > 0) return { scale: (a / b) * unit, name: `${m[1]}:${m[2]}` };
+    if (a > 0 && b > 0) {
+      const scale = (a / b) * unit;
+      return Number.isFinite(scale) && scale > 0 ? { scale, name: `${m[1]}:${m[2]}` } : null;
+    }
     return null;
   }
   const n = Number(t);
@@ -68,20 +74,21 @@ function modelExtents(api: CommandApi) {
 function fitView(api: CommandApi, width: number, height: number): { viewCenter: Vec2; scale: number } {
   const ext = modelExtents(api);
   if (isEmptyBox(ext)) return { viewCenter: { x: width / 2, y: height / 2 }, scale: 1 };
-  const k = 0.95 * Math.min(width / Math.max(ext.maxX - ext.minX, 1e-9), height / Math.max(ext.maxY - ext.minY, 1e-9));
-  return { viewCenter: { x: (ext.minX + ext.maxX) / 2, y: (ext.minY + ext.maxY) / 2 }, scale: k };
+  const k = 0.95 * Math.min(scaleToFitSpan(ext.minX, ext.maxX, width), scaleToFitSpan(ext.minY, ext.maxY, height));
+  if (!Number.isFinite(k) || k <= 0) throw new CommandError(L('La escala del viewport excede el rango numérico válido.', 'Viewport scale exceeds the valid numeric range.'));
+  return { viewCenter: boxCenter(ext), scale: k };
 }
 
 function createViewport(api: CommandApi, layoutId: Id, outline: Vec2[], polygonal: boolean): ViewportEntity {
   const box = boxFromPoints(outline);
   const width = box.maxX - box.minX;
   const height = box.maxY - box.minY;
-  if (width < 1e-6 || height < 1e-6) throw new CommandError(L('El viewport necesita ancho y alto.', 'The viewport needs width and height.'));
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width < 1e-6 || height < 1e-6) throw new CommandError(L('El viewport necesita ancho y alto finitos.', 'The viewport needs finite width and height.'));
   const view = fitView(api, width, height);
   return add<ViewportEntity>(api, 'MVIEW', {
     type: 'viewport',
     owner: layoutId,
-    center: { x: (box.minX + box.maxX) / 2, y: (box.minY + box.maxY) / 2 },
+    center: boxCenter(box),
     width,
     height,
     viewCenter: view.viewCenter,
@@ -194,9 +201,11 @@ const MSPACE: CommandDef = {
   async run(api) {
     const layout = currentLayout(api);
     const editor = api.editor;
+    const documentData = editor.doc.data;
     const vps = viewportsOf(api, layout.id).filter((v) => v.on);
     if (!vps.length) throw new CommandError(L('No hay viewports activos: crea uno con MVIEW.', 'No viewports are on: create one with MVIEW.'));
-    const pre = editor.selection.list.map((id) => editor.doc.entity(id)).find((e): e is ViewportEntity => e?.type === 'viewport');
+    const selected = new Set(editor.selection.list);
+    const pre = vps.find((viewport) => selected.has(viewport.id));
     let target = pre ?? (vps.length === 1 ? vps[0] : undefined);
     if (!target) {
       const r = await api.getPoint({ prompt: L('Designe un punto dentro del viewport', 'Pick a point inside the viewport'), noSnap: true });
@@ -206,7 +215,9 @@ const MSPACE: CommandDef = {
     }
     const id = target.id;
     // se activa cuando el comando ya terminó (activar cancela los comandos en curso)
-    setTimeout(() => editor.activateViewport(id), 0);
+    setTimeout(() => {
+      if (editor.doc.data === documentData) editor.activateViewport(id);
+    }, 0);
   },
 };
 
@@ -356,7 +367,7 @@ const LAYOUT: CommandDef = {
         const id = newId('layout');
         const last = layouts().at(-1);
         api.apply('LAYOUT NEW', (tx) => tx.add('layouts', { id, name, tabOrder: (last?.tabOrder ?? 0) + 1, page: last ? structuredClone(last.page) : defaultPageSetup() }));
-        editor.setSpace(id);
+        editor.setSpace(id, { cancelCommands: false });
         return;
       }
       case 'Copy': {
@@ -386,16 +397,16 @@ const LAYOUT: CommandDef = {
         if (layouts().length <= 1) throw new CommandError(L('Debe quedar al menos una presentación.', 'At least one layout must remain.'));
         const l = await pick(L('Presentación a eliminar', 'Layout to delete'));
         if (!l) return;
-        if (editor.space === l.id) editor.setSpace(MODEL_SPACE_ID);
         api.apply('LAYOUT DELETE', (tx) => {
           for (const e of doc.entitiesOf(l.id)) tx.removeEntity(e.id);
           tx.remove('layouts', l.id);
         });
+        if (editor.space === l.id) editor.setSpace(MODEL_SPACE_ID, { cancelCommands: false });
         return;
       }
       case 'Set': {
         const l = await pick(L('Presentación a activar', 'Layout to set current'));
-        if (l) editor.setSpace(l.id);
+        if (l) editor.setSpace(l.id, { cancelCommands: false });
         return;
       }
     }

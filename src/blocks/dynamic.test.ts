@@ -162,6 +162,16 @@ describe('fórmulas y tablas de consulta', () => {
     const res = evalWith(def, [line(0, 0, 1, 0, 'e1')], { values: { l1: 'Ancha' } });
     expect(at(res.entities, 'e1').start.x).toBeCloseTo(30);
   });
+
+  it('conserva la primera fila cuando una tabla repite una etiqueta', () => {
+    const def = {
+      parameters: [linear(), { id: 'l1', type: 'lookup' as const, name: 'Medida', label: 'Medida', showInProperties: true, chainActions: false, gripCount: 1 as const, position: { x: 0, y: 0 }, tableId: 't1' }],
+      lookups: [{ id: 't1', name: 'Medidas', inputs: ['p1'], lookupName: 'Medida', rows: [{ label: 'Duplicada', inputs: [20] }, { label: 'Duplicada', inputs: [40] }], reverse: true }],
+      actions: [{ id: 'a1', type: 'move' as const, name: 'Mover', paramId: 'p1', selection: ['e1'], paramPoint: 'end' as const, axis: 'xy' as const, distanceMultiplier: 1, angleOffset: 0 }],
+    };
+    const res = evalWith(def, [line(0, 0, 1, 0, 'e1')], { values: { l1: 'Duplicada' } });
+    expect(at(res.entities, 'e1').start.x).toBeCloseTo(10);
+  });
 });
 
 describe('robustez', () => {

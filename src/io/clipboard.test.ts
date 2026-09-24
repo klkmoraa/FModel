@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createDocument, entityDefaults } from '../document/defaults';
+import { createDocument, DIMSTYLE_STANDARD_ID, entityDefaults, LAYER0_ID, MLEADERSTYLE_STANDARD_ID } from '../document/defaults';
 import type {
   ArcEntity,
   ArrayEntity,
@@ -8,14 +8,17 @@ import type {
   HatchEntity,
   ImageEntity,
   InsertEntity,
+  LeaderEntity,
   LineEntity,
   MLeaderEntity,
   MLineEntity,
+  MTextEntity,
   PdfUnderlayEntity,
   TextEntity,
   ViewportEntity,
 } from '../document/types';
 import { MODEL_SPACE_ID } from '../document/types';
+import { INPUT_LIMITS } from './limits';
 import {
   ClipboardError,
   createClipboardPackage,
@@ -283,7 +286,7 @@ describe('portapapeles portable (DAT-002)', () => {
 
     srcDoc.transact('CREA_COTA', (tx) => {
       tx.add('dimStyles', {
-        ...srcDoc.data.dimStyles.get('standard')!,
+        ...srcDoc.data.dimStyles.get(DIMSTYLE_STANDARD_ID)!,
         id: 'ds_muro',
         name: 'MuroDetalle',
       });
@@ -459,6 +462,22 @@ describe('portapapeles portable (DAT-002)', () => {
     expect(pasted.layer).toBe(dstDoc.settings.currentLayer);
   });
 
+  it('rechaza versiones futuras y entidades truncadas aunque usen la ruta heredada', () => {
+    const dstDoc = createDocument();
+    const base = entityDefaults(dstDoc);
+
+    expect(() => validateClipboardPackage({
+      format: 'fmodel-clip',
+      version: 3,
+      entities: [],
+    })).toThrowError(ClipboardError);
+    expect(() => validateClipboardPackage({
+      format: 'fmodel-clip',
+      version: 1,
+      entities: [{ ...base, id: 'linea-truncada', type: 'line', start: { x: 0, y: 0 } }],
+    })).toThrowError(ClipboardError);
+  });
+
   it('rechaza entradas alteradas o que excedan límites sin modificar el dibujo', () => {
     const dstDoc = createDocument();
     const entitiesCountBefore = dstDoc.data.entities.size;
@@ -475,6 +494,7 @@ describe('portapapeles portable (DAT-002)', () => {
     // Formato inválido
     expect(() => parseClipboardPackage('not json')).toThrow();
     expect(() => parseClipboardPackage(JSON.stringify({ format: 'otro' }))).toThrow();
+    expect(() => parseClipboardPackage(' '.repeat(INPUT_LIMITS.maxEntryBytes + 1))).toThrow(/demasiado grande|too large/i);
 
     // El dibujo destino sigue intacto
     expect(dstDoc.data.entities.size).toBe(entitiesCountBefore);
@@ -585,10 +605,10 @@ describe('portapapeles portable (DAT-002)', () => {
         revision: 1,
         dynamic: {
           parameters: [
-            { id: 'p_ancho', name: 'Ancho', type: 'linear', basePoint: { x: 0, y: 0 }, endPoint: { x: 90, y: 0 } } as any,
+            { id: 'p_ancho', name: 'Ancho', label: 'Ancho', type: 'linear', showInProperties: true, chainActions: false, gripCount: 2, base: { x: 0, y: 0 }, end: { x: 90, y: 0 }, baseLocation: 'start', valueSet: { kind: 'none' } },
           ],
           actions: [
-            { id: 'act_stretch', type: 'stretch', name: 'Estirar', paramId: 'p_ancho', selection: ['l_hoja'] } as any,
+            { id: 'act_stretch', type: 'stretch', name: 'Estirar', paramId: 'p_ancho', selection: ['l_hoja'], paramPoint: 'end', frame: [], axis: 'x', distanceMultiplier: 1, angleOffset: 0 },
           ],
           constraints: [],
           lookups: [],
@@ -644,6 +664,147 @@ describe('portapapeles portable (DAT-002)', () => {
     expect(() => validateClipboardPackage(invalidPackage)).toThrowError(ClipboardError);
   });
 
+  it('rechaza recursos remotos antes de pegarlos en el dibujo', () => {
+    const invalidPackage = {
+      format: 'fmodel-clip',
+      version: 2,
+      base: { x: 0, y: 0 },
+      entities: [],
+      assets: [{ id: 'remote', name: 'tracker.png', mime: 'image/png', size: 1, dataUrl: 'https://example.com/tracker.png' }],
+    };
+
+    expect(() => validateClipboardPackage(invalidPackage)).toThrowError(ClipboardError);
+  });
+
+  it('rechaza una imagen con cabecera binaria incompatible con su MIME', () => {
+    const invalidPackage = {
+      format: 'fmodel-clip', version: 2, base: { x: 0, y: 0 }, entities: [],
+      assets: [{ id: 'broken', name: 'plano.png', mime: 'image/png', size: 1, dataUrl: 'data:image/png;base64,eA==' }],
+    };
+
+    expect(() => validateClipboardPackage(invalidPackage)).toThrowError(ClipboardError);
+  });
+
+  it('rechaza entidades mal formadas y referencias a recursos ausentes', () => {
+    const malformed = {
+      format: 'fmodel-clip',
+      version: 2,
+      base: { x: 0, y: 0 },
+      entities: ['no-es-entidad'],
+    };
+    const missingAsset = {
+      format: 'fmodel-clip',
+      version: 2,
+      base: { x: 0, y: 0 },
+      entities: [{ id: 'img', type: 'image', owner: '*model', layer: '0', assetId: 'ausente' }],
+      assets: [],
+    };
+
+    expect(() => validateClipboardPackage(malformed)).toThrowError(ClipboardError);
+    expect(() => validateClipboardPackage(missingAsset)).toThrowError(ClipboardError);
+  });
+
+  it('rechaza geometría incompleta y bloques esenciales ausentes en paquetes v2', () => {
+    const doc = createDocument();
+    const base = entityDefaults(doc);
+    const malformedLine = {
+      format: 'fmodel-clip',
+      version: 2,
+      base: { x: 0, y: 0 },
+      entities: [{ ...base, id: 'linea-rota', order: 1, type: 'line', start: { x: 0, y: 0 } }],
+    };
+    const missingBlock = {
+      format: 'fmodel-clip',
+      version: 2,
+      base: { x: 0, y: 0 },
+      entities: [{
+        ...base,
+        id: 'insert-roto',
+        order: 1,
+        type: 'insert',
+        blockId: 'bloque-ausente',
+        position: { x: 0, y: 0 },
+        scale: { x: 1, y: 1 },
+        rotation: 0,
+        attributes: [],
+      }],
+      blocks: [],
+      blockEntities: [],
+    };
+
+    expect(() => validateClipboardPackage(malformedLine)).toThrowError(ClipboardError);
+    expect(() => validateClipboardPackage(missingBlock)).toThrowError(ClipboardError);
+  });
+
+  it('rechaza tablas CAD parciales antes de iniciar una transacción de pegado', () => {
+    const invalidPackage = {
+      format: 'fmodel-clip',
+      version: 2,
+      base: { x: 0, y: 0 },
+      entities: [],
+      mlineStyles: [{ id: 'ml-roto', name: 'Roto' }],
+    };
+
+    expect(() => validateClipboardPackage(invalidPackage)).toThrowError(ClipboardError);
+  });
+
+  it('rechaza definiciones dinámicas truncadas en paquetes v2', () => {
+    const invalidPackage = {
+      format: 'fmodel-clip',
+      version: 2,
+      base: { x: 0, y: 0 },
+      entities: [],
+      blocks: [{
+        id: 'blk-roto', name: 'Dinámico roto', kind: 'normal', basePoint: { x: 0, y: 0 }, description: '',
+        units: 'unitless', explodable: true, scaleUniformly: false, annotative: false, revision: 1,
+        dynamic: { parameters: [{}], actions: [], constraints: [], lookups: [], variables: [], propertyOrder: [] },
+      }],
+      blockEntities: [],
+    };
+
+    expect(() => validateClipboardPackage(invalidPackage)).toThrowError(ClipboardError);
+  });
+
+  it('remapea la anotación de una directriz al copiar ambas entidades', () => {
+    const srcDoc = createDocument();
+    const dstDoc = createDocument();
+    srcDoc.transact('CREA_DIRECTRIZ', (tx) => {
+      tx.addEntity<MTextEntity>({
+        ...entityDefaults(srcDoc),
+        id: 'nota-origen',
+        type: 'mtext',
+        position: { x: 10, y: 10 },
+        width: 20,
+        height: 2.5,
+        rotation: 0,
+        style: srcDoc.settings.currentTextStyle,
+        attachment: 1,
+        lineSpacing: 1,
+        contents: 'Detalle',
+      });
+      tx.addEntity<LeaderEntity>({
+        ...entityDefaults(srcDoc),
+        id: 'leader-origen',
+        type: 'leader',
+        vertices: [{ x: 0, y: 0 }, { x: 10, y: 10 }],
+        style: srcDoc.settings.currentDimStyle,
+        arrow: 'closed-filled',
+        splined: false,
+        hookline: false,
+        annotation: 'nota-origen',
+      });
+    });
+
+    const pkg = createClipboardPackage(srcDoc, ['nota-origen', 'leader-origen']);
+    const result = pasteClipboardPackage(dstDoc, pkg, MODEL_SPACE_ID, { x: 30, y: 30 });
+    const pasted = result.insertedIds.map((id) => dstDoc.entity(id)!);
+    const note = pasted.find((entity) => entity.type === 'mtext') as MTextEntity;
+    const leader = pasted.find((entity) => entity.type === 'leader') as LeaderEntity;
+
+    expect(leader.annotation).toBe(note.id);
+    expect(leader.annotation).not.toBe('nota-origen');
+  });
+
   it('remapea de forma tipada selection, rotateOnly y constraints en bloques dinámicos', () => {
     const srcDoc = createDocument();
     const dstDoc = createDocument();
@@ -662,7 +823,8 @@ describe('portapapeles portable (DAT-002)', () => {
         revision: 1,
         dynamic: {
           parameters: [
-            { id: 'p_vis', name: 'Visibilidad', type: 'visibility', position: { x: 0, y: 0 }, defaultState: 'S1', states: [{ name: 'S1', visible: ['l_hoja_adv'] }] } as any,
+            { id: 'p_vis', name: 'Visibilidad', label: 'Visibilidad', type: 'visibility', showInProperties: true, chainActions: false, gripCount: 1, position: { x: 0, y: 0 }, defaultState: 'S1', states: [{ name: 'S1', visible: ['l_hoja_adv'] }] },
+            { id: 'p_polar', name: 'Polar', label: 'Polar', type: 'polar', showInProperties: true, chainActions: false, gripCount: 2, base: { x: 0, y: 0 }, end: { x: 80, y: 0 }, distanceSet: { kind: 'none' }, angleSet: { kind: 'none' } },
           ],
           actions: [
             {
@@ -773,7 +935,7 @@ describe('portapapeles portable (DAT-002)', () => {
         endAngle: Math.PI * 2,
       });
       tx.add('mleaderStyles', {
-        ...srcDoc.data.mleaderStyles.get('standard')!,
+        ...srcDoc.data.mleaderStyles.get(MLEADERSTYLE_STANDARD_ID)!,
         id: 'mls_burbuja',
         name: 'DirectrizBurbuja',
         contentType: 'block',
@@ -1040,7 +1202,7 @@ describe('portapapeles portable (DAT-002)', () => {
           pattern: [4, -2],
         });
         const lay = tx.add('layers', {
-          ...doc.data.layers.get('0')!,
+          ...doc.data.layers.get(LAYER0_ID)!,
           id: doc === srcDoc1 ? 'lay_1' : 'lay_2',
           name: 'Carpinteria',
           color: '#ff0000',
@@ -1115,7 +1277,7 @@ describe('portapapeles portable (DAT-002)', () => {
         revision: 1,
         dynamic: {
           parameters: [
-            { id: 'p_long', name: 'Longitud', type: 'linear', base: { x: 0, y: 0 }, end: { x: 80, y: 0 }, baseLocation: 'start', valueSet: { kind: 'none' } } as any,
+            { id: 'p_long', name: 'Longitud', label: 'Longitud', type: 'linear', showInProperties: true, chainActions: false, gripCount: 2, base: { x: 0, y: 0 }, end: { x: 80, y: 0 }, baseLocation: 'start', valueSet: { kind: 'none' } },
           ],
           actions: [
             { id: 'act_st', type: 'stretch', name: 'EstirarHoja', paramId: 'p_long', paramPoint: 'end', frame: [], selection: ['l_hoja_dyn'], axis: 'xy', distanceMultiplier: 1, angleOffset: 0 },
@@ -1180,7 +1342,7 @@ describe('portapapeles portable (DAT-002)', () => {
         revision: 1,
         dynamic: {
           parameters: [
-            { id: 'p_len', name: 'Longitud', type: 'linear', base: { x: 0, y: 0 }, end: { x: 80, y: 0 }, baseLocation: 'start', valueSet: { kind: 'none' } } as any,
+            { id: 'p_len', name: 'Longitud', label: 'Longitud', type: 'linear', showInProperties: true, chainActions: false, gripCount: 2, base: { x: 0, y: 0 }, end: { x: 80, y: 0 }, baseLocation: 'start', valueSet: { kind: 'none' } },
           ],
           actions: [
             { id: 'a_st', type: 'stretch', name: 'Estirar', paramId: 'p_len', paramPoint: 'end', frame: [], selection: ['l_d1'], axis: 'xy', distanceMultiplier: 1, angleOffset: 0 },
@@ -1226,7 +1388,7 @@ describe('portapapeles portable (DAT-002)', () => {
         revision: 1,
         dynamic: {
           parameters: [
-            { id: 'p_flip', name: 'Invertir', type: 'flip', base: { x: 0, y: 0 }, end: { x: 0, y: 80 }, labelNotFlipped: 'Normal', labelFlipped: 'Invertida' } as any,
+            { id: 'p_flip', name: 'Invertir', label: 'Invertir', type: 'flip', showInProperties: true, chainActions: false, gripCount: 1, base: { x: 0, y: 0 }, end: { x: 0, y: 80 }, labelNotFlipped: 'Normal', labelFlipped: 'Invertida' },
           ],
           actions: [
             { id: 'a_flip', type: 'flip', name: 'InvertirAccion', paramId: 'p_flip', selection: ['l_d2'] },
@@ -1289,7 +1451,7 @@ describe('portapapeles portable (DAT-002)', () => {
         pattern: [10, -2, 2, -2],
       });
       const lay = tx.add('layers', {
-        ...srcDoc.data.layers.get('0')!,
+        ...srcDoc.data.layers.get(LAYER0_ID)!,
         id: 'lay_simbologia',
         name: 'SimbologiaDetalle',
         linetype: lt.id,
@@ -1318,7 +1480,7 @@ describe('portapapeles portable (DAT-002)', () => {
       });
 
       const mls = tx.add('mleaderStyles', {
-        ...srcDoc.data.mleaderStyles.get('standard')!,
+        ...srcDoc.data.mleaderStyles.get(MLEADERSTYLE_STANDARD_ID)!,
         id: 'mls_tag_trans',
         name: 'DirectrizConTag',
         contentType: 'block',
@@ -1517,15 +1679,15 @@ describe('portapapeles portable (DAT-002)', () => {
   it('no mezcla assets distintos aunque tengan el mismo nombre y tamaño', () => {
     const srcDoc = createDocument();
     const dstDoc = createDocument();
-    const sourceData = 'data:image/png;base64,AAAA';
-    const destinationData = 'data:image/png;base64,BBBB';
+    const sourceData = PNG;
+    const destinationData = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+X2y8AAAAASUVORK5CYII=';
 
     dstDoc.transact('ASSET_DESTINO', (tx) => {
       tx.add('assets', {
         id: 'asset_destino',
         name: 'logo.png',
         mime: 'image/png',
-        size: 4,
+        size: 70,
         dataUrl: destinationData,
       });
     });
@@ -1534,7 +1696,7 @@ describe('portapapeles portable (DAT-002)', () => {
         id: 'asset_origen',
         name: 'logo.png',
         mime: 'image/png',
-        size: 4,
+        size: 70,
         dataUrl: sourceData,
       });
       tx.addEntity<ImageEntity>({
@@ -1573,7 +1735,7 @@ describe('portapapeles portable (DAT-002)', () => {
         description: 'Tipo de línea de override de viewport',
         pattern: [3, -1],
       });
-      const baseLayer = srcDoc.data.layers.get('0')!;
+      const baseLayer = srcDoc.data.layers.get(LAYER0_ID)!;
       tx.add('layers', {
         ...baseLayer,
         id: 'layer_frozen_src',
@@ -1719,7 +1881,7 @@ describe('portapapeles portable (DAT-002)', () => {
         revision: 1,
         dynamic: {
           parameters: [
-            { id: 'src_param', name: 'Longitud', type: 'linear', base: { x: 0, y: 0 }, end: { x: 80, y: 0 }, baseLocation: 'start', valueSet: { kind: 'none' } } as any,
+            { id: 'src_param', name: 'Longitud', label: 'Longitud', type: 'linear', showInProperties: true, chainActions: false, gripCount: 2, base: { x: 0, y: 0 }, end: { x: 80, y: 0 }, baseLocation: 'start', valueSet: { kind: 'none' } },
           ],
           actions: [
             { id: 'src_action', type: 'stretch', name: 'Estirar', paramId: 'src_param', paramPoint: 'end', frame: [], selection: ['src_line'], axis: 'xy', distanceMultiplier: 1, angleOffset: 0 },
@@ -1765,7 +1927,7 @@ describe('portapapeles portable (DAT-002)', () => {
         revision: 1,
         dynamic: {
           parameters: [
-            { id: 'dst_param', name: 'Longitud', type: 'linear', base: { x: 0, y: 0 }, end: { x: 80, y: 0 }, baseLocation: 'start', valueSet: { kind: 'none' } } as any,
+            { id: 'dst_param', name: 'Longitud', label: 'Longitud', type: 'linear', showInProperties: true, chainActions: false, gripCount: 2, base: { x: 0, y: 0 }, end: { x: 80, y: 0 }, baseLocation: 'start', valueSet: { kind: 'none' } },
           ],
           actions: [
             { id: 'dst_action', type: 'stretch', name: 'Estirar', paramId: 'dst_param', paramPoint: 'end', frame: [], selection: ['dst_line'], axis: 'xy', distanceMultiplier: 1, angleOffset: 0 },
@@ -1818,14 +1980,14 @@ describe('portapapeles portable (DAT-002)', () => {
         annotative: false,
       });
       tx.add('dimStyles', {
-        ...srcDoc.data.dimStyles.get('standard')!,
+        ...srcDoc.data.dimStyles.get(DIMSTYLE_STANDARD_ID)!,
         id: 'ds_collision_src',
         name: 'CollisionDim',
         textStyle: 'ts_collision_src',
         precision: 4,
       });
       tx.add('layers', {
-        ...srcDoc.data.layers.get('0')!,
+        ...srcDoc.data.layers.get(LAYER0_ID)!,
         id: 'layer_collision_src',
         name: 'CollisionLayer',
         linetype: 'lt_collision_src',
@@ -1878,14 +2040,14 @@ describe('portapapeles portable (DAT-002)', () => {
         annotative: false,
       });
       tx.add('dimStyles', {
-        ...dstDoc.data.dimStyles.get('standard')!,
+        ...dstDoc.data.dimStyles.get(DIMSTYLE_STANDARD_ID)!,
         id: 'ds_collision_dst',
         name: 'CollisionDim',
         textStyle: 'ts_collision_dst',
         precision: 1,
       });
       tx.add('layers', {
-        ...dstDoc.data.layers.get('0')!,
+        ...dstDoc.data.layers.get(LAYER0_ID)!,
         id: 'layer_collision_dst',
         name: 'CollisionLayer',
         linetype: 'lt_collision_dst',
@@ -1918,6 +2080,27 @@ describe('portapapeles portable (DAT-002)', () => {
     expect(text.layer).toBe(sourceLayer?.id);
     expect(dimension.style).toBe(sourceDimStyle?.id);
     expect(dimension.layer).toBe(sourceLayer?.id);
+  });
+
+  it('rechaza un pegado que produciría coordenadas no finitas por desbordamiento', () => {
+    const srcDoc = createDocument();
+    const dstDoc = createDocument();
+    srcDoc.transact('CREA_LINEA_EXTENSA', (tx) => {
+      tx.addEntity<LineEntity>({
+        ...entityDefaults(srcDoc),
+        id: 'linea_extensa',
+        type: 'line',
+        start: { x: -1e308, y: 0 },
+        end: { x: 1e308, y: 0 },
+      });
+    });
+
+    const pkg = createClipboardPackage(srcDoc, ['linea_extensa']);
+    const entityCount = dstDoc.data.entities.size;
+
+    expect(() => pasteClipboardPackage(dstDoc, pkg, MODEL_SPACE_ID, { x: 0, y: 0 }))
+      .toThrowError(ClipboardError);
+    expect(dstDoc.data.entities.size).toBe(entityCount);
   });
 
 });

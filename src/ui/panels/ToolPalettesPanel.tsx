@@ -9,13 +9,7 @@ import { useEditorEvents } from '../hooks';
 import { CadIcon } from '../icons';
 import { tr } from '../controls';
 import { DND_MIME } from '../dnd';
-
-export type PaletteItem =
-  | { kind: 'block'; name: string; scale?: number; rotation?: number }
-  | { kind: 'hatch'; pattern: string; scale: number; angle: number }
-  | { kind: 'command'; cmd: string; args?: string[]; label: { es: string; en: string }; icon: string }
-  | { kind: 'preset'; name: string; layer?: string; color?: string; linetype?: string; lineweight?: number }
-  | { kind: 'dimstyle'; style: string; cmd: string };
+import { parseStoredPalettes, type PaletteItem, type StoredPalette } from '../paletteData';
 
 interface Palette {
   id: string;
@@ -32,14 +26,14 @@ export function isDarkTheme(editor: Editor): boolean {
   return typeof matchMedia !== 'undefined' && matchMedia('(prefers-color-scheme: dark)').matches;
 }
 
-function loadCustom(): Palette[] {
+function loadCustom(): StoredPalette[] {
   try {
-    return JSON.parse(localStorage.getItem(KEY) ?? '[]') as Palette[];
+    return parseStoredPalettes(localStorage.getItem(KEY));
   } catch {
     return [];
   }
 }
-function saveCustom(p: Palette[]) {
+function saveCustom(p: StoredPalette[]) {
   try {
     localStorage.setItem(KEY, JSON.stringify(p));
   } catch {
@@ -100,7 +94,7 @@ export function ToolPalettesPanel({ editor }: { editor: Editor }) {
   useEditorEvents(editor, ['doc', 'prefs']);
   const lang = editor.lang;
   const doc = editor.doc;
-  const [custom, setCustom] = useState<Palette[]>(() => loadCustom());
+  const [custom, setCustom] = useState<StoredPalette[]>(() => loadCustom());
   const [active, setActive] = useState('symbols');
   const [q, setQ] = useState('');
 
@@ -162,13 +156,9 @@ export function ToolPalettesPanel({ editor }: { editor: Editor }) {
   const favs = new Set(editor.prefs.favorites);
 
   const addToCustom = (item: PaletteItem) => {
-    let pal = custom[0];
-    const next = [...custom];
-    if (!pal) {
-      pal = { id: 'custom:mine', name: { es: 'Mis herramientas', en: 'My tools' }, custom: true, items: [] };
-      next.push(pal);
-    }
-    pal.items = [...pal.items, item];
+    const next: StoredPalette[] = custom.length
+      ? custom.map((palette, index) => index === 0 ? { ...palette, items: [...palette.items, item] } : palette)
+      : [{ id: 'custom:mine', name: { es: 'Mis herramientas', en: 'My tools' }, custom: true, items: [item] }];
     saveCustom(next);
     setCustom([...next]);
   };
@@ -177,8 +167,8 @@ export function ToolPalettesPanel({ editor }: { editor: Editor }) {
   const iconOf = (it: PaletteItem) => (it.kind === 'hatch' ? 'hatch' : it.kind === 'command' ? it.icon : it.kind === 'dimstyle' ? (it.cmd === 'DIMRADIUS' ? 'dimradius' : it.cmd === 'DIMALIGNED' ? 'dimaligned' : 'dimlinear') : 'properties');
 
   return (
-    <div className="panel">
-      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }} role="tablist">
+    <div className="panel panel--palette">
+      <div className="panel-tabs" role="tablist">
         {palettes.map((p) => (
           <button key={p.id} role="tab" aria-selected={p.id === current.id} className={`btn btn--sm${p.id === current.id ? ' btn--accent' : ''}`} onClick={() => setActive(p.id)}>
             {p.name[lang]}
@@ -186,15 +176,14 @@ export function ToolPalettesPanel({ editor }: { editor: Editor }) {
         ))}
       </div>
       <input className="input" placeholder={tr(lang, 'Buscar en la paleta…', 'Search palette…')} value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.stopPropagation()} />
-      <p className="eyebrow" style={{ margin: 0 }}>
+      <p className="panel__hint">
         {tr(lang, 'Clic para usar · arrastra al lienzo para colocar con referencia a objetos', 'Click to use · drag onto the canvas to place with object snaps')}
       </p>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(92px, 1fr))', gap: 6 }}>
+      <div className="palette-grid">
         {items.map((it, i) => (
           <div
             key={`${current.id}-${i}`}
-            className="section"
-            style={{ padding: 6, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, cursor: 'grab' }}
+            className="palette-tile"
             draggable
             onDragStart={(e) => e.dataTransfer.setData(DND_MIME, JSON.stringify(it))}
             onClick={() => void runPaletteItem(editor, it)}
@@ -214,15 +203,14 @@ export function ToolPalettesPanel({ editor }: { editor: Editor }) {
             ) : (
               <CadIcon name={iconOf(it)} size={28} />
             )}
-            <span style={{ fontSize: 11, textAlign: 'center', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%', whiteSpace: 'nowrap' }}>{labelOf(it)}</span>
+            <span className="palette-tile__label">{labelOf(it)}</span>
             {!current.custom ? (
-              <button className="icon-btn" style={{ width: 20, height: 20 }} onClick={(e) => (e.stopPropagation(), addToCustom(it))} title={tr(lang, 'Añadir a Mis herramientas', 'Add to My tools')}>
+              <button className="icon-btn palette-tile__action" onClick={(e) => (e.stopPropagation(), addToCustom(it))} title={tr(lang, 'Añadir a Mis herramientas', 'Add to My tools')}>
                 <Plus size={11} />
               </button>
             ) : (
               <button
-                className="icon-btn"
-                style={{ width: 20, height: 20 }}
+                className="icon-btn palette-tile__action"
                 onClick={(e) => {
                   e.stopPropagation();
                   const next = custom.map((p) => (p.id === current.id ? { ...p, items: p.items.filter((_, j) => j !== i) } : p));

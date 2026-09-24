@@ -1,4 +1,5 @@
 import { evaluate } from '../lib/expr';
+import { boxCenter } from '../geometry/bbox';
 import type { Entity } from '../document/types';
 import { formatLength } from './format';
 import type { EvalContext } from './registry';
@@ -26,6 +27,7 @@ export function resolveFieldsText(text: string, ctx: EvalContext & { sheetName?:
 }
 
 function fmt(ctx: EvalContext, v: number): string {
+  if (!Number.isFinite(v)) return '####';
   const s = ctx.doc.settings;
   return formatLength(v, s.linearFormat, s.linearPrecision, '.');
 }
@@ -51,7 +53,8 @@ function entityProp(ctx: EvalContext, e: Entity | undefined, prop: string): stri
     case 'x':
     case 'y': {
       const b = k.bbox(e, ctx);
-      return fmt(ctx, prop === 'x' ? (b.minX + b.maxX) / 2 : (b.minY + b.maxY) / 2);
+      const center = boxCenter(b);
+      return fmt(ctx, prop === 'x' ? center.x : center.y);
     }
     default: {
       const v = (e as unknown as Record<string, unknown>)[prop];

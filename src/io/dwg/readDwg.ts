@@ -1,7 +1,8 @@
 import type { LibreDwg } from '@mlightcad/libredwg-web';
 import { decodeDxfBytes } from '../dxf/importDxf';
 import type { DxfFile } from '../dxf/parser';
-import { parseDxf } from '../dxf/parser';
+import { assertDxfLimits, parseDxf } from '../dxf/parser';
+import { assertInputBytes } from '../limits';
 import { applyDwgFixes } from './dwgToDxf';
 
 /**
@@ -24,6 +25,7 @@ function libredwg(where: { wasmFile?: string; wasmDir?: string }): Promise<Libre
 }
 
 export async function readDwgFile(bytes: Uint8Array, where: { wasmFile?: string; wasmDir?: string }): Promise<DxfFile> {
+  assertInputBytes(bytes, 'DWG');
   const head = new TextDecoder('latin1').decode(bytes.slice(0, 6));
   if (!/^AC10\d\d$/.test(head)) throw new Error('El archivo no es un DWG. / Not a DWG file.');
   const { Dwg_File_Type } = await import('@mlightcad/libredwg-web');
@@ -36,6 +38,7 @@ export async function readDwgFile(bytes: Uint8Array, where: { wasmFile?: string;
     throw new Error(`El lector DWG no pudo leer el archivo (${err instanceof Error ? err.message : String(err)}). / The DWG reader could not read the file.`);
   }
   if (!text?.length) throw new Error('El lector DWG no pudo leer el archivo: versión no admitida o archivo dañado. / The DWG reader could not read the file: unsupported version or damaged file.');
+  assertInputBytes(text, 'DXF');
   const dxf = parseDxf(decodeDxfBytes(text));
   const dwg = lib.dwg_read_data(buffer(), Dwg_File_Type.DWG);
   if (dwg) {
@@ -45,5 +48,6 @@ export async function readDwgFile(bytes: Uint8Array, where: { wasmFile?: string;
       lib.dwg_free(dwg);
     }
   }
+  assertDxfLimits(dxf);
   return dxf;
 }

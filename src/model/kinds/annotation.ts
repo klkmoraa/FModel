@@ -1,4 +1,4 @@
-import { boxFromPoints, emptyBox, expandBox, expandPoint } from '../../geometry/bbox';
+import { boxFromPoints, emptyBox, expandBox, expandPoint, isEmptyBox, transformBox } from '../../geometry/bbox';
 import type { Curve } from '../../geometry/curves';
 import { tessellateCurve } from '../../geometry/curves';
 import { applyToPoint, uniformScale } from '../../geometry/matrix';
@@ -240,7 +240,27 @@ export const mleaderKind: EntityKind<MLeaderEntity> = {
   curves: (e, ctx) => mleaderBuild(e, ctx).curves,
   bbox: (e, ctx) => {
     const b = mleaderBuild(e, ctx);
-    return boxFromPoints([...b.outline, e.landing, ...e.leaders.flatMap((l) => l.vertices)]);
+    const props = mleaderProps(e, ctx);
+    const S = mleaderScale(props, ctx, e.annotative);
+    const { dogEnd, contentAnchor } = mleaderContentFrame(e, props, S);
+    const bounds = boxFromPoints([...b.outline, e.landing, dogEnd, ...e.leaders.flatMap((l) => l.vertices)]);
+    if (e.content.type === 'block') {
+      const block = ctx.doc.data.blocks.get(e.content.blockId);
+      if (block) {
+        const scale = e.content.scale * S;
+        const matrix = {
+          a: scale,
+          b: 0,
+          c: 0,
+          d: scale,
+          e: contentAnchor.x - block.basePoint.x * scale,
+          f: contentAnchor.y - block.basePoint.y * scale,
+        };
+        const blockBounds = ctx.blockCache(block.id).bbox;
+        if (!isEmptyBox(blockBounds)) expandBox(bounds, transformBox(blockBounds, matrix));
+      }
+    }
+    return bounds;
   },
   graphics: (e, ctx) => mleaderBuild(e, ctx).items,
   transform: (e, m) => {

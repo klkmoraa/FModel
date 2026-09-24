@@ -1,11 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setServices } from '../app/services';
-import { createDocument } from '../document/defaults';
+import { createDocument, entityDefaults } from '../document/defaults';
+import type { LineEntity } from '../document/types';
 import { Editor } from '../editor/editor';
 import type { FileHandle } from '../storage/fileAccess';
 import type { Persistence } from '../storage/persistence';
 import type { CommandApi, L10n } from './types';
 import { taskManager } from '../app/tasks';
+import { _resetWorker } from '../workers/client';
 import { FILE_COMMANDS, openBytes } from './file';
 import { registerCommands } from './registry';
 
@@ -112,7 +114,12 @@ describe('QSAVE y SAVEAS', () => {
     expect(editor.doc.dirty).toBe(false);
     expect(services.fileHandle).toBe(selected);
     expect(editor.fileName).toBe('nuevo');
-    expect(persistence.storeDrawingAndVersion).toHaveBeenCalledWith('nuevo', 'Guardado manual', expect.any(Uint8Array));
+    expect(persistence.storeDrawingAndVersion).toHaveBeenCalledWith('nuevo', 'Guardado manual', expect.objectContaining({
+      documentId: editor.doc.id,
+      documentVersion: editor.doc.version,
+      entityCount: editor.doc.data.entities.size,
+      bytes: expect.any(Uint8Array),
+    }));
     expect(persistence.markCleanExit).toHaveBeenCalledOnce();
     expect(info).toHaveBeenCalledWith(expect.objectContaining({ es: expect.stringContaining('Guardado') }));
   });
@@ -143,6 +150,79 @@ describe('QSAVE y SAVEAS', () => {
     expect(editor.doc.dirty).toBe(false);
     expect(services.fileHandle).toBe(existing);
     expect(persistence.storeDrawingAndVersion).toHaveBeenCalledOnce();
+  });
+
+  it('conserva dirty si el dibujo cambia mientras termina la escritura', async () => {
+    const existing = services.fileHandle!;
+    let releaseWrite!: () => void;
+    const writeGate = new Promise<void>((resolve) => { releaseWrite = resolve; });
+    const write = vi.fn(async () => { await writeGate; });
+    (existing.createWritable as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ write, close: vi.fn(async () => undefined) });
+
+    const pending = save('QSAVE').run(api);
+    await vi.waitFor(() => expect(write).toHaveBeenCalledOnce());
+    const savedVersion = editor.doc.version;
+    editor.doc.transact('LINE', (tx) => tx.addEntity<LineEntity>({
+      ...entityDefaults(editor.doc), id: 'nueva', type: 'line', start: { x: 0, y: 0 }, end: { x: 1, y: 0 },
+    }));
+    expect(editor.doc.version).toBeGreaterThan(savedVersion);
+
+    releaseWrite();
+    await pending;
+
+    expect(editor.doc.dirty).toBe(true);
+    expect(editor.doc.entity('nueva')).toBeDefined();
+    expect(info).toHaveBeenCalledWith(expect.objectContaining({ es: expect.stringContaining('siguen sin guardar') }));
+  });
+
+  it('no vincula al dibujo nuevo el archivo del guardado anterior', async () => {
+    const existing = services.fileHandle!;
+    let releaseWrite!: () => void;
+    const writeGate = new Promise<void>((resolve) => { releaseWrite = resolve; });
+    const write = vi.fn(async () => { await writeGate; });
+    (existing.createWritable as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ write, close: vi.fn(async () => undefined) });
+    const oldId = editor.doc.id;
+
+    const pending = save('QSAVE').run(api);
+    await vi.waitFor(() => expect(write).toHaveBeenCalledOnce());
+    editor.doc.replaceData(createDocument({ title: 'Nuevo' }).data);
+    editor.fileName = 'Nuevo';
+    services.fileHandle = null;
+
+    releaseWrite();
+    await pending;
+
+    expect(editor.doc.id).not.toBe(oldId);
+    expect(editor.fileName).toBe('Nuevo');
+    expect(services.fileHandle).toBeNull();
+    expect(editor.doc.dirty).toBe(false);
+    expect(persistence.storeDrawingAndVersion).toHaveBeenCalledWith('original', 'Guardado manual', expect.objectContaining({ documentId: oldId }));
+    expect(info).toHaveBeenCalledWith(expect.objectContaining({ es: expect.stringContaining('dibujo anterior') }));
+  });
+
+  it('un SAVEAS antiguo que termina después no reemplaza el handle más reciente', async () => {
+    const older = handle('anterior.fmodel');
+    const newer = handle('reciente.fmodel');
+    let releaseOlder!: () => void;
+    const olderGate = new Promise<void>((resolve) => { releaseOlder = resolve; });
+    (older.createWritable as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      write: vi.fn(async () => { await olderGate; }), close: vi.fn(async () => undefined),
+    });
+    const picker = vi.fn().mockResolvedValueOnce(older).mockResolvedValueOnce(newer);
+    vi.stubGlobal('window', { showSaveFilePicker: picker });
+
+    const first = save('SAVEAS').run(api);
+    await vi.waitFor(() => expect(older.createWritable).toHaveBeenCalledOnce());
+    const second = save('SAVEAS').run(api);
+    await second;
+    expect(services.fileHandle).toBe(newer);
+    expect(editor.fileName).toBe('reciente');
+
+    releaseOlder();
+    await first;
+
+    expect(services.fileHandle).toBe(newer);
+    expect(editor.fileName).toBe('reciente');
   });
 
   it('trata la descarga fallback como guardado correcto', async () => {
@@ -280,14 +360,6 @@ describe('QSAVE y SAVEAS', () => {
     );
   });
 
-  it('hace fallback a storeDrawing y saveVersion si storeDrawingAndVersion no está disponible', async () => {
-    delete (persistence as Partial<typeof persistence>).storeDrawingAndVersion;
-    await save('QSAVE').run(api);
-    expect(persistence.storeDrawing).toHaveBeenCalledOnce();
-    expect(persistence.saveVersion).toHaveBeenCalledOnce();
-    expect(editor.doc.dirty).toBe(false);
-  });
-
   it('RECOVER advierte si pendingRecovery falla por error de almacenamiento', async () => {
     (persistence.pendingRecovery as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
       new DOMException('Database is closing', 'InvalidStateError'),
@@ -311,5 +383,87 @@ describe('QSAVE y SAVEAS', () => {
 
     expect(editor.doc.data.entities.size).toBe(originalEntities);
     expect(warn).toHaveBeenCalledWith(expect.objectContaining({ es: expect.stringContaining('cancelada') }));
+  });
+
+  it('descarta el resultado de una apertura DXF cuando se cancela el comando dueño', async () => {
+    const owner = new AbortController();
+    api.signal = owner.signal;
+    const dxfBytes = new TextEncoder().encode('0\nSECTION\n2\nHEADER\n0\nENDSEC\n0\nEOF\n');
+
+    const openPromise = openBytes(api, 'tardio.dxf', dxfBytes);
+    owner.abort();
+    const opened = await openPromise;
+
+    expect(opened).toBe(false);
+    expect(editor.fileName).toBe('Original');
+    expect(warn).toHaveBeenCalledWith(expect.objectContaining({ es: expect.stringContaining('cancelada') }));
+  });
+
+  it('permite volver a abrir el DWG original tras fallar el primer intento', async () => {
+    type Listener = (event: any) => void;
+    const workers: MockRetryWorker[] = [];
+
+    class MockRetryWorker {
+      listeners = new Map<string, Listener[]>();
+      posted: Array<{ data: any; transfer?: Transferable[] }> = [];
+      constructor() {
+        workers.push(this);
+      }
+      addEventListener(type: string, fn: Listener) {
+        this.listeners.set(type, [...(this.listeners.get(type) ?? []), fn]);
+      }
+      removeEventListener(type: string, fn: Listener) {
+        this.listeners.set(type, (this.listeners.get(type) ?? []).filter((candidate) => candidate !== fn));
+      }
+      postMessage(data: any, transfer?: Transferable[]) {
+        this.posted.push({ data, transfer });
+        const attempt = this.posted.length;
+        queueMicrotask(() => {
+          for (const listener of this.listeners.get('message') ?? []) {
+            listener({
+              data: attempt === 1
+                ? { type: 'result', id: data.id, ok: false, error: 'temporary DWG failure' }
+                : {
+                    type: 'result',
+                    id: data.id,
+                    ok: true,
+                    result: { data: createDocument().data, report: { summary: { es: 'Importado', en: 'Imported' }, warnings: [] } },
+                  },
+            });
+          }
+        });
+      }
+      terminate = vi.fn();
+    }
+
+    const originalWorker = globalThis.Worker;
+    const originalWindow = (globalThis as any).window;
+    const bytes = new Uint8Array([1, 2, 3, 4]);
+    _resetWorker();
+    taskManager._clear();
+    (globalThis as any).Worker = MockRetryWorker as any;
+    (globalThis as any).window = { dispatchEvent: vi.fn() };
+
+    try {
+      await expect(openBytes(api, 'reintento.dwg', bytes)).rejects.toThrow('temporary DWG failure');
+      expect(Array.from(bytes)).toEqual([1, 2, 3, 4]);
+
+      const failed = taskManager.getTasks().find((task) => task.id === 'open-dwg');
+      expect(failed?.retry).toBeUndefined();
+      expect(await openBytes(api, 'reintento.dwg', bytes)).toBe(true);
+
+      expect(workers).toHaveLength(1);
+      expect(workers[0].posted).toHaveLength(2);
+      expect(workers[0].posted.map(({ transfer }) => transfer)).toEqual([undefined, undefined]);
+      expect(workers[0].posted.map(({ data }) => Array.from(data.payload.bytes))).toEqual([
+        [1, 2, 3, 4],
+        [1, 2, 3, 4],
+      ]);
+    } finally {
+      (globalThis as any).Worker = originalWorker;
+      (globalThis as any).window = originalWindow;
+      _resetWorker();
+      taskManager._clear();
+    }
   });
 });

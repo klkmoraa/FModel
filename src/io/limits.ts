@@ -1,10 +1,12 @@
+import { MAX_ARRAY_INSTANCE_COUNT } from '../document/arrayLimits';
+
 /** Límites para entradas externas; permiten planos grandes sin descomprimir ZIPs hostiles. */
 export const INPUT_LIMITS = {
   maxCompressedBytes: 64 * 1024 * 1024,
   maxExpandedBytes: 128 * 1024 * 1024,
   maxZipEntries: 1_000,
   maxEntryBytes: 32 * 1024 * 1024,
-  maxEntities: 250_000,
+  maxEntities: MAX_ARRAY_INSTANCE_COUNT,
   maxBlocks: 25_000,
   maxAssets: 10_000,
   maxPointsPerEntity: 100_000,
@@ -17,6 +19,19 @@ const u32 = (bytes: Uint8Array, offset: number) => (bytes[offset] | (bytes[offse
 
 export function assertInputBytes(bytes: Uint8Array, label = 'archivo') {
   if (bytes.byteLength > INPUT_LIMITS.maxCompressedBytes) throw new InputLimitError(`El ${label} es demasiado grande. / The ${label} is too large.`);
+}
+
+/** Aplica a los escritores los mismos límites de entradas y bytes descomprimidos que a los lectores. */
+export function assertZipOutputEntries(entries: Record<string, Uint8Array>, label: string) {
+  const values = Object.values(entries);
+  if (values.length > INPUT_LIMITS.maxZipEntries) throw new InputLimitError(`El ${label} es demasiado grande. / The ${label} is too large.`);
+  let total = 0;
+  for (const bytes of values) {
+    total += bytes.byteLength;
+    if (bytes.byteLength > INPUT_LIMITS.maxEntryBytes || total > INPUT_LIMITS.maxExpandedBytes) {
+      throw new InputLimitError(`El ${label} es demasiado grande. / The ${label} is too large.`);
+    }
+  }
 }
 
 /** Verifica el directorio central ZIP antes de que fflate asigne la salida descomprimida. */

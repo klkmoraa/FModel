@@ -4,13 +4,13 @@ import type { NamedView } from '../document/types';
 import type { SnapType } from '../model/registry';
 import { K, L } from './helpers';
 import type { CommandApi, CommandDef } from './types';
-
-const viewStack: { space: string; center: { x: number; y: number }; scale: number }[] = [];
+import { CommandError } from './types';
 
 function pushView(api: CommandApi) {
   const v = api.editor.view;
-  viewStack.push({ space: api.editor.space, center: { ...v.center }, scale: v.scale });
-  if (viewStack.length > 50) viewStack.shift();
+  const stack = api.editor.viewStack;
+  stack.push({ space: api.editor.space, center: { ...v.center }, scale: v.scale });
+  if (stack.length > 50) stack.shift();
 }
 
 const ZOOM: CommandDef = {
@@ -43,7 +43,7 @@ const ZOOM: CommandDef = {
         editor.zoomExtents();
         return;
       case 'Previous': {
-        const prev = viewStack.pop();
+        const prev = editor.viewStack.pop();
         if (prev && prev.space === editor.space) {
           editor.view.center = prev.center;
           editor.view.scale = prev.scale;
@@ -63,9 +63,10 @@ const ZOOM: CommandDef = {
         const r = await api.getString({ prompt: L('Factor de escala (nX relativo, nXP respecto al papel)', 'Scale factor (nX relative, nXP paper)') });
         if (r.kind !== 'string') return;
         const m = /^([\d.]+)\s*(x|xp)?$/i.exec(r.value.trim());
-        if (!m) return;
+        if (!m) throw new CommandError(L('Factor de escala no válido.', 'Invalid scale factor.'));
+        const f = Number(m[1]);
+        if (!Number.isFinite(f) || f <= 0) throw new CommandError(L('Factor de escala no válido.', 'Invalid scale factor.'));
         pushView(api);
-        const f = parseFloat(m[1]);
         if (m[2]?.toLowerCase() === 'xp' && editor.activeViewport) {
           editor.doc.transact('ZOOM XP', (tx) => tx.updateEntity(editor.activeViewportId!, { scale: f }));
         } else if (m[2]) editor.zoomBy(f);

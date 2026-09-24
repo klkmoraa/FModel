@@ -1,10 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createDocument, entityDefaults } from '../document/defaults';
 import type { PdfUnderlayEntity } from '../document/types';
 import { createContext } from '../model/context';
 import { kindOf } from '../model/registry';
 import type { PathOps } from './pdfGeometry';
-import { buildSegmentIndex, segmentsFromOperators } from './pdfGeometry';
+import { buildSegmentIndex, PdfGeometryCache, segmentsFromOperators } from './pdfGeometry';
 
 const OPS: PathOps = { save: 10, restore: 11, transform: 12, endPath: 28, paintFormXObjectBegin: 74, paintFormXObjectEnd: 75, constructPath: 91 };
 const FILL = 22;
@@ -41,6 +41,23 @@ describe('segmentos de un calco PDF', () => {
     expect(segs.length / 4).toBe(6);
     expect(round(segs.slice(-2))).toEqual([1, 0.5]);
   });
+
+  it('detiene un único trazado al llegar al límite de segmentos', () => {
+    const count = 250_001;
+    const data = new Float32Array(3 + count * 3);
+    for (let i = 0; i < count; i++) {
+      data[3 + i * 3] = 1;
+      data[3 + i * 3 + 1] = i + 1;
+    }
+    const segs = segmentsFromOperators([OPS.constructPath], [[FILL, [data], null]], OPS, VIEW, 100, 200);
+    expect(segs.length / 4).toBe(250_000);
+  });
+
+  it('omite segmentos con coordenadas no finitas', () => {
+    const data = Float32Array.from([0, 0, 0, 1, Infinity, 0, 0, 10, 10, 1, 20, 20]);
+    const segs = segmentsFromOperators([OPS.constructPath], [[FILL, [data], null]], OPS, VIEW, 100, 200);
+    expect([...segs].every(Number.isFinite)).toBe(true);
+  });
 });
 
 describe('índice de segmentos', () => {
@@ -53,6 +70,31 @@ describe('índice de segmentos', () => {
     expect(index.query({ minX: 0.4, minY: 0.45, maxX: 0.6, maxY: 0.55 })).toHaveLength(1);
     expect(index.query({ minX: 0.3, minY: 0.2, maxX: 0.4, maxY: 0.3 })).toHaveLength(0);
     expect(index.query({ minX: 2, minY: 2, maxX: 3, maxY: 3 })).toHaveLength(0);
+  });
+
+  it('clear impide que una extracción anterior repueble la caché', async () => {
+    const doc = createDocument();
+    doc.transact('ASSET', (tx) => tx.add('assets', { id: 'pdf-stale', name: 'viejo.pdf', mime: 'application/pdf', size: 1, dataUrl: 'data:application/pdf;base64,eA==' }));
+    const onReady = vi.fn();
+    const cache = new PdfGeometryCache(() => doc, onReady);
+    const extracted = buildSegmentIndex(Float32Array.from([0, 0, 1, 1]));
+    let resolveFirst!: (value: typeof extracted) => void;
+    const first = new Promise<typeof extracted>((resolve) => (resolveFirst = resolve));
+    const extract = vi.fn().mockReturnValueOnce(first).mockResolvedValue(extracted);
+    (cache as unknown as { extract: typeof extract }).extract = extract;
+
+    expect(cache.get('pdf-stale', 1)).toBeNull();
+    cache.clear();
+    resolveFirst(extracted);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(onReady).not.toHaveBeenCalled();
+
+    expect(cache.get('pdf-stale', 1)).toBeNull();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(onReady).toHaveBeenCalledOnce();
+    expect(cache.get('pdf-stale', 1)).toBe(extracted);
   });
 });
 

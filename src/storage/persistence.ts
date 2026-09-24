@@ -11,6 +11,25 @@ export interface StoredDrawing {
   savedAt: number;
   bytes: Uint8Array;
   size: number;
+  /** Orden de captura para impedir que una escritura antigua reemplace una nueva. */
+  snapshotOrder?: number;
+}
+
+export interface DrawingSnapshot {
+  documentId: Id;
+  documentVersion: number;
+  snapshotOrder: number;
+  entityCount: number;
+  bytes: Uint8Array;
+}
+
+let lastSnapshotOrder = 0;
+
+/** Captura una revisión con orden estable aun si su escritura termina más tarde. */
+export function createDrawingSnapshot(doc: CadDocument, bytes = writePackage(doc.data, doc.id)): DrawingSnapshot {
+  const timeOrder = Date.now() * 1_000;
+  lastSnapshotOrder = Math.max(lastSnapshotOrder + 1, timeOrder);
+  return { documentId: doc.id, documentVersion: doc.version, snapshotOrder: lastSnapshotOrder, entityCount: doc.data.entities.size, bytes };
 }
 
 export interface VersionRecord {
@@ -25,7 +44,7 @@ export interface VersionRecord {
 }
 
 export interface RecoveryRecord {
-  id: 'current';
+  id: string;
   documentId: Id;
   name: string;
   savedAt: number;
@@ -35,7 +54,7 @@ export interface RecoveryRecord {
 
 /** Estado del dibujo abierto, para reabrirlo tal cual al recargar la página. */
 export interface SessionRecord {
-  id: 'session';
+  id: string;
   documentId: Id;
   name: string;
   savedAt: number;
@@ -80,6 +99,26 @@ export type AutosaveResult =
   | { status: 'not-needed' }
   | { status: 'saved'; savedAt: number; versionSaved: boolean }
   | { status: 'failed'; reason: StorageErrorKind; error: ClassifiedStorageError };
+
+const TAB_SESSION_STORAGE_KEY = 'fmodel.tabSessionId';
+let volatileTabSessionId: string | null = null;
+
+function sessionRecordId(): string {
+  try {
+    if (typeof sessionStorage !== 'undefined') {
+      let token = sessionStorage.getItem(TAB_SESSION_STORAGE_KEY);
+      if (!token || !/^tab[0-9a-z]{11}$/.test(token)) {
+        token = newId('tab');
+        sessionStorage.setItem(TAB_SESSION_STORAGE_KEY, token);
+      }
+      return `session:${token}`;
+    }
+  } catch {
+    // Un navegador que bloquee sessionStorage conserva la sesión en esta pestaña mientras siga abierta.
+  }
+  volatileTabSessionId ??= newId('tab');
+  return `session:${volatileTabSessionId}`;
+}
 
 /**
  * Clasifica errores de persistencia local (IndexedDB, cuota de almacenamiento,
@@ -192,8 +231,10 @@ export async function getStorageEstimate(): Promise<{ quota?: number; usage?: nu
  * Nada sale del navegador.
  */
 export class Persistence {
+  private readonly sessionId = sessionRecordId();
+  private readonly recoveryId = this.sessionId.replace(/^session:/, 'current:');
   private timer = 0;
-  private lastVersionAt = 0;
+  private lastVersionAt = new Map<Id, number>();
   private unloadHandler = () => void this.markCleanExit();
   private sessionTimer = 0;
   private healthListeners = new Set<(health: PersistenceHealth) => void>();
@@ -259,9 +300,8 @@ export class Persistence {
 
   start(autosaveMinutes: number) {
     this.stop();
-    if (autosaveMinutes <= 0) return;
-    this.timer = window.setInterval(() => void this.autosave(), autosaveMinutes * 60_000);
     window.addEventListener('beforeunload', this.unloadHandler);
+    if (autosaveMinutes > 0) this.timer = window.setInterval(() => void this.autosave(), autosaveMinutes * 60_000);
   }
 
   stop() {
@@ -279,7 +319,7 @@ export class Persistence {
     try {
       const now = Date.now();
       const rec: RecoveryRecord = {
-        id: 'current',
+        id: this.recoveryId,
         documentId: doc.id,
         name: this.getName(),
         savedAt: now,
@@ -288,7 +328,8 @@ export class Persistence {
       };
       let versionSaved = false;
       // versión automática como máximo cada 10 minutos
-      if (now - this.lastVersionAt > 10 * 60_000) {
+      const previousVersionAt = this.lastVersionAt.get(doc.id) ?? 0;
+      if (now - previousVersionAt > 10 * 60_000) {
         const bytes = writePackage(doc.data, doc.id);
         const vRec: VersionRecord = {
           id: `${doc.id}:${newId('v')}`,
@@ -304,7 +345,7 @@ export class Persistence {
           get('recovery').put(rec);
           get('versions').put(vRec);
         });
-        this.lastVersionAt = now;
+        this.lastVersionAt.set(doc.id, now);
         versionSaved = true;
 
         // conservar como máximo 40 versiones automáticas por documento
@@ -335,8 +376,9 @@ export class Persistence {
 
   async markCleanExit() {
     try {
-      const rec = await idb.idbGet<RecoveryRecord>('recovery', 'current');
-      if (rec) await idb.idbPut('recovery', { ...rec, cleanExit: !this.getDoc().dirty });
+      const doc = this.getDoc();
+      const cleanExit = !doc.dirty;
+      await idb.idbUpdate<RecoveryRecord>('recovery', this.recoveryId, (rec) => rec?.documentId === doc.id ? { ...rec, cleanExit } : undefined);
       this.recordSuccess('cleanExit');
     } catch (err) {
       this.recordFailure('cleanExit', err);
@@ -346,9 +388,12 @@ export class Persistence {
   /** Borrador recuperable si la sesión anterior terminó sin guardar. */
   async pendingRecovery(): Promise<RecoveryRecord | null> {
     try {
-      const rec = await idb.idbGet<RecoveryRecord>('recovery', 'current');
+      const records = await idb.idbAll<RecoveryRecord>('recovery');
+      const rec = records
+        .filter((item) => typeof item?.id === 'string' && (item.id === 'current' || item.id.startsWith('current:')) && !item.cleanExit)
+        .sort((a, b) => b.savedAt - a.savedAt)[0];
       this.recordSuccess('recovery');
-      return rec && !rec.cleanExit ? rec : null;
+      return rec ?? null;
     } catch (err) {
       this.recordFailure('recovery', err);
       throw err;
@@ -357,7 +402,8 @@ export class Persistence {
 
   async discardRecovery() {
     try {
-      await idb.idbDelete('recovery', 'current');
+      const rec = await this.pendingRecovery();
+      if (rec) await idb.idbDelete('recovery', rec.id);
       this.recordSuccess('recovery');
     } catch (err) {
       this.recordFailure('recovery', err);
@@ -384,7 +430,12 @@ export class Persistence {
     clearTimeout(this.sessionTimer);
     this.sessionTimer = 0;
     try {
-      if (idb.idbPutNow('recovery', this.sessionRecord())) return true;
+      const pending = idb.idbPutNow('recovery', this.sessionRecord());
+      if (pending) {
+        await pending;
+        this.recordSuccess('session');
+        return true;
+      }
     } catch (err) {
       this.recordFailure('session', err);
     }
@@ -393,7 +444,7 @@ export class Persistence {
 
   private sessionRecord(): SessionRecord {
     const doc = this.getDoc();
-    return { id: 'session', documentId: doc.id, name: this.getName(), savedAt: Date.now(), file: toNativeFile(doc.data, doc.id, { embedAssets: true }), dirty: doc.dirty };
+    return { id: this.sessionId, documentId: doc.id, name: this.getName(), savedAt: Date.now(), file: toNativeFile(doc.data, doc.id, { embedAssets: true }), dirty: doc.dirty };
   }
 
   async saveSession(): Promise<boolean> {
@@ -409,8 +460,10 @@ export class Persistence {
 
   async loadSession(): Promise<SessionRecord | null> {
     try {
-      const rec = await idb.idbGet<SessionRecord>('recovery', 'session');
-      return rec ?? null;
+      const rec = await idb.idbGet<SessionRecord>('recovery', this.sessionId);
+      if (rec) return rec;
+      const migrated = await idb.idbMove<SessionRecord>('recovery', 'session', this.sessionId);
+      return migrated ?? (await idb.idbGet<SessionRecord>('recovery', this.sessionId)) ?? null;
     } catch (err) {
       this.recordFailure('session', err);
       return null;
@@ -419,35 +472,42 @@ export class Persistence {
 
   /**
    * Guarda de manera atómica el dibujo y su versión en una única transacción multi-store.
-   * Acepta bytes precomputados para evitar serializar el paquete dos veces.
+   * Acepta una instantánea completa cuando la escritura del archivo empezó antes.
    */
   async storeDrawingAndVersion(
     name: string,
     label: string,
-    precomputedBytes?: Uint8Array,
+    precomputed?: DrawingSnapshot,
   ): Promise<{ drawing: StoredDrawing; version: VersionRecord }> {
-    const doc = this.getDoc();
-    const bytes = precomputedBytes ?? writePackage(doc.data, doc.id);
+    const snapshot = precomputed ?? (() => {
+      const doc = this.getDoc();
+      return createDrawingSnapshot(doc);
+    })();
     const now = Date.now();
-    const drawing: StoredDrawing = { id: doc.id, name, savedAt: now, bytes, size: bytes.length };
+    const drawing: StoredDrawing = { id: snapshot.documentId, name, savedAt: now, bytes: snapshot.bytes, size: snapshot.bytes.length, snapshotOrder: snapshot.snapshotOrder };
     const version: VersionRecord = {
-      id: `${doc.id}:${newId('v')}`,
-      documentId: doc.id,
+      id: `${snapshot.documentId}:${newId('v')}`,
+      documentId: snapshot.documentId,
       name,
       label,
       savedAt: now,
       auto: false,
-      entityCount: doc.data.entities.size,
-      bytes,
+      entityCount: snapshot.entityCount,
+      bytes: snapshot.bytes,
     };
     try {
       await idb.idbWrite(['drawings', 'versions'], (get) => {
-        get('drawings').put(drawing);
+        const drawings = get('drawings');
+        const current = drawings.get(drawing.id) as IDBRequest<StoredDrawing | undefined>;
+        current.onsuccess = () => {
+          const storedOrder = current.result?.snapshotOrder;
+          if (storedOrder === undefined || storedOrder <= snapshot.snapshotOrder) drawings.put(drawing);
+        };
         get('versions').put(version);
       });
       try {
         const all = (await idb.idbAll<VersionRecord>('versions'))
-          .filter((v) => v.documentId === doc.id && v.auto)
+          .filter((v) => v.documentId === snapshot.documentId && v.auto)
           .sort((a, b) => b.savedAt - a.savedAt || (a.id < b.id ? 1 : a.id > b.id ? -1 : 0));
         const toDelete = all.slice(40);
         if (toDelete.length > 0) {
@@ -563,7 +623,8 @@ export class Persistence {
   async storeDrawing(name: string): Promise<StoredDrawing> {
     const doc = this.getDoc();
     const bytes = writePackage(doc.data, doc.id);
-    const rec: StoredDrawing = { id: doc.id, name, savedAt: Date.now(), bytes, size: bytes.length };
+    const snapshot = createDrawingSnapshot(doc, bytes);
+    const rec: StoredDrawing = { id: doc.id, name, savedAt: Date.now(), bytes, size: bytes.length, snapshotOrder: snapshot.snapshotOrder };
     try {
       await idb.idbPut('drawings', rec);
       this.recordSuccess('storeDrawing');

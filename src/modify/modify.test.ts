@@ -189,6 +189,10 @@ describe('FILLET / CHAMFER entities', () => {
 });
 
 describe('OFFSET entities', () => {
+  it('ignores polylines without a segment', () => {
+    expect(offsetEntity(pline([]), 1, { x: 1, y: 1 }, ctx)).toEqual([]);
+    expect(offsetEntity(pline([[0, 0]]), 1, { x: 1, y: 1 }, ctx)).toEqual([]);
+  });
   it('offsets circle inward and outward', () => {
     const c = circle(0, 0, 5);
     expect((offsetEntity(c, 1, { x: 0, y: 1 }, ctx)[0] as CircleEntity).radius).toBeCloseTo(4);

@@ -1,5 +1,5 @@
 import type { BBox } from '../geometry/bbox';
-import { emptyBox, expandBox, isEmptyBox } from '../geometry/bbox';
+import { boxCenter, emptyBox, expandBox, isEmptyBox, scaleToFitSpan } from '../geometry/bbox';
 import type { Id } from '../document/types';
 import { MODEL_SPACE_ID } from '../document/types';
 import type { CadDocument } from '../document/document';
@@ -11,6 +11,14 @@ import type { TraverseEnv } from './traverse';
 import { drawEntity } from './traverse';
 
 const cache = new Map<string, string>();
+
+const finiteBox = (b: BBox): boolean =>
+  Number.isFinite(b.minX) && Number.isFinite(b.minY) && Number.isFinite(b.maxX) && Number.isFinite(b.maxY);
+
+function safeThumbnailScale(box: BBox, scale: number): number {
+  const magnitude = Math.max(1, Math.abs(box.minX), Math.abs(box.minY), Math.abs(box.maxX), Math.abs(box.maxY));
+  return Math.min(scale, (Number.MAX_VALUE / 4) / magnitude);
+}
 
 /** Miniatura PNG (data URL) de una definición de bloque, cacheada por revisión. */
 export function blockThumbnail(editor: Editor, blockId: Id, size = 96, dark = false): string | null {
@@ -31,7 +39,7 @@ export function documentThumbnail(doc: CadDocument, ctx: ModelContext, key: stri
   for (const e of entities) {
     try {
       const b = kindOf(e).bbox(e, ctx);
-      if (Number.isFinite(b.minX)) expandBox(box, b);
+      if (finiteBox(b)) expandBox(box, b);
     } catch {
       /* entidad sin caja */
     }
@@ -47,11 +55,8 @@ export function documentThumbnail(doc: CadDocument, ctx: ModelContext, key: stri
   g.fillRect(0, 0, canvas.width, canvas.height);
   if (!isEmptyBox(box)) {
     const pad = 0.06;
-    const w = Math.max(box.maxX - box.minX, 1e-9);
-    const h = Math.max(box.maxY - box.minY, 1e-9);
-    const s = (Math.min(width / w, height / h) * (1 - pad * 2) * dpr);
-    const cx = (box.minX + box.maxX) / 2;
-    const cy = (box.minY + box.maxY) / 2;
+    const s = safeThumbnailScale(box, Math.min(scaleToFitSpan(box.minX, box.maxX, width), scaleToFitSpan(box.minY, box.maxY, height)) * (1 - pad * 2) * dpr);
+    const { x: cx, y: cy } = boxCenter(box);
     const base = { a: s, b: 0, c: 0, d: -s, e: (width * dpr) / 2 - cx * s, f: (height * dpr) / 2 + cy * s };
     // Grosores proporcionales al trazado a papel: una lámina A3 ocupa ~ el ancho de la miniatura
     const sink = new CanvasSink(g, { base, dpr, lineweightDisplay: true, lwPxPerHundredth: (width / 420) * 0.02, background, deviceWidth: width * dpr, deviceHeight: height * dpr, minWidthPx: 0.6 });
@@ -77,7 +82,7 @@ export function blockThumbnailOf(doc: CadDocument, ctx: ModelContext, blockId: I
   for (const e of ev.entities) {
     try {
       const b = kindOf(e).bbox(e, ctx);
-      if (Number.isFinite(b.minX)) expandBox(box, b);
+      if (finiteBox(b)) expandBox(box, b);
     } catch {
       /* entidad sin caja */
     }
@@ -89,11 +94,9 @@ export function blockThumbnailOf(doc: CadDocument, ctx: ModelContext, blockId: I
   const g = canvas.getContext('2d');
   if (!g) return null;
   if (!isEmptyBox(box)) {
-    const w = Math.max(box.maxX - box.minX, 1e-9);
-    const h = Math.max(box.maxY - box.minY, 1e-9);
-    const s = ((size - 12) * dpr) / Math.max(w, h);
-    const cx = (box.minX + box.maxX) / 2;
-    const cy = (box.minY + box.maxY) / 2;
+    const contentSize = (size - 12) * dpr;
+    const s = safeThumbnailScale(box, Math.min(scaleToFitSpan(box.minX, box.maxX, contentSize), scaleToFitSpan(box.minY, box.maxY, contentSize)));
+    const { x: cx, y: cy } = boxCenter(box);
     const base = { a: s, b: 0, c: 0, d: -s, e: (size * dpr) / 2 - cx * s, f: (size * dpr) / 2 + cy * s };
     const sink = new CanvasSink(g, { base, dpr, lineweightDisplay: false, lwPxPerHundredth: 0, background: dark ? '#1b1f22' : '#fffefa', deviceWidth: size * dpr, deviceHeight: size * dpr, minWidthPx: 1 });
     const env: TraverseEnv = { doc: doc, ctx: ctx, dark, background: 'transparent', plotting: false, plotStyle: 'color', viewport: null, dashScale: 1, forceColor: dark ? '#f2f4f3' : '#14171a' };

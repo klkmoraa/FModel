@@ -51,13 +51,25 @@ export const MLINE: CommandDef = {
       const r = await api.getPoint({ prompt: L('Precise el punto siguiente', 'Specify next point'), base: verts[verts.length - 1], rubber: 'line', allowNone: true, keywords: [UNDO_KW, ...(verts.length > 2 ? [CLOSE_KW] : [])], preview: (p) => ({ entities: [build([verts[verts.length - 1], p])] }) });
       if (r.kind === 'none') return;
       if (r.kind === 'keyword') {
-        if (r.key === 'Undo' && verts.length > 1) verts.pop();
+        if (r.key === 'Undo') {
+          if (verts.length > 1) verts.pop();
+          if (id) {
+            const cid = id;
+            if (verts.length < 2) {
+              api.apply('MLINE', (tx) => tx.removeEntity(cid));
+              id = null;
+            } else api.apply('MLINE', (tx) => tx.updateEntity<MLineEntity>(cid, { vertices: [...verts] }));
+          }
+          continue;
+        }
         if (r.key === 'Close' && id) {
           const cid = id;
           api.apply('MLINE', (tx) => tx.updateEntity<MLineEntity>(cid, { closed: true }));
           return;
         }
-      } else verts.push(r.p);
+        continue;
+      }
+      verts.push(r.p);
       if (verts.length >= 2) {
         if (!id) id = addEntity<MLineEntity>(api, 'MLINE', { ...build([...verts]), id: undefined, order: undefined } as never).id;
         else {
@@ -128,6 +140,10 @@ async function pickBoundaries(api: CommandApi, promptHatch: boolean): Promise<Lo
       const ids = await api.getSelection({ prompt: L('Designe objetos cerrados', 'Select closed objects'), types: ['lwpolyline', 'circle', 'ellipse', 'spline', 'region', 'polyline2d'], usePreselection: false });
       for (const id of ids) {
         const e = api.editor.doc.entity(id)!;
+        if (e.type === 'region') {
+          if (e.loops.length) results.push(e.loops.map((loop) => ({ closed: true, vertices: loop.vertices.map((vertex) => ({ ...vertex })) })));
+          continue;
+        }
         const loop = closedLoopOf(api, e);
         if (loop) results.push([loop]);
       }

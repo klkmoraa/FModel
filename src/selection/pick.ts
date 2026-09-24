@@ -1,8 +1,9 @@
 import type { BBox } from '../geometry/bbox';
-import { boxContainsBox, boxContainsPoint, boxesIntersect, inflate } from '../geometry/bbox';
+import { boxCenter, boxContainsBox, boxContainsPoint, boxesIntersect, inflate } from '../geometry/bbox';
 import type { Curve } from '../geometry/curves';
 import { distanceToCurve, isBounded, tessellateCurve } from '../geometry/curves';
 import { pointInPolygon, pointOnPolygonEdge } from '../geometry/polyline';
+import { linearTol } from '../geometry/tolerance';
 import type { Vec2 } from '../geometry/vec';
 import type { Entity, EntityType, Id } from '../document/types';
 import type { ModelContext } from '../model/context';
@@ -77,6 +78,13 @@ function segIntersectsBox(a: Vec2, b: Vec2, box: BBox): boolean {
   let t1 = 1;
   const dx = b.x - a.x;
   const dy = b.y - a.y;
+  const clips: [number, number][] = [
+    [-dx, a.x - box.minX], [dx, box.maxX - a.x],
+    [-dy, a.y - box.minY], [dy, box.maxY - a.y],
+  ];
+  if (clips.some(([p, q]) => !Number.isFinite(p) || !Number.isFinite(q) || (p !== 0 && !Number.isFinite(q / p)))) {
+    return exactSegmentIntersectsBox(a, b, box);
+  }
   const clip = (pp: number, q: number) => {
     if (pp === 0) return q >= 0;
     const r = q / pp;
@@ -92,14 +100,86 @@ function segIntersectsBox(a: Vec2, b: Vec2, box: BBox): boolean {
   return clip(-dx, a.x - box.minX) && clip(dx, box.maxX - a.x) && clip(-dy, a.y - box.minY) && clip(dy, box.maxY - a.y);
 }
 
+const exactFloatView = new DataView(new ArrayBuffer(8));
+
+/** Signo exacto del determinante para coordenadas IEEE-754 finitas. */
+function exactOrientation(a: Vec2, b: Vec2, c: Vec2): number {
+  const values = [a.x, a.y, b.x, b.y, c.x, c.y];
+  const parts = values.map((value) => {
+    exactFloatView.setFloat64(0, value);
+    const bits = exactFloatView.getBigUint64(0);
+    const exponent = Number((bits >> 52n) & 0x7ffn);
+    const fraction = bits & 0x000fffffffffffffn;
+    const significand = exponent === 0 ? fraction : (1n << 52n) | fraction;
+    const signed = bits >> 63n ? -significand : significand;
+    return { significand: signed, power: exponent === 0 ? -1074 : exponent - 1075 };
+  });
+  const commonPower = Math.min(...parts.filter((part) => part.significand !== 0n).map((part) => part.power));
+  const [ax, ay, bx, by, cx, cy] = parts.map((part) =>
+    part.significand === 0n ? 0n : part.significand << BigInt(part.power - commonPower),
+  );
+  const determinant = (bx! - ax!) * (cy! - ay!) - (by! - ay!) * (cx! - ax!);
+  return determinant < 0n ? -1 : determinant > 0n ? 1 : 0;
+}
+
+function exactSegmentsIntersect(a: Vec2, b: Vec2, c: Vec2, d: Vec2): boolean {
+  const o1 = exactOrientation(a, b, c);
+  const o2 = exactOrientation(a, b, d);
+  const o3 = exactOrientation(c, d, a);
+  const o4 = exactOrientation(c, d, b);
+  const onSegment = (p: Vec2, q: Vec2, r: Vec2) =>
+    p.x >= Math.min(q.x, r.x) && p.x <= Math.max(q.x, r.x) && p.y >= Math.min(q.y, r.y) && p.y <= Math.max(q.y, r.y);
+  return (o1 * o2 < 0 && o3 * o4 < 0)
+    || (o1 === 0 && onSegment(c, a, b))
+    || (o2 === 0 && onSegment(d, a, b))
+    || (o3 === 0 && onSegment(a, c, d))
+    || (o4 === 0 && onSegment(b, c, d));
+}
+
+function exactSegmentIntersectsBox(a: Vec2, b: Vec2, box: BBox): boolean {
+  if (![a.x, a.y, b.x, b.y, box.minX, box.minY, box.maxX, box.maxY].every(Number.isFinite)) return false;
+  const inside = (p: Vec2) => p.x >= box.minX && p.x <= box.maxX && p.y >= box.minY && p.y <= box.maxY;
+  if (inside(a) || inside(b)) return true;
+  const topLeft = { x: box.minX, y: box.maxY };
+  const topRight = { x: box.maxX, y: box.maxY };
+  const bottomLeft = { x: box.minX, y: box.minY };
+  const bottomRight = { x: box.maxX, y: box.minY };
+  return exactSegmentsIntersect(a, b, topLeft, topRight)
+    || exactSegmentsIntersect(a, b, topRight, bottomRight)
+    || exactSegmentsIntersect(a, b, bottomRight, bottomLeft)
+    || exactSegmentsIntersect(a, b, bottomLeft, topLeft);
+}
+
+function unboundedCurveIntersectsBox(o: Vec2, d: Vec2, box: BBox, ray: boolean): boolean {
+  const magnitude = Math.max(Math.abs(d.x), Math.abs(d.y));
+  if (!Number.isFinite(magnitude) || magnitude === 0) return false;
+  const direction = { x: d.x / magnitude, y: d.y / magnitude };
+  let minT = -Infinity;
+  let maxT = Infinity;
+  for (const [origin, axis, min, max] of [
+    [o.x, direction.x, box.minX, box.maxX],
+    [o.y, direction.y, box.minY, box.maxY],
+  ]) {
+    if (axis === 0) {
+      if (origin < min || origin > max) return false;
+      continue;
+    }
+    let a = (min - origin) / axis;
+    let b = (max - origin) / axis;
+    if (a > b) [a, b] = [b, a];
+    minT = Math.max(minT, a);
+    maxT = Math.min(maxT, b);
+    if (minT > maxT) return false;
+  }
+  return ray ? maxT >= Math.max(0, minT) : minT <= maxT;
+}
+
 function curvesCrossBox(curves: Curve[], box: BBox, tol: number): boolean {
   for (const c of curves) {
     if (!isBounded(c)) {
       const o = (c as { o: Vec2 }).o;
       const d = (c as { d: Vec2 }).d;
-      const L = 1e9;
-      const a = c.kind === 'ray' ? o : { x: o.x - d.x * L, y: o.y - d.y * L };
-      if (segIntersectsBox(a, { x: o.x + d.x * L, y: o.y + d.y * L }, box)) return true;
+      if (unboundedCurveIntersectsBox(o, d, box, c.kind === 'ray')) return true;
       continue;
     }
     const pts = tessellateCurve(c, tol);
@@ -133,7 +213,7 @@ export function selectInBox(ctx: ModelContext, index: SpatialIndex, owner: Id, b
     const outline = k.outline?.(e, ctx);
     if (outline && outline.length > 2) {
       const edgesCross = outline.some((p, i) => segIntersectsBox(p, outline[(i + 1) % outline.length], box));
-      const boxInside = k.filledHit?.(e, ctx) && pointInPolygon({ x: (box.minX + box.maxX) / 2, y: (box.minY + box.maxY) / 2 }, outline);
+      const boxInside = k.filledHit?.(e, ctx) && pointInPolygon(boxCenter(box), outline);
       if (edgesCross || boxInside) out.push(id);
     } else if (k.snapPoints(e, ctx).some((s) => boxContainsPoint(box, s.p))) {
       out.push(id);
@@ -164,12 +244,24 @@ export function selectInPolygon(ctx: ModelContext, index: SpatialIndex, owner: I
 }
 
 function segSeg(a: Vec2, b: Vec2, c: Vec2, d: Vec2): boolean {
-  const o = (p: Vec2, q: Vec2, r: Vec2) => (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x);
-  const o1 = o(a, b, c);
-  const o2 = o(a, b, d);
-  const o3 = o(c, d, a);
-  const o4 = o(c, d, b);
-  return o1 * o2 <= 0 && o3 * o4 <= 0;
+  const coordScale = Math.max(Math.abs(a.x), Math.abs(a.y), Math.abs(b.x), Math.abs(b.y), Math.abs(c.x), Math.abs(c.y), Math.abs(d.x), Math.abs(d.y));
+  const tol = linearTol(coordScale);
+  const orient = (p: Vec2, q: Vec2, r: Vec2): number => {
+    const cross = (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x);
+    const detTol = tol * Math.hypot(q.x - p.x, q.y - p.y);
+    return Math.abs(cross) <= detTol ? 0 : Math.sign(cross);
+  };
+  const onSegment = (p: Vec2, q: Vec2, r: Vec2): boolean =>
+    p.x >= Math.min(q.x, r.x) - tol && p.x <= Math.max(q.x, r.x) + tol && p.y >= Math.min(q.y, r.y) - tol && p.y <= Math.max(q.y, r.y) + tol;
+  const o1 = orient(a, b, c);
+  const o2 = orient(a, b, d);
+  const o3 = orient(c, d, a);
+  const o4 = orient(c, d, b);
+  if (o1 === 0 && onSegment(c, a, b)) return true;
+  if (o2 === 0 && onSegment(d, a, b)) return true;
+  if (o3 === 0 && onSegment(a, c, d)) return true;
+  if (o4 === 0 && onSegment(b, c, d)) return true;
+  return o1 * o2 < 0 && o3 * o4 < 0;
 }
 
 function fenceCrosses(ctx: ModelContext, e: Entity, fence: Vec2[]): boolean {

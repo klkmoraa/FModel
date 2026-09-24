@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createDocument, entityDefaults } from '../document/defaults';
 import type { CircleEntity, Entity, LineEntity } from '../document/types';
+import { arcCurve } from '../geometry/curves';
 import { createContext } from '../model/context';
 import { SpatialIndex } from '../spatial/spatialIndex';
 import type { SnapQuery, SnapSettings } from './snapEngine';
@@ -56,6 +57,23 @@ describe('referencias a objetos', () => {
     expect(sin).toHaveLength(0);
     const con = findOsnapCandidates(query({ x: 6, y: 0.2 }, { types: ['perpendicular'] }, { lastPoint: { x: 6, y: 7 } })).candidates;
     expect(con[0]?.p).toMatchObject({ x: 6, y: 0 });
+  });
+
+  it('desde el centro de una circunferencia toma el punto del arco más cercano al cursor', () => {
+    const candidates = findOsnapCandidates(query({ x: 20, y: 4 }, { types: ['perpendicular'] }, { lastPoint: { x: 20, y: 0 } })).candidates;
+    expect(candidates.find((c) => c.type === 'perpendicular')?.p).toEqual({ x: 20, y: 4 });
+  });
+
+  it('no ofrece una perpendicular situada fuera de un arco parcial', () => {
+    const arc = arcCurve({ x: 0, y: 0 }, 0.4, Math.PI / 4, Math.PI / 2);
+    const candidates = findOsnapCandidates(
+      query(
+        { x: 0, y: 0.4 },
+        { types: ['perpendicular'] },
+        { lastPoint: { x: 0.4, y: 0 }, exclude: new Set(doc.data.entities.keys()), extraCurves: [arc] },
+      ),
+    ).candidates.filter((c) => c.type === 'perpendicular');
+    expect(candidates).toHaveLength(0);
   });
 
   it('respeta la apertura y las entidades excluidas', () => {

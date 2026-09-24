@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { createDocument } from '../../document/defaults';
 import type { CircleEntity, LineEntity, LwPolylineEntity, TextEntity } from '../../document/types';
-import { decodeDxfBytes, importDxfIntoDocument } from './importDxf';
+import { decodeDxfBytes, importDxfFile, importDxfIntoDocument } from './importDxf';
+import { INPUT_LIMITS } from '../limits';
+import { parseDxf } from './parser';
 
 /** Construye un DXF mínimo a partir de pares código/valor. */
 const dxf = (...sections: string[][]) => [...sections.flat(), '0', 'EOF', ''].join('\n');
@@ -16,6 +18,70 @@ const run = (text: string) => {
 };
 
 describe('importación de DXF', () => {
+  it('rechaza más entidades que el límite antes de sustituir el dibujo', () => {
+    const doc = createDocument();
+    importDxfIntoDocument(doc, dxf(header(), entities(...line(0, 0, 1, 0))));
+    const before = doc.data;
+    const rec = { type: 'LINE', pairs: [[10, '0'], [20, '0'], [11, '1'], [21, '0']] as [number, string][] };
+    const intermediate = parseDxf(dxf(header()));
+    intermediate.entities = Array(INPUT_LIMITS.maxEntities + 1).fill(rec);
+    expect(() => importDxfFile(doc, intermediate, { replace: true, format: 'DWG' })).toThrow(/demasiad|too many/i);
+    expect(doc.data).toBe(before);
+  });
+
+  it('cuenta las cuatro líneas producidas por cada 3DFACE antes de sustituir el dibujo', () => {
+    const doc = createDocument();
+    const before = doc.data;
+    const face = { type: '3DFACE', pairs: [[10, '0'], [20, '0'], [11, '1'], [21, '0'], [12, '1'], [22, '1'], [13, '0'], [23, '1']] as [number, string][] };
+    const intermediate = parseDxf(dxf(header()));
+    intermediate.entities = Array(Math.floor(INPUT_LIMITS.maxEntities / 4) + 1).fill(face);
+    expect(() => importDxfFile(doc, intermediate, { replace: true, format: 'DWG' })).toThrow(/produciría demasiadas.*would produce too many/);
+    expect(doc.data).toBe(before);
+  });
+
+  it('rechaza una polilínea textual con más puntos que el límite antes de sustituir el dibujo', () => {
+    const doc = createDocument();
+    importDxfIntoDocument(doc, dxf(header(), entities(...line(0, 0, 1, 0))));
+    const before = doc.data;
+    const points = '10\n0\n20\n0\n'.repeat(INPUT_LIMITS.maxPointsPerEntity + 1);
+    const text = `0\nSECTION\n2\nENTITIES\n0\nLWPOLYLINE\n${points}0\nENDSEC\n0\nEOF\n`;
+    expect(() => importDxfIntoDocument(doc, text, { replace: true })).toThrow(/demasiad|too many/i);
+    expect(doc.data).toBe(before);
+  });
+
+  it('admite exactamente el límite de puntos durante el análisis', () => {
+    const points = '10\n0\n20\n0\n'.repeat(INPUT_LIMITS.maxPointsPerEntity);
+    const text = `0\nSECTION\n2\nENTITIES\n0\nLWPOLYLINE\n${points}0\nENDSEC\n0\nEOF\n`;
+    expect(parseDxf(text).entities).toHaveLength(1);
+  });
+
+  it('detiene el parser al superar el total de entidades del DXF', () => {
+    const text = `0\nSECTION\n2\nENTITIES\n${'0\nPOINT\n'.repeat(INPUT_LIMITS.maxEntities + 1)}0\nENDSEC\n0\nEOF\n`;
+    expect(() => parseDxf(text)).toThrow(/El DXF tiene demasiadas.*The DXF has too many/);
+  });
+
+  it('cuenta los VERTEX de una POLYLINE también en la estructura procedente de DWG', () => {
+    const doc = createDocument();
+    const before = doc.data;
+    const vertex = { type: 'VERTEX', pairs: [[10, '0'], [20, '0']] as [number, string][] };
+    const intermediate = parseDxf(dxf(header()));
+    intermediate.entities = [
+      { type: 'POLYLINE', pairs: [] },
+      ...Array(INPUT_LIMITS.maxPointsPerEntity + 1).fill(vertex),
+      { type: 'SEQEND', pairs: [] },
+    ];
+    expect(() => importDxfFile(doc, intermediate, { replace: true, format: 'DWG' })).toThrow(/El DXF tiene demasiadas.*The DXF has too many/);
+    expect(doc.data).toBe(before);
+  });
+
+  it('rechaza cantidades declaradas por HATCH que exceden sus datos reales', () => {
+    const doc = createDocument();
+    const before = doc.data;
+    const text = dxf(header(), entities('0', 'HATCH', '91', '1', '92', '2', '72', '0', '73', '1', '93', '100001'));
+    expect(() => importDxfIntoDocument(doc, text, { replace: true })).toThrow(/El DXF tiene demasiadas.*The DXF has too many/);
+    expect(doc.data).toBe(before);
+  });
+
   it('lee entidades básicas con sus capas y unidades', () => {
     const text = dxf(
       header('9', '$INSUNITS', '70', '6'),
@@ -76,6 +142,53 @@ describe('importación de DXF', () => {
       expect(Number.isFinite(e.start.x) && Number.isFinite(e.start.y)).toBe(true);
       expect(Number.isFinite(e.end.x) && Number.isFinite(e.end.y)).toBe(true);
     }
+  });
+
+  it('rechaza un patrón de tipo de línea con segmentos no finitos', () => {
+    const text = dxf(
+      header(),
+      ['0', 'SECTION', '2', 'TABLES',
+        '0', 'TABLE', '2', 'LTYPE',
+        '0', 'LTYPE', '2', 'CORRUPTO', '73', '2', '49', '12', '49', 'NaN',
+        '0', 'ENDTAB',
+        '0', 'TABLE', '2', 'LAYER',
+        '0', 'LAYER', '2', 'Muros', '6', 'CORRUPTO',
+        '0', 'ENDTAB', '0', 'ENDSEC'],
+      entities(...line(0, 0, 10, 0, 'Muros')),
+    );
+    const { doc, report } = run(text);
+    expect([...doc.data.linetypes.values()].some((lt) => lt.name === 'CORRUPTO')).toBe(false);
+    expect([...doc.data.linetypes.values()].every((lt) => lt.pattern.every(Number.isFinite))).toBe(true);
+    expect(report.warnings.some((warning) => warning.includes('CORRUPTO'))).toBe(true);
+  });
+
+  it('omite una polilínea con un vértice no finito sin afectar entidades válidas', () => {
+    const text = dxf(header(), entities(
+      '0', 'LWPOLYLINE', '8', '0', '90', '2',
+      '10', '0', '20', '0', '10', 'NaN', '20', '5',
+      ...line(0, 0, 2, 0),
+    ));
+    const { list, report } = run(text);
+    expect(list.map((entity) => entity.type)).toEqual(['line']);
+    expect(report.ignored.LWPOLYLINE?.count).toBe(1);
+  });
+
+  it('no guarda un tamaño de punto no finito desde la cabecera', () => {
+    const { doc } = run(dxf(header('9', '$PDMODE', '70', '35', '9', '$PDSIZE', '40', 'Infinity')));
+    expect(doc.settings.pointDisplay).toEqual({ mode: 35, size: 0 });
+  });
+
+  it('omite un bloque con punto base no finito y su inserción', () => {
+    const text = dxf(
+      header(),
+      ['0', 'SECTION', '2', 'BLOCKS', '0', 'BLOCK', '2', 'MalBase', '10', 'NaN', '20', '0',
+        ...line(0, 0, 1, 0), '0', 'ENDBLK', '0', 'ENDSEC'],
+      entities('0', 'INSERT', '2', 'MalBase', '10', '2', '20', '3', ...line(0, 0, 2, 0)),
+    );
+    const { doc, report, list } = run(text);
+    expect([...doc.data.blocks.values()].some((block) => block.name === 'MalBase')).toBe(false);
+    expect(list.map((entity) => entity.type)).toEqual(['line']);
+    expect(report.warnings.some((warning) => warning.includes('MalBase'))).toBe(true);
   });
 
   it('importar sobre un dibujo con contenido lo conserva', () => {

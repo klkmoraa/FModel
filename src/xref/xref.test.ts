@@ -42,6 +42,8 @@ function sourceDoc() {
 }
 
 const bytesOf = (d: CadDocument) => writePackage(d.data, d.id);
+const HOST_PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+const SOURCE_PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+X2y8AAAAASUVORK5CYII=';
 
 describe('external references', () => {
   it('attaches a drawing as a definition with prefixed layers and nested blocks', () => {
@@ -351,7 +353,7 @@ describe('external references', () => {
         name: 'logo_host.png',
         mime: 'image/png',
         size: 100,
-        dataUrl: `data:image/png;base64,${btoa('HOST_LOGO_DATA')}`,
+        dataUrl: HOST_PNG,
       };
       tx.add('assets', existingAsset);
       tx.addEntity<ImageEntity>({
@@ -376,7 +378,7 @@ describe('external references', () => {
         name: 'plano_xref.png',
         mime: 'image/png',
         size: 999,
-        dataUrl: `data:image/png;base64,${btoa('SRC_MAP_DATA')}`,
+        dataUrl: SOURCE_PNG,
       };
       tx.add('assets', srcAsset);
       tx.addEntity<ImageEntity>({
@@ -407,7 +409,7 @@ describe('external references', () => {
     const hostAsset = host.data.assets.get('asset_comun')!;
     expect(hostAsset).toBeDefined();
     expect(hostAsset.name).toBe('logo_host.png');
-    expect(hostAsset.dataUrl).toBe(`data:image/png;base64,${btoa('HOST_LOGO_DATA')}`);
+    expect(hostAsset.dataUrl).toBe(HOST_PNG);
 
     // Debe haber un segundo asset para la imagen del xref
     expect(host.data.assets.size).toBe(2);
@@ -416,7 +418,7 @@ describe('external references', () => {
     const newAsset = host.data.assets.get(xrefImg.assetId)!;
     expect(newAsset).toBeDefined();
     expect(newAsset.name).toBe('plano_xref.png');
-    expect(newAsset.dataUrl).toBe(`data:image/png;base64,${btoa('SRC_MAP_DATA')}`);
+    expect(newAsset.dataUrl).toBe(SOURCE_PNG);
   });
 
   it('separa dominios para estilos y no colisiona cuando coinciden sus IDs', () => {
@@ -525,6 +527,79 @@ describe('external references', () => {
     expect(dimEnt.style).toBe(remappedDs.id);
     expect(dimEnt.overrides?.textStyle).toBe(remappedTs.id);
     expect(tableEnt.style).toBe(remappedTbs.id);
+  });
+
+  it('reload removes obsolete owned layers and styles but keeps resources used by the host', () => {
+    const oldSource = sourceDoc();
+    const baseDim = oldSource.data.dimStyles.get(oldSource.settings.currentDimStyle)!;
+    const baseMLeader = oldSource.data.mleaderStyles.get(oldSource.settings.currentMLeaderStyle)!;
+    const baseTable = oldSource.data.tableStyles.get(oldSource.settings.currentTableStyle)!;
+    const baseMLine = oldSource.data.mlineStyles.get(oldSource.settings.currentMLineStyle)!;
+    oldSource.transact('seed_xref_resources', (tx) => {
+      tx.add('linetypes', { id: 'lt_kept', name: 'TrazoConservado', description: '', pattern: [10, -5] });
+      tx.add('linetypes', { id: 'lt_removed', name: 'TrazoObsoleto', description: '', pattern: [5, -2] });
+      tx.add('layers', { id: 'lay_kept', name: 'CapaConservada', color: 'aci:3', linetype: 'lt_kept', lineweight: 30, transparency: 0, on: true, frozen: false, locked: false, plot: true, description: '', order: 2 });
+      tx.add('layers', { id: 'lay_removed', name: 'CapaObsoleta', color: 'aci:4', linetype: 'lt_removed', lineweight: 30, transparency: 0, on: true, frozen: false, locked: false, plot: true, description: '', order: 3 });
+      tx.add('textStyles', { ...oldSource.data.textStyles.get(oldSource.settings.currentTextStyle)!, id: 'ts_kept', name: 'TextoConservado' });
+      tx.add('textStyles', { ...oldSource.data.textStyles.get(oldSource.settings.currentTextStyle)!, id: 'ts_removed', name: 'TextoObsoleto' });
+      tx.add('dimStyles', { ...baseDim, id: 'ds_kept', name: 'CotaConservada', textStyle: 'ts_kept' });
+      tx.add('dimStyles', { ...baseDim, id: 'ds_removed', name: 'CotaObsoleta', textStyle: 'ts_removed' });
+      tx.add('mleaderStyles', { ...baseMLeader, id: 'mls_kept', name: 'DirectrizConservada', textStyle: 'ts_kept' });
+      tx.add('mleaderStyles', { ...baseMLeader, id: 'mls_removed', name: 'DirectrizObsoleta', textStyle: 'ts_removed' });
+      tx.add('tableStyles', { ...baseTable, id: 'tbs_kept', name: 'TablaConservada', textStyle: 'ts_kept' });
+      tx.add('tableStyles', { ...baseTable, id: 'tbs_removed', name: 'TablaObsoleta', textStyle: 'ts_removed' });
+      tx.add('mlineStyles', { ...baseMLine, id: 'mlns_kept', name: 'MultilineaConservada' });
+      tx.add('mlineStyles', { ...baseMLine, id: 'mlns_removed', name: 'MultilineaObsoleta', elements: [{ offset: 1, color: 'ByLayer', linetype: 'lt_removed' }] });
+    });
+
+    const host = createDocument();
+    let xrefId = '';
+    host.transact('XATTACH', (tx) => {
+      const block = attachXref(tx, host, readXrefSource(bytesOf(oldSource), 'modulo.fmodel'), { fileName: 'modulo.fmodel', path: 'modulo.fmodel', mode: 'attach', source: 'file' });
+      xrefId = block.id;
+    });
+    const keptLayer = host.findByName('layers', 'modulo|CapaConservada')!;
+    const removedLayer = host.findByName('layers', 'modulo|CapaObsoleta')!;
+    const keptLinetype = host.findByName('linetypes', 'modulo|TrazoConservado')!;
+    const removedLinetype = host.findByName('linetypes', 'modulo|TrazoObsoleto')!;
+    const keptTextStyle = host.findByName('textStyles', 'modulo|TextoConservado')!;
+    const removedTextStyle = host.findByName('textStyles', 'modulo|TextoObsoleto')!;
+    const keptDimStyle = host.findByName('dimStyles', 'modulo|CotaConservada')!;
+    const removedDimStyle = host.findByName('dimStyles', 'modulo|CotaObsoleta')!;
+    const keptMLeaderStyle = host.findByName('mleaderStyles', 'modulo|DirectrizConservada')!;
+    const removedMLeaderStyle = host.findByName('mleaderStyles', 'modulo|DirectrizObsoleta')!;
+    const keptTableStyle = host.findByName('tableStyles', 'modulo|TablaConservada')!;
+    const removedTableStyle = host.findByName('tableStyles', 'modulo|TablaObsoleta')!;
+    const keptMLineStyle = host.findByName('mlineStyles', 'modulo|MultilineaConservada')!;
+    const removedMLineStyle = host.findByName('mlineStyles', 'modulo|MultilineaObsoleta')!;
+
+    host.transact('use_xref_resources', (tx) => {
+      tx.addEntity<LineEntity>({ ...entityDefaults(host), layer: keptLayer.id, linetype: keptLinetype.id, type: 'line', start: { x: 20, y: 0 }, end: { x: 30, y: 0 } });
+      tx.addEntity<TextEntity>({ ...entityDefaults(host), type: 'text', text: 'Anfitrión', position: { x: 20, y: 10 }, height: 10, rotation: 0, widthFactor: 1, oblique: 0, halign: 'left', valign: 'baseline', style: keptTextStyle.id });
+      tx.setSettings({
+        currentDimStyle: keptDimStyle.id,
+        currentMLeaderStyle: keptMLeaderStyle.id,
+        currentTableStyle: keptTableStyle.id,
+        currentMLineStyle: keptMLineStyle.id,
+      });
+    });
+
+    host.transact('XRELOAD', (tx) => reloadXref(tx, host, xrefId, readXrefSource(bytesOf(sourceDoc()), 'modulo.fmodel')));
+
+    expect(host.data.layers.has(keptLayer.id)).toBe(true);
+    expect(host.data.layers.has(removedLayer.id)).toBe(false);
+    expect(host.data.linetypes.has(keptLinetype.id)).toBe(true);
+    expect(host.data.linetypes.has(removedLinetype.id)).toBe(false);
+    expect(host.data.textStyles.has(keptTextStyle.id)).toBe(true);
+    expect(host.data.textStyles.has(removedTextStyle.id)).toBe(false);
+    expect(host.data.dimStyles.has(keptDimStyle.id)).toBe(true);
+    expect(host.data.dimStyles.has(removedDimStyle.id)).toBe(false);
+    expect(host.data.mleaderStyles.has(keptMLeaderStyle.id)).toBe(true);
+    expect(host.data.mleaderStyles.has(removedMLeaderStyle.id)).toBe(false);
+    expect(host.data.tableStyles.has(keptTableStyle.id)).toBe(true);
+    expect(host.data.tableStyles.has(removedTableStyle.id)).toBe(false);
+    expect(host.data.mlineStyles.has(keptMLineStyle.id)).toBe(true);
+    expect(host.data.mlineStyles.has(removedMLineStyle.id)).toBe(false);
   });
 
   it('detecta ciclos circulares indirectos en 3 niveles', () => {
@@ -705,7 +780,7 @@ describe('external references', () => {
         name: 'icono.png',
         mime: 'image/png',
         size: 50,
-        dataUrl: `data:image/png;base64,${btoa('ICON_DATA')}`,
+        dataUrl: SOURCE_PNG,
       });
       tx.addEntity<LineEntity>({
         ...entityDefaults(src),
@@ -784,6 +859,6 @@ describe('external references', () => {
     // 3. Los recursos NO usados (tipo de línea, estilo de texto, asset) SÍ deben limpiarse
     expect(host.findByName('linetypes', 'modulo|ZIGZAG_ESPECIAL')).toBeUndefined();
     expect(host.findByName('textStyles', 'modulo|EstiloUnico')).toBeUndefined();
-    expect([...host.data.assets.values()].some((a) => a.dataUrl === `data:image/png;base64,${btoa('ICON_DATA')}`)).toBe(false);
+    expect([...host.data.assets.values()].some((a) => a.dataUrl === SOURCE_PNG)).toBe(false);
   });
 });

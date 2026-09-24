@@ -6,6 +6,7 @@ import {
   curveEnd,
   curvePoint,
   curveStart,
+  curveTangent,
   distanceToCurve,
   isClosedCurve,
   subCurve,
@@ -16,7 +17,7 @@ import type { PolyVertex } from './polyline';
 import { curvesToVertices, polylineSegments } from './polyline';
 import { splineThroughPoints } from './spline';
 import type { Vec2 } from './vec';
-import { add, cross, dist, normalize, perp, samePoint, scale, sub } from './vec';
+import { add, cross, dist, isFiniteVec, normalize, perp, samePoint, scale, sub } from './vec';
 import { TOL } from './tolerance';
 
 /**
@@ -26,42 +27,62 @@ import { TOL } from './tolerance';
 export function sideOfCurve(c: Curve, p: Vec2): 1 | -1 {
   const t = closestParam(c, p);
   const q = curvePoint(c, t);
-  let d = curveDerivative(c, t);
-  if (Math.hypot(d.x, d.y) < 1e-15) d = curveDerivative(c, Math.min(1, t + 1e-6));
-  const s = cross(d, sub(p, q));
+  const stableTangent = c.kind === 'line' || c.kind === 'poly';
+  let d = stableTangent ? curveTangent(c, t) : curveDerivative(c, t);
+  if (Math.hypot(d.x, d.y) < 1e-15) d = stableTangent ? curveTangent(c, Math.min(1, t + 1e-6)) : curveDerivative(c, Math.min(1, t + 1e-6));
+  const delta = sub(p, q);
+  let s = (d.x === 0 ? 0 : d.x * delta.y) - (d.y === 0 ? 0 : d.y * delta.x);
+  if (Number.isNaN(s) && stableTangent && isFiniteVec(p) && isFiniteVec(q)) {
+    const magnitude = Math.max(Math.abs(p.x), Math.abs(p.y), Math.abs(q.x), Math.abs(q.y));
+    if (magnitude > 0) {
+      s = d.x * (p.y / magnitude - q.y / magnitude) - d.y * (p.x / magnitude - q.x / magnitude);
+    }
+  }
   if (Math.abs(s) < 1e-15 && c.kind === 'arc') return Math.hypot(p.x - c.c.x, p.y - c.c.y) < c.r ? (c.sweep > 0 ? 1 : -1) : c.sweep > 0 ? -1 : 1;
   return s >= 0 ? 1 : -1;
 }
 
 /**
  * Offset de una curva simple. `d` > 0 desplaza a la izquierda del sentido de avance.
- * Devuelve null si la curva colapsa (radio ≤ 0).
+ * Devuelve null si la curva colapsa o el resultado no es representable.
  */
 export function offsetCurve(c: Curve, d: number): Curve | null {
+  if (!Number.isFinite(d)) return null;
   switch (c.kind) {
     case 'line': {
-      const n = scale(perp(normalize(sub(c.b, c.a))), d);
-      return { kind: 'line', a: add(c.a, n), b: add(c.b, n) };
+      const n = scale(perp(curveTangent(c, 0)), d);
+      const a = add(c.a, n);
+      const b = add(c.b, n);
+      return isFiniteVec(a) && isFiniteVec(b) ? { kind: 'line', a, b } : null;
     }
     case 'ray':
     case 'xline': {
-      const n = scale(perp(c.d), d);
-      return { ...c, o: add(c.o, n) };
+      const n = scale(perp(curveTangent(c, 0)), d);
+      const o = add(c.o, n);
+      return isFiniteVec(o) ? { ...c, o } : null;
     }
     case 'arc': {
       const r = c.sweep >= 0 ? c.r - d : c.r + d;
-      if (r <= 1e-12) return null;
+      if (!Number.isFinite(r) || r <= 1e-12) return null;
       return { ...c, r };
     }
     case 'ellipse':
     case 'spline':
     case 'poly': {
       const samples = tessellateWithParams(c, 1e-4);
+      if (c.kind !== 'poly' && samples.length < 2) return null;
       const pts: Vec2[] = [];
       for (const s of samples) {
-        let der = curveDerivative(c, s.t);
-        if (Math.hypot(der.x, der.y) < 1e-15) der = curveDerivative(c, Math.min(1, s.t + 1e-6));
-        pts.push(add(s.p, scale(perp(normalize(der)), d)));
+        let tangent: Vec2;
+        if (c.kind === 'poly') tangent = curveTangent(c, s.t);
+        else {
+          let der = curveDerivative(c, s.t);
+          if (Math.hypot(der.x, der.y) < 1e-15) der = curveDerivative(c, Math.min(1, s.t + 1e-6));
+          tangent = normalize(der);
+        }
+        const p = add(s.p, scale(perp(tangent), d));
+        if (!isFiniteVec(p)) return null;
+        pts.push(p);
       }
       if (c.kind === 'poly') return { kind: 'poly', pts };
       // Reducir muestras para un ajuste estable
@@ -111,6 +132,11 @@ export function offsetPolyline(vertices: PolyVertex[], closed: boolean, d: numbe
   if (!segs.length) return [];
   const n = segs.length;
   const joined: (Curve | null)[] = segs.map((s) => offsetCurve(s, d));
+  for (let i = 0; i < n; i++) {
+    if (joined[i]) continue;
+    const seg = segs[i];
+    if (seg.kind !== 'arc' || !Number.isFinite(seg.sweep >= 0 ? seg.r - d : seg.r + d)) return [];
+  }
   const joinArcs = new Map<number, Curve>();
   // Unir tramos consecutivos
   for (let i = 0; i < n; i++) {

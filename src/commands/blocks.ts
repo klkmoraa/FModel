@@ -3,11 +3,16 @@ import { createBlock, extractAttributes, insertBlock, isInsertableBlock, validat
 import { resetDynamic, validateDynamicBlock } from '../blocks/dynamic';
 import { installDynamicSamples } from '../blocks/samples';
 import { makeStretchable } from '../blocks/stretchable';
-import type { AttdefEntity, InsertEntity } from '../document/types';
+import type { AttdefEntity, AttributeValue, InsertEntity } from '../document/types';
 import { TEXTSTYLE_STANDARD_ID } from '../document/defaults';
 import { add, K, L, make } from './helpers';
 import type { CommandDef } from './types';
 import { CommandError } from './types';
+
+const copyAttribute = (attribute: AttributeValue): AttributeValue => ({
+  ...attribute,
+  ...(attribute.position ? { position: { ...attribute.position } } : {}),
+});
 
 const INSERT: CommandDef = {
   name: 'INSERT',
@@ -138,15 +143,15 @@ const ATTEDIT: CommandDef = {
     const ins = api.editor.doc.entity(r.id) as InsertEntity;
     const defs = api.editor.doc.entitiesOf(ins.blockId).filter((e): e is AttdefEntity => e.type === 'attdef' && !e.constant);
     if (!defs.length) throw new CommandError(L('El bloque no tiene atributos editables.', 'The block has no editable attributes.'));
-    const attributes = [...ins.attributes];
+    const attributes = ins.attributes.map(copyAttribute);
     for (const d of defs) {
       const cur = attributes.find((a) => a.tag.toUpperCase() === d.tag.toUpperCase());
       const v = await api.getString({ prompt: L(`${d.tag}`, `${d.tag}`), defaultValue: cur?.value ?? d.defaultValue, allowSpaces: true });
-      if (v.kind !== 'string') continue;
+      if (v.kind !== 'string') return;
       if (cur) cur.value = v.value;
       else attributes.push({ tag: d.tag, value: v.value });
     }
-    api.apply('ATTEDIT', (tx) => tx.updateEntity<InsertEntity>(ins.id, { attributes: attributes.map((a) => ({ ...a })) }));
+    api.apply('ATTEDIT', (tx) => tx.updateEntity<InsertEntity>(ins.id, { attributes }));
   },
 };
 
@@ -274,7 +279,7 @@ const ATTSYNC: CommandDef = {
         if (e.type !== 'insert' || e.blockId !== b.id) continue;
         const attrs = defs.map((d) => {
           const cur = e.attributes.find((a) => a.tag.toUpperCase() === d.tag.toUpperCase());
-          return { tag: d.tag, value: cur?.value ?? d.defaultValue };
+          return cur ? { ...copyAttribute(cur), tag: d.tag } : { tag: d.tag, value: d.defaultValue };
         });
         tx.updateEntity<InsertEntity>(e.id, { attributes: attrs });
         n++;

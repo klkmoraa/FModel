@@ -52,6 +52,12 @@
 | 26 | SEC-001 | P3 | Retirar superficies de depuración de producción | Abierta | REL-002 | [Calidad](./06-calidad-arquitectura-pruebas.md#sec-001--retirar-superficies-de-depuración-de-producción) |
 | 27 | DOC-003 | P3 | Unificar requisitos de desarrollo | Cerrada | CI-001 | [Distribución](./07-distribucion-documentacion.md#doc-003--unificar-requisitos-de-desarrollo-y-operación) |
 | 28 | BLK-003 | P2 | Integrar una colección ampliada de bloques CC0 en formato FModel | En curso | — | [Bloques](./03-bloques-referencias.md#blk-003--integrar-una-colección-ampliada-cc0-en-formato-fmodel) |
+| 29 | PWA-002 | P1 | Conservar recursos offline de pestañas abiertas durante una actualización | En curso | PWA-001 | [Rendimiento/PWA](./05-rendimiento-pwa.md#pwa-002--conservar-recursos-offline-de-pestañas-abiertas-durante-una-actualización) |
+| 30 | DAT-005 | P2 | Definir el límite de geometría derivada representable | Abierta | DAT-003 | [Integridad](./01-integridad-archivos.md#dat-005--validar-la-geometría-derivada-representable) |
+| 31 | DAT-006 | P2 | Acotar entidades y puntos durante la importación DXF | Cerrada | DAT-003 | [Integridad](./01-integridad-archivos.md#dat-006--acotar-entidades-y-puntos-durante-la-importación-dxf) |
+| 32 | DAT-007 | P2 | Mantener coherentes los límites del escritor y lector nativos | Cerrada | DAT-003 | [Integridad](./01-integridad-archivos.md#dat-007--mantener-coherentes-los-límites-del-escritor-y-lector-nativos) |
+| 33 | DAT-008 | P2 | Rechazar bibliotecas grandes antes de serializar sus bloques | Cerrada | DAT-003 | [Integridad](./01-integridad-archivos.md#dat-008--rechazar-bibliotecas-grandes-antes-de-serializar-sus-bloques) |
+| 34 | GEO-003 | P2 | Seleccionar líneas infinitas con cualquier magnitud de dirección | En curso | GEO-001 | [Geometría](./02-geometria-comandos.md#geo-003--seleccionar-líneas-infinitas-con-cualquier-magnitud-de-dirección) |
 
 ## Mapa de dependencias
 

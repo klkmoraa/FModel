@@ -57,10 +57,13 @@ export class TaskManager {
     id: string,
     name: LocalizedText,
     fn: (ctx: TaskContext) => Promise<T>,
-    options?: { cancellable?: boolean; onCancel?: () => void; retryable?: boolean }
+    options?: { cancellable?: boolean; onCancel?: () => void; retryable?: boolean; signal?: AbortSignal }
   ): Promise<T> {
     const controller = new AbortController();
     const cancellable = options?.cancellable ?? true;
+    const abortFromOwner = () => controller.abort();
+    if (options?.signal?.aborted) controller.abort();
+    else options?.signal?.addEventListener('abort', abortFromOwner, { once: true });
 
     const task: TaskInfo = {
       id,
@@ -83,7 +86,7 @@ export class TaskManager {
       signal: controller.signal,
       reportProgress: (progress, phase) => {
         const current = this.tasks.get(id);
-        if (current && current.state === 'running') {
+        if (current === task && current.state === 'running') {
           current.progress = progress;
           current.phase = phase;
           this.notify();
@@ -92,14 +95,16 @@ export class TaskManager {
     };
 
     try {
+      if (controller.signal.aborted) throw new DOMException('Aborted', 'AbortError');
       const result = await fn(ctx);
+      if (controller.signal.aborted) throw new DOMException('Aborted', 'AbortError');
       const current = this.tasks.get(id);
-      if (current) {
+      if (current === task) {
         current.state = 'completed';
         current.endedAt = Date.now();
         this.notify();
         setTimeout(() => {
-          if (this.tasks.get(id)?.state === 'completed') {
+          if (this.tasks.get(id) === task && task.state === 'completed') {
             this.tasks.delete(id);
             this.notify();
           }
@@ -113,7 +118,7 @@ export class TaskManager {
         (err instanceof Error && err.name === 'AbortError') ||
         controller.signal.aborted;
 
-      if (current) {
+      if (current === task) {
         current.endedAt = Date.now();
         if (isAbort) {
           current.state = 'cancelled';
@@ -129,6 +134,8 @@ export class TaskManager {
         this.notify();
       }
       throw err;
+    } finally {
+      options?.signal?.removeEventListener('abort', abortFromOwner);
     }
   }
 

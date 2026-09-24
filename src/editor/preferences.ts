@@ -1,6 +1,8 @@
 import type { Lang } from '../commands/types';
 import type { SnapSettings } from '../snap/snapEngine';
 import { DEFAULT_SNAP_SETTINGS } from '../snap/snapEngine';
+import { ALL_SNAP_TYPES, type SnapType } from '../model/registry';
+import { DEFAULT_WORKSPACE_PANELS, normalizeWorkspacePanels, type WorkspacePanelPreferences } from './workspaceChrome';
 
 export type ThemePref = 'system' | 'dia' | 'noche';
 export type CanvasBg = 'auto' | 'paper' | 'charcoal' | 'black';
@@ -31,7 +33,7 @@ export interface Preferences {
   onboardingDone: boolean;
   recentFiles: { name: string; id: string; at: number }[];
   drawingPresets: { name: string; layer?: string; color?: string; linetype?: string; lineweight?: number }[];
-  panels: { left: string[]; right: string[]; collapsed: string[]; floating: string[] };
+  panels: WorkspacePanelPreferences;
 }
 
 export const DEFAULT_SHORTCUTS: Record<string, string> = {
@@ -85,24 +87,113 @@ export const DEFAULT_PREFERENCES: Preferences = {
   onboardingDone: false,
   recentFiles: [],
   drawingPresets: [],
-  panels: { left: ['palettes'], right: ['properties', 'layers', 'blocks'], collapsed: [], floating: [] },
+  panels: structuredClone(DEFAULT_WORKSPACE_PANELS),
 };
 
 const KEY = 'fmodel.cad.preferences.v1';
+
+function stringRecord(value: unknown): Record<string, string> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return Object.fromEntries(Object.entries(value).filter((entry): entry is [string, string] => typeof entry[1] === 'string'));
+}
+
+function stringArray(value: unknown, fallback: string[]): string[] {
+  return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : [...fallback];
+}
+
+function object(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+function bool(value: unknown, fallback: boolean): boolean {
+  return typeof value === 'boolean' ? value : fallback;
+}
+
+function finiteIn(value: unknown, fallback: number, min: number, max: number): number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= min && value <= max ? value : fallback;
+}
+
+function recentFiles(value: unknown): Preferences['recentFiles'] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((entry): entry is Preferences['recentFiles'][number] => {
+    const item = object(entry);
+    return typeof item.name === 'string' && typeof item.id === 'string' && typeof item.at === 'number' && Number.isFinite(item.at);
+  }).slice(0, 50);
+}
+
+function drawingPresets(value: unknown): Preferences['drawingPresets'] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((entry): entry is Preferences['drawingPresets'][number] => {
+    const item = object(entry);
+    return typeof item.name === 'string' && ['layer', 'color', 'linetype'].every((key) => item[key] === undefined || typeof item[key] === 'string') &&
+      (item.lineweight === undefined || (typeof item.lineweight === 'number' && Number.isFinite(item.lineweight)));
+  }).slice(0, 100);
+}
 
 export function loadPreferences(): Preferences {
   try {
     const raw = globalThis.localStorage?.getItem(KEY);
     if (!raw) return structuredClone(DEFAULT_PREFERENCES);
-    const parsed = JSON.parse(raw) as Partial<Preferences>;
+    const parsed = object(JSON.parse(raw));
+    const rawSnap = object(parsed.snap);
+    const rawSpacing = object(rawSnap.snapSpacing);
+    const snap: SnapSettings = {
+      osnap: bool(rawSnap.osnap, DEFAULT_SNAP_SETTINGS.osnap),
+      types: Array.isArray(rawSnap.types)
+        ? rawSnap.types.filter((type): type is SnapType => ALL_SNAP_TYPES.includes(type as SnapType))
+        : [...DEFAULT_SNAP_SETTINGS.types],
+      otrack: bool(rawSnap.otrack, DEFAULT_SNAP_SETTINGS.otrack),
+      polar: bool(rawSnap.polar, DEFAULT_SNAP_SETTINGS.polar),
+      polarIncrement: finiteIn(rawSnap.polarIncrement, DEFAULT_SNAP_SETTINGS.polarIncrement, Number.EPSILON, Math.PI * 2),
+      polarAdditional: Array.isArray(rawSnap.polarAdditional)
+        ? rawSnap.polarAdditional.filter((angle): angle is number => typeof angle === 'number' && Number.isFinite(angle)).slice(0, 360)
+        : [],
+      trackAllPolar: bool(rawSnap.trackAllPolar, DEFAULT_SNAP_SETTINGS.trackAllPolar),
+      ortho: bool(rawSnap.ortho, DEFAULT_SNAP_SETTINGS.ortho),
+      gridSnap: bool(rawSnap.gridSnap, DEFAULT_SNAP_SETTINGS.gridSnap),
+      snapSpacing: {
+        x: finiteIn(rawSpacing.x, DEFAULT_SNAP_SETTINGS.snapSpacing.x, Number.EPSILON, 1e12),
+        y: finiteIn(rawSpacing.y, DEFAULT_SNAP_SETTINGS.snapSpacing.y, Number.EPSILON, 1e12),
+      },
+      aperturePx: finiteIn(rawSnap.aperturePx, DEFAULT_SNAP_SETTINGS.aperturePx, 2, 100),
+      trackingTolPx: finiteIn(rawSnap.trackingTolPx, DEFAULT_SNAP_SETTINGS.trackingTolPx, 1, 100),
+    };
+    const rawGrid = object(parsed.grid);
+    const rawDynamic = object(parsed.dynamicInput);
     return {
       ...structuredClone(DEFAULT_PREFERENCES),
-      ...parsed,
-      snap: { ...DEFAULT_SNAP_SETTINGS, ...parsed.snap },
-      grid: { ...DEFAULT_PREFERENCES.grid, ...parsed.grid },
-      dynamicInput: { ...DEFAULT_PREFERENCES.dynamicInput, ...parsed.dynamicInput },
-      shortcuts: { ...DEFAULT_SHORTCUTS, ...parsed.shortcuts },
-      panels: { ...DEFAULT_PREFERENCES.panels, ...parsed.panels },
+      lang: parsed.lang === 'es' || parsed.lang === 'en' ? parsed.lang : DEFAULT_PREFERENCES.lang,
+      theme: parsed.theme === 'system' || parsed.theme === 'dia' || parsed.theme === 'noche' ? parsed.theme : DEFAULT_PREFERENCES.theme,
+      canvasBackground: ['auto', 'paper', 'charcoal', 'black'].includes(String(parsed.canvasBackground)) ? parsed.canvasBackground as CanvasBg : DEFAULT_PREFERENCES.canvasBackground,
+      wheelMode: ['auto', 'zoom', 'pan'].includes(String(parsed.wheelMode)) ? parsed.wheelMode as WheelMode : DEFAULT_PREFERENCES.wheelMode,
+      lineweightDisplay: bool(parsed.lineweightDisplay, DEFAULT_PREFERENCES.lineweightDisplay),
+      transparencyDisplay: bool(parsed.transparencyDisplay, DEFAULT_PREFERENCES.transparencyDisplay),
+      selectionCycling: bool(parsed.selectionCycling, DEFAULT_PREFERENCES.selectionCycling),
+      rolloverHighlight: bool(parsed.rolloverHighlight, DEFAULT_PREFERENCES.rolloverHighlight),
+      quickProperties: bool(parsed.quickProperties, DEFAULT_PREFERENCES.quickProperties),
+      crosshairSize: finiteIn(parsed.crosshairSize, DEFAULT_PREFERENCES.crosshairSize, 1, 100),
+      pickboxPx: finiteIn(parsed.pickboxPx, DEFAULT_PREFERENCES.pickboxPx, 2, 20),
+      gripSizePx: finiteIn(parsed.gripSizePx, DEFAULT_PREFERENCES.gripSizePx, 4, 20),
+      aliases: stringRecord(parsed.aliases),
+      favorites: stringArray(parsed.favorites, DEFAULT_PREFERENCES.favorites),
+      autosaveMinutes: finiteIn(parsed.autosaveMinutes, DEFAULT_PREFERENCES.autosaveMinutes, 0, 60),
+      onboardingDone: bool(parsed.onboardingDone, DEFAULT_PREFERENCES.onboardingDone),
+      recentFiles: recentFiles(parsed.recentFiles),
+      drawingPresets: drawingPresets(parsed.drawingPresets),
+      snap,
+      grid: {
+        on: bool(rawGrid.on, DEFAULT_PREFERENCES.grid.on),
+        spacing: finiteIn(rawGrid.spacing, DEFAULT_PREFERENCES.grid.spacing, Number.EPSILON, 1e12),
+        majorEvery: Math.round(finiteIn(rawGrid.majorEvery, DEFAULT_PREFERENCES.grid.majorEvery, 1, 100)),
+        adaptive: bool(rawGrid.adaptive, DEFAULT_PREFERENCES.grid.adaptive),
+      },
+      dynamicInput: {
+        on: bool(rawDynamic.on, DEFAULT_PREFERENCES.dynamicInput.on),
+        relative: bool(rawDynamic.relative, DEFAULT_PREFERENCES.dynamicInput.relative),
+        showTooltips: bool(rawDynamic.showTooltips, DEFAULT_PREFERENCES.dynamicInput.showTooltips),
+      },
+      shortcuts: { ...DEFAULT_SHORTCUTS, ...stringRecord(parsed.shortcuts) },
+      panels: normalizeWorkspacePanels(parsed.panels),
     };
   } catch {
     return structuredClone(DEFAULT_PREFERENCES);

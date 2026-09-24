@@ -38,6 +38,35 @@
 
 ---
 
+## PWA-002 — Conservar recursos offline de pestañas abiertas durante una actualización
+
+- [>] **Estado:** En curso
+- **Responsable:** Codex · **Inicio:** 2026-09-23
+- **Prioridad:** P1 — una pestaña que conserva el trabajador anterior puede perder sus módulos fuera de línea
+- **Depende de:** PWA-001
+- **Bloquea:** —
+
+**Evidencia:** `src/pwa/serviceWorker.ts` borra todas las cachés `fmodel-cad-*` anteriores al activar una versión nueva. En una reproducción unitaria con `CacheStorage` compartido, una pestaña todavía atendida por el trabajador previo pierde un chunk ya almacenado cuando otra pestaña activa la actualización. La reproducción no es evidencia de navegador real.
+
+**Avance 2026-09-23:** el trabajador conserva un mapa persistente de clientes y cachés; al activar toma una instantánea de las pestañas anteriores y asigna a la caché nueva las pestañas abiertas después. Atiende los recursos de cada cliente desde su versión y reconcilia las cachés tras navegación o cierre seguido de actividad. La prueba unitaria reprodujo tanto el borrado de v1 como la entrega incorrecta de un recurso v1 a una pestaña nueva antes de `ready`; ambas pasan tras la corrección. `e2e/serviceWorkerMultiTab.spec.ts` usa dos pestañas y dos versiones del trabajador: Chromium cargó por primera vez un módulo dinámico desde cada caché estando offline, y tras cerrar la pestaña v1 quedó solo v2. WebKit verificó aviso, versiones correctas con red y limpieza. Su modo offline de Playwright falla incluso con una sola pestaña v1, un recurso confirmado en caché y un controlador activo (`WebKit encountered an internal error`), antes de cualquier actualización; por ello no se atribuye validación offline de Safari.
+
+**Escenario:** abrir dos pestañas de la misma versión, aplicar la actualización en una, desconectar la red e invocar en la otra una función que carga un chunk bajo demanda. La pestaña antigua debe conservar los recursos de su versión hasta cerrar o actualizarse.
+
+**Archivos previstos:** `src/pwa/serviceWorker.ts`, `src/pwa/serviceWorker.test.ts` y un recorrido de navegador que controle dos pestañas y la conexión.
+
+**Criterios de aceptación:**
+
+- [ ] La pestaña que sigue ejecutando la versión anterior puede cargar sus recursos precargados sin red después de activar la nueva en otra pestaña. Comprobado en Chromium; falta evidencia offline de WebKit/Safari.
+- [x] La pestaña actualizada usa solo recursos de su nueva versión y conserva el aviso antes de recargar un dibujo abierto.
+- [x] Las cachés que ya no tienen clientes se eliminan con una política acotada y verificable, sin acumulación indefinida.
+- [x] Una prueba de navegador reproduce actualización, dos pestañas y modo offline en Chromium; las pruebas unitarias cubren activación, limpieza y solicitudes `Range`. La prueba WebKit cubre enrutamiento online y limpieza; falta evidencia offline de Safari.
+
+**Verificación prevista:** pruebas focalizadas del service worker, recorrido E2E multi pestaña y `pnpm verify`.
+
+**Verificación 2026-09-23:** `pnpm exec vitest run src/pwa/serviceWorker.test.ts src/pwa/register.test.ts` (11/11), `pnpm verify` (83 archivos, 748/748 pruebas, 590 importaciones entre capas y build), `PLAYWRIGHT_WEBKIT=1 pnpm exec playwright test e2e/serviceWorkerMultiTab.spec.ts --workers=1` (2/2). Sigue En curso por la evidencia offline de WebKit/Safari y el cierre formal con referencia de commit/PR; no se crea commit sin petición explícita.
+
+---
+
 ## WRK-001 — Cancelar y transferir operaciones pesadas
 
 - [x] **Estado:** Cerrada

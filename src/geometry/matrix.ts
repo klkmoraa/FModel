@@ -1,4 +1,5 @@
 import type { Vec2 } from './vec';
+import { linearTol } from './tolerance';
 
 /**
  * Transformación afín 2D en el mismo orden que Canvas/SVG:
@@ -54,9 +55,13 @@ export function rotation(angle: number, origin?: Vec2): Mat2D {
 export function reflection(p1: Vec2, p2: Vec2): Mat2D {
   const dx = p2.x - p1.x;
   const dy = p2.y - p1.y;
-  const l2 = dx * dx + dy * dy || 1;
-  const a = (dx * dx - dy * dy) / l2;
-  const b = (2 * dx * dy) / l2;
+  const length = Math.hypot(dx, dy);
+  const magnitude = Math.max(Math.abs(p1.x), Math.abs(p1.y), Math.abs(p2.x), Math.abs(p2.y));
+  if (!Number.isFinite(length) || length <= linearTol(magnitude)) return IDENTITY;
+  const ux = dx / length;
+  const uy = dy / length;
+  const a = ux * ux - uy * uy;
+  const b = 2 * ux * uy;
   const r: Mat2D = { a, b, c: b, d: -a, e: 0, f: 0 };
   return compose(translation(-p1.x, -p1.y), r, translation(p1.x, p1.y));
 }

@@ -3,17 +3,27 @@ import { describe, expect, it } from 'vitest';
 import { decodeDxfBytes } from '../io/dxf/importDxf';
 import { DEFAULT_CATEGORIES } from './libraryCategories';
 import type { StarterManifest } from './starterLibrary';
-import { missingStarterCategories, starterBlock } from './starterLibrary';
+import { missingStarterCategories, parseStarterManifest, starterBlock } from './starterLibrary';
 
 const dir = new URL('../../public/library/librecad/', import.meta.url);
 const manifest = JSON.parse(readFileSync(new URL('index.json', dir), 'utf8')) as StarterManifest;
 
 describe('biblioteca inicial (LibreCAD)', () => {
   it('el manifiesto tiene 100 bloques con categorías existentes y nombres únicos', () => {
-    expect(manifest.items).toHaveLength(100);
-    expect(new Set(manifest.items.map((i) => i.name)).size).toBe(100);
+    const parsed = parseStarterManifest(manifest);
+    expect(parsed.items).toHaveLength(100);
+    expect(new Set(parsed.items.map((i) => i.name)).size).toBe(100);
     const ids = new Set(DEFAULT_CATEGORIES.map((c) => c.id));
-    expect(manifest.items.every((i) => ids.has(i.category))).toBe(true);
+    expect(parsed.items.every((i) => ids.has(i.category))).toBe(true);
+  });
+
+  it('rechaza índices truncados, rutas fuera de la colección y metadatos inválidos', () => {
+    expect(() => parseStarterManifest(null)).toThrow(/índice|index/i);
+    expect(() => parseStarterManifest({ source: 'x', license: 'GPL', items: null })).toThrow(/índice|index/i);
+    const item = manifest.items[0];
+    expect(() => parseStarterManifest({ ...manifest, items: [{ ...item, file: '../../private.dxf' }] })).toThrow(/entrada|entry/i);
+    expect(() => parseStarterManifest({ ...manifest, items: [{ ...item, units: 'px' }] })).toThrow(/entrada|entry/i);
+    expect(() => parseStarterManifest({ ...manifest, items: [item, { ...item, file: 'other.dxf' }] })).toThrow(/entrada|entry/i);
   });
 
   it('cada DXF se convierte en un bloque con geometría, sus unidades y, si toca, estirable', () => {

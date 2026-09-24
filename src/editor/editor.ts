@@ -8,7 +8,7 @@ import type { Vec2 } from '../geometry/vec';
 import { dist } from '../geometry/vec';
 import type { DrawingDiff } from '../audit/compare';
 import { parameterPoints } from '../blocks/authoring';
-import { CancelError, type CommandDef, type InputRequest, type Lang, type PreviewSpec } from '../commands/types';
+import { CancelError, CommandError, type CommandDef, type InputRequest, type Lang, type PreviewSpec } from '../commands/types';
 import { CommandRunner } from '../commands/runner';
 import { setUserAliases } from '../commands/registry';
 import type { CadDocument } from '../document/document';
@@ -22,6 +22,7 @@ import { entityEditable, entityVisible } from '../model/visibility';
 import { viewportMatrix, viewportOutline } from '../model/kinds/media';
 import { pointInPolygon } from '../geometry/polyline';
 import { VIEWPORT_VIEW_LABEL } from '../history/history';
+import { assertFiniteValues } from '../io/validation';
 import { pickAt, selectByFence, selectInBox, selectInPolygon } from '../selection/pick';
 import { expandGroups, SelectionSet } from '../selection/selectionSet';
 import type { ResolvedPoint } from '../snap/snapEngine';
@@ -84,6 +85,7 @@ export class Editor {
   prefs: Preferences;
   space: Id = MODEL_SPACE_ID;
   views = new Map<Id, ViewTransform>();
+  viewStack: { space: Id; center: Vec2; scale: number }[] = [];
   activeViewportId: Id | null = null;
   blockEdit: BlockEditSession | null = null;
   /** comparación activa con otra revisión (COMPARE) */
@@ -112,6 +114,8 @@ export class Editor {
   lastPick: ResolvedPoint | null = null;
   shiftDown = false;
   lastCreated: Id | null = null;
+  /** Últimos borrados de este editor para OOPS; se descartan al abrir otro dibujo. */
+  erasedStack: Entity[][] = [];
   fileName = '';
   private listeners = new Map<EditorEvent, Set<() => void>>();
   private panning: { screen: Vec2 } | null = null;
@@ -130,8 +134,25 @@ export class Editor {
         this.selection.clear();
         this.space = MODEL_SPACE_ID;
         this.views.clear();
+        this.viewStack = [];
+        this.activeViewportId = null;
+        this.blockEdit = null;
+        this.blockEditState = { currentVisibility: null };
+        this.compare = null;
+        this.preview = null;
         this.hidden.clear();
         this.isolated = null;
+        this.window = null;
+        this.fence = null;
+        this.polygonSelect = null;
+        this.requestIds = [];
+        this.cycling = null;
+        this.gripContext = null;
+        this.lastPick = null;
+        this.lastCreated = null;
+        this.erasedStack = [];
+        this.touchPoint = null;
+        this.acquisition.clear();
       }
       for (const c of e.changes) {
         if (c.coll === 'entities' && !c.before && c.after) this.lastCreated = c.id;
@@ -203,9 +224,9 @@ export class Editor {
     return 'block';
   }
 
-  setSpace(id: Id) {
+  setSpace(id: Id, options?: { cancelCommands?: boolean }) {
     if (this.space === id) return;
-    this.runner.cancelAll();
+    if (options?.cancelCommands !== false) this.runner.cancelAll();
     this.selection.clear();
     this.activeViewportId = null;
     this.space = id;
@@ -292,10 +313,12 @@ export class Editor {
 
   /** Activa un viewport (trabajo en modelo a través de él) o vuelve al papel con null. */
   activateViewport(id: Id | null) {
-    if (this.activeViewportId === id) return;
+    const candidate = id ? this.doc.entity(id) : null;
+    const nextId = candidate?.type === 'viewport' && candidate.owner === this.space && candidate.on ? candidate.id : null;
+    if (this.activeViewportId === nextId) return;
     this.runner.cancelAll();
     this.selection.clear();
-    this.activeViewportId = id;
+    this.activeViewportId = nextId;
     this.emit('space');
     this.emit('view');
   }
@@ -983,6 +1006,11 @@ export class Editor {
 
   /** Aplica una transformación a entidades en una transacción (con actualización asociativa por reactores). */
   transformEntities(ids: Id[], m: Mat2D, label: string, copy = false): Id[] {
+    const invalidTransform = () => new CommandError({
+      es: 'La transformación excede el rango de coordenadas válido.',
+      en: 'The transformation exceeds the valid coordinate range.',
+    });
+    if (Object.values(m).some((value) => !Number.isFinite(value))) throw invalidTransform();
     const created: Id[] = [];
     this.doc.transact(label, (tx) => {
       for (const id of ids) {
@@ -990,6 +1018,11 @@ export class Editor {
         if (!e) continue;
         const t = kindOf(e).transform(e, m, this.ctx);
         if (!t) continue;
+        try {
+          assertFiniteValues(t);
+        } catch {
+          throw invalidTransform();
+        }
         if (copy) {
           const { id: _old, order: _o, ...rest } = t as Entity;
           created.push(tx.addEntity(rest as Entity).id);

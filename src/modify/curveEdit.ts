@@ -2,14 +2,12 @@ import { normAngle, TAU } from '../geometry/angle';
 import type { ArcCurve, Curve, EllipseCurve } from '../geometry/curves';
 import {
   closestParam,
-  curveDerivative,
   curveEnd,
   curveLength,
   curvePoint,
   curveStart,
   isBounded,
   isClosedCurve,
-  paramAtLength,
   reverseCurve,
   subCurve,
   tessellateCurve,
@@ -76,12 +74,6 @@ export function polylineClosestParam(vertices: PolyVertex[], closed: boolean, p:
     }
   });
   return best;
-}
-
-export function polylinePointAt(vertices: PolyVertex[], closed: boolean, g: number): Vec2 {
-  const segs = polylineSegments(vertices, closed);
-  const i = Math.max(0, Math.min(segs.length - 1, Math.floor(g)));
-  return curvePoint(segs[i], Math.max(0, Math.min(1, g - i)));
 }
 
 /** Sub-polilínea entre parámetros globales g0 < g1 (si closed y g1 > n se da la vuelta). */
@@ -544,22 +536,4 @@ export function reverseEntity(e: Entity): Entity | null {
     default:
       return null;
   }
-}
-
-/** Divide una curva en N partes iguales (para DIVIDE/ARRAYPATH). */
-export function pointsAlong(curves: Curve[], distances: number[]): { p: Vec2; tangent: Vec2 }[] {
-  const out: { p: Vec2; tangent: Vec2 }[] = [];
-  for (const s of distances) {
-    let acc = 0;
-    for (const c of curves) {
-      const l = curveLength(c);
-      if (acc + l >= s - 1e-12) {
-        const t = paramAtLength(c, s - acc);
-        out.push({ p: curvePoint(c, t), tangent: normalize(curveDerivative(c, t)) });
-        break;
-      }
-      acc += l;
-    }
-  }
-  return out;
 }

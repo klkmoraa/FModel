@@ -167,6 +167,182 @@ test.describe('alineación visual con FusionStructureBrand', () => {
     await expect(eyebrow).toHaveCSS('color', 'rgb(91, 63, 192)');
   });
 
+  test('el chrome superior y las pestañas de espacio no compiten con el lienzo', async ({ page }) => {
+    await page.goto('/?surface=workspace');
+    await page.waitForFunction(() => !!(window as any).fmodel?.editor);
+    await page.evaluate(() => {
+      (window as any).fmodel.editor.setPrefs({ onboardingDone: true, theme: 'dia' });
+    });
+
+    const chrome = await page.locator('.topbar').evaluate((element) => ({
+      shadow: getComputedStyle(element).boxShadow,
+      searchShadow: getComputedStyle(element.querySelector('.search-trigger')!).boxShadow,
+      actionsShadow: getComputedStyle(element.querySelector('.topbar__actions')!).boxShadow,
+    }));
+    expect(chrome.shadow).toBe('none');
+    expect(chrome.searchShadow).toBe('none');
+    expect(chrome.actionsShadow).toBe('none');
+
+    const activeSpace = page.locator('.space-tab.is-active');
+    await expect(activeSpace).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+    await expect(activeSpace).toHaveCSS('box-shadow', 'none');
+  });
+
+  test('el comando activo usa violeta de Modelo y no el rojo de error', async ({ page }) => {
+    await page.goto('/?surface=workspace');
+    await page.waitForFunction(() => !!(window as any).fmodel?.editor);
+    await page.evaluate(() => {
+      (window as any).fmodel.editor.setPrefs({ onboardingDone: true, theme: 'dia' });
+    });
+
+    await page.getByRole('button', { name: /Abrir todas las herramientas|Open all tools/ }).click();
+    const deck = page.getByRole('dialog', { name: /Biblioteca de herramientas|Tool library/ });
+    await deck.getByRole('button', { name: /Línea LINE|Line LINE/, exact: true }).click();
+
+    const state = await page.locator('.precision-dock__context').evaluate((element) => ({
+      active: element.classList.contains('is-command-active'),
+      color: getComputedStyle(element).color,
+      interaction: getComputedStyle(document.documentElement).getPropertyValue('--fs-interaction-text').trim(),
+      danger: getComputedStyle(document.documentElement).getPropertyValue('--fm-danger').trim(),
+    }));
+    expect(state.active).toBe(true);
+    expect(state.interaction).toBe('#5b3fc0');
+    expect(state.danger).toBe('#c9362f');
+    expect(state.color).toBe('rgb(91, 63, 192)');
+  });
+
+  test('el dock de precisión es una sola barra continua, no una fila de tarjetas', async ({ page }) => {
+    await page.goto('/?surface=workspace');
+    await page.waitForFunction(() => !!(window as any).fmodel?.editor);
+    await page.evaluate(() => {
+      (window as any).fmodel.editor.setPrefs({ onboardingDone: true, theme: 'dia' });
+    });
+
+    const rail = page.locator('.precision-dock');
+    await expect(rail).toBeVisible();
+
+    const railMaterial = await rail.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return { background: style.backgroundColor, shadow: style.boxShadow };
+    });
+    expect(railMaterial.background).not.toBe('rgba(0, 0, 0, 0)');
+    expect(railMaterial.shadow).not.toBe('none');
+
+    const toolMaterial = await rail.locator('.precision-dock__tool').first().evaluate((element) => {
+      const style = getComputedStyle(element);
+      return { background: style.backgroundColor, shadow: style.boxShadow };
+    });
+    expect(toolMaterial.background).toBe('rgba(0, 0, 0, 0)');
+    expect(toolMaterial.shadow).toBe('none');
+
+    const [selectionBox, launcherBox] = await Promise.all([
+      rail.locator('.precision-dock__context').boundingBox(),
+      rail.locator('.precision-dock__launcher').boundingBox(),
+    ]);
+    expect(selectionBox).not.toBeNull();
+    expect(launcherBox).not.toBeNull();
+    expect(selectionBox!.x).toBeLessThan(launcherBox!.x);
+  });
+
+  test('los inspectores flotan como una superficie compacta y no como otra columna fija', async ({ page }) => {
+    await page.goto('/?surface=workspace');
+    await page.waitForFunction(() => !!(window as any).fmodel?.editor);
+    await page.evaluate(() => {
+      (window as any).fmodel.editor.setPrefs({ onboardingDone: true, theme: 'dia' });
+    });
+
+    await page.locator('.precision-dock').getByRole('button', { name: /Propiedades|Properties/, exact: true }).click();
+    const panel = page.locator('.floating-panel');
+    await expect(panel).toBeVisible();
+    await expect(page.locator('.dock--right')).toHaveCount(0);
+    const panelBox = await panel.boundingBox();
+    expect(panelBox).not.toBeNull();
+    expect(panelBox!.width).toBeLessThanOrEqual(380);
+    expect(panelBox!.height).toBeLessThanOrEqual(620);
+    expect(panelBox!.x).toBeGreaterThan(0);
+    expect(panelBox!.y).toBeGreaterThan(0);
+
+    const panelAction = panel.locator('.icon-btn').first();
+    const panelMaterial = await panelAction.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return { background: style.backgroundColor, shadow: style.boxShadow };
+    });
+    expect(panelMaterial.background).toBe('rgba(0, 0, 0, 0)');
+    expect(panelMaterial.shadow).toBe('none');
+
+    const sectionMaterial = await panel.locator('.section').first().evaluate((element) => {
+      const style = getComputedStyle(element);
+      return { left: style.borderLeftStyle, right: style.borderRightStyle, shadow: style.boxShadow };
+    });
+    expect(sectionMaterial.left).toBe('none');
+    expect(sectionMaterial.right).toBe('none');
+    expect(sectionMaterial.shadow).toBe('none');
+
+    await page.locator('.precision-dock').getByRole('button', { name: /Capas|Layers/, exact: true }).click();
+    await expect(panel).toContainText(/Capas|Layers/);
+    const layersBox = await panel.boundingBox();
+    expect(layersBox).not.toBeNull();
+    expect(layersBox!.height).toBeLessThanOrEqual(430);
+
+    await page.locator('.precision-dock').getByRole('button', { name: /Paletas|Palettes/, exact: true }).click();
+    const tabs = panel.locator('.panel-tabs');
+    await expect(tabs).toBeVisible();
+    const tabMaterial = await tabs.evaluate((element) => getComputedStyle(element).backgroundColor);
+    expect(tabMaterial).not.toBe('rgba(0, 0, 0, 0)');
+    const inactiveTab = tabs.locator('.btn:not(.btn--accent)').first();
+    await expect(inactiveTab).toHaveCSS('border-top-color', 'rgba(0, 0, 0, 0)');
+
+    const statusAction = page.locator('button.status-toggle:not(.is-on):not(.is-warn)').first();
+    const statusMaterial = await statusAction.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return { background: style.backgroundColor, border: style.borderColor, shadow: style.boxShadow };
+    });
+    expect(statusMaterial.background).toBe('rgba(0, 0, 0, 0)');
+    expect(statusMaterial.border).toBe('rgba(0, 0, 0, 0)');
+    expect(statusMaterial.shadow).toBe('none');
+
+    const railAction = page.locator('.topbar__actions .icon-btn').first();
+    const railMaterial = await railAction.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return { background: style.backgroundColor, shadow: style.boxShadow };
+    });
+    expect(railMaterial.background).toBe('rgba(0, 0, 0, 0)');
+    expect(railMaterial.shadow).toBe('none');
+  });
+
+  test('la línea CAD se retrae al estar lista y se expande sólo al pedir entrada', async ({ page }) => {
+    await page.goto('/?surface=workspace');
+    await page.waitForFunction(() => !!(window as any).fmodel?.editor);
+    await page.evaluate(() => {
+      (window as any).fmodel.editor.setPrefs({ onboardingDone: true, theme: 'dia' });
+    });
+
+    const commandLine = page.locator('.cmdline');
+    await expect(commandLine).toHaveClass(/cmdline--idle/);
+    const resting = await commandLine.boundingBox();
+    expect(resting).not.toBeNull();
+    expect(resting!.width).toBeLessThanOrEqual(500);
+
+    await commandLine.getByRole('textbox', { name: /Línea de comandos|Command line/ }).focus();
+    await expect(commandLine).toHaveClass(/cmdline--idle/);
+    await expect.poll(async () => (await commandLine.boundingBox())?.width ?? 0).toBeGreaterThan(resting!.width + 120);
+  });
+
+  test('la biblioteca de herramientas se abre como una bandeja inferior compacta', async ({ page }) => {
+    await page.goto('/?surface=workspace');
+    await page.waitForFunction(() => !!(window as any).fmodel?.editor);
+    await page.evaluate(() => {
+      (window as any).fmodel.editor.setPrefs({ onboardingDone: true, theme: 'dia' });
+    });
+
+    await page.getByRole('button', { name: /Abrir todas las herramientas|Open all tools/ }).click();
+    const deck = page.locator('.tool-deck');
+    await expect(deck).toBeVisible();
+    const box = await deck.boundingBox();
+    expect(box).not.toBeNull();
+    expect(box!.height).toBeLessThanOrEqual(380);
+  });
+
   test('el onboarding aplica el mismo contrato modal de teclado', async ({ page }) => {
     await page.goto('/?surface=workspace');
     await page.waitForFunction(() => !!(window as any).fmodel?.editor);
@@ -225,11 +401,12 @@ test.describe('alineación visual con FusionStructureBrand', () => {
       expect(stageBox!.x + stageBox!.width).toBeLessThanOrEqual(viewport.width + 1);
 
       if (viewport.width <= 820) {
-        await expect(page.locator('.ribbon')).toBeHidden();
+        await expect(page.locator('.precision-dock')).toHaveCount(0);
         await expect(page.locator('.statusbar')).toBeHidden();
         await expect(page.locator('.mbar')).toBeVisible();
       } else {
-        await expect(page.locator('.ribbon')).toBeVisible();
+        await expect(page.locator('.ribbon')).toHaveCount(0);
+        await expect(page.getByRole('navigation', { name: /Herramientas de precisión|Precision tools/ })).toBeVisible();
         await expect(page.locator('.statusbar')).toBeVisible();
         await expect(page.locator('.mbar')).toHaveCount(0);
       }

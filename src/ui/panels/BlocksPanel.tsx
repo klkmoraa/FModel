@@ -27,9 +27,9 @@ export function BlocksPanel({ editor, onUi }: { editor: Editor; onUi: (ui: strin
   const insert = (name: string) => editor.command('INSERT', [name]);
 
   return (
-    <div className="panel">
+    <div className="panel panel--blocks">
       <div className="panel__head">
-        <div className="segmented" role="tablist" style={{ display: 'flex', gap: 2 }}>
+        <div className="panel-tabs" role="tablist">
           {(['current', 'favorites', 'library'] as const).map((t) => (
             <button key={t} role="tab" aria-selected={tab === t} className={`btn btn--sm${tab === t ? ' btn--accent' : ''}`} onClick={() => setTab(t)}>
               {t === 'current' ? tr(lang, 'Dibujo', 'Drawing') : t === 'favorites' ? tr(lang, 'Favoritos', 'Favorites') : tr(lang, 'Biblioteca', 'Library')}
@@ -38,7 +38,7 @@ export function BlocksPanel({ editor, onUi }: { editor: Editor; onUi: (ui: strin
         </div>
       </div>
       <input className="input" placeholder={tr(lang, 'Buscar bloques…', 'Search blocks…')} value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.stopPropagation()} />
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+      <div className="panel-actions">
         <button className="btn btn--sm" onClick={() => editor.command('BLOCK')}>
           {tr(lang, 'Crear bloque', 'Create block')}
         </button>
@@ -50,43 +50,41 @@ export function BlocksPanel({ editor, onUi }: { editor: Editor; onUi: (ui: strin
         </button>
       </div>
       {tab !== 'library' ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(104px, 1fr))', gap: 8 }}>
+        <div className="block-grid">
           {blocks.map((b) => {
             const thumb = blockThumbnail(editor, b.id, 96, dark);
             return (
               <div
                 key={b.id}
-                className="section"
-                style={{ padding: 6, display: 'flex', flexDirection: 'column', gap: 4, cursor: 'grab' }}
+                className="block-card"
                 draggable
                 onDragStart={(e) => e.dataTransfer.setData(DND_MIME, JSON.stringify({ kind: 'block', name: b.name }))}
                 title={`${b.name}\n${b.description}`}
               >
-                <button onClick={() => insert(b.name)} style={{ display: 'grid', placeItems: 'center', height: 80, background: 'var(--surface-sunken)', borderRadius: 8 }} aria-label={tr(lang, `Insertar ${b.name}`, `Insert ${b.name}`)}>
+                <button className="block-card__preview" onClick={() => insert(b.name)} aria-label={tr(lang, `Insertar ${b.name}`, `Insert ${b.name}`)}>
                   {thumb && <img src={thumb} width={72} height={72} alt="" draggable={false} />}
                 </button>
-                <div style={{ fontSize: 11.5, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.name}</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <span className="eyebrow" style={{ flex: 1 }}>
+                <div className="block-card__name">{b.name}</div>
+                <div className="block-card__meta">
+                  <span className="eyebrow">
                     {b.dynamic ? '◆ ' : ''}×{usage.get(b.id) ?? 0}
                   </span>
-                  <button className="icon-btn" style={{ width: 22, height: 22, color: b.favorite ? 'var(--fs-signal-attention)' : undefined }} onClick={() => doc.transact('BLOCK FAVORITE', (tx) => tx.update('blocks', b.id, { favorite: !b.favorite }))} title={tr(lang, 'Favorito', 'Favorite')}>
+                  <button className={`icon-btn${b.favorite ? ' is-favorite' : ''}`} onClick={() => doc.transact('BLOCK FAVORITE', (tx) => tx.update('blocks', b.id, { favorite: !b.favorite }))} title={tr(lang, 'Favorito', 'Favorite')}>
                     <Star size={12} />
                   </button>
                   {!b.dynamic && (
-                    <button className="icon-btn" style={{ width: 22, height: 22 }} onClick={() => editor.command('BESTIRABLE', [b.name])} title={tr(lang, 'Hacer estirable (Ancho y Fondo)', 'Make stretchable (Width and Depth)')}>
+                    <button className="icon-btn" onClick={() => editor.command('BESTIRABLE', [b.name])} title={tr(lang, 'Hacer estirable (Ancho y Fondo)', 'Make stretchable (Width and Depth)')}>
                       <MoveHorizontal size={12} />
                     </button>
                   )}
-                  <button className="icon-btn" style={{ width: 22, height: 22 }} onClick={() => editor.command('WBLOCK', [b.name])} title={tr(lang, 'Enviar a la biblioteca', 'Send to library')}>
+                  <button className="icon-btn" onClick={() => editor.command('WBLOCK', [b.name])} title={tr(lang, 'Enviar a la biblioteca', 'Send to library')}>
                     <BookmarkPlus size={12} />
                   </button>
-                  <button className="icon-btn" style={{ width: 22, height: 22 }} onClick={() => editor.command('BEDIT', [b.name])} title={tr(lang, 'Editar definición', 'Edit definition')}>
+                  <button className="icon-btn" onClick={() => editor.command('BEDIT', [b.name])} title={tr(lang, 'Editar definición', 'Edit definition')}>
                     <Pencil size={12} />
                   </button>
                   <button
                     className="icon-btn"
-                    style={{ width: 22, height: 22 }}
                     disabled={!!usage.get(b.id)}
                     onClick={() => doc.transact('BLOCK DELETE', (tx) => {
                       for (const e of doc.entitiesOf(b.id)) tx.removeEntity(e.id);

@@ -10,8 +10,9 @@ async function skipOnboarding(page: import('@playwright/test').Page): Promise<vo
 
 async function openWorkspace(page: import('@playwright/test').Page): Promise<void> {
   await page.goto('/?surface=workspace');
-  await skipOnboarding(page);
   await expect(page.getByRole('application', { name: /Lienzo de dibujo|Drawing canvas/ })).toBeVisible();
+  await skipOnboarding(page);
+  await expect(page.locator('.onboarding')).toHaveCount(0);
   await expect(page.getByLabel(/Línea de comandos|Command line/)).toBeVisible();
 }
 
@@ -30,7 +31,8 @@ async function drawLine(page: import('@playwright/test').Page): Promise<void> {
 }
 
 async function openImportView(page: import('@playwright/test').Page): Promise<import('@playwright/test').Locator> {
-  await page.getByRole('button', { name: /Inicio|Home/ }).click();
+  const workspaceBrand = page.locator('.brand--btn');
+  if (await workspaceBrand.isVisible().catch(() => false)) await workspaceBrand.click();
   await page.getByRole('button', { name: /Importar|Import/ }).first().click();
   return page.locator('input[type="file"]').first();
 }
@@ -106,9 +108,9 @@ test.describe('Recorridos críticos E2E en navegador real (TST-001)', () => {
     await expect(page.locator('.doc-tab__dirty')).toBeVisible();
   });
 
-  test('paleta, favoritos y resize de docks son navegables por teclado', async ({ page }) => {
+  test('paleta y paneles flotantes por defecto conservan una ruta para fijarse', async ({ page }) => {
     await openWorkspace(page);
-    await page.getByRole('button', { name: /Buscar comandos|Search commands/ }).click();
+    await page.locator('.search-trigger').click();
     const palette = page.getByRole('dialog', { name: /Paleta de comandos|Command palette/ });
     await expect(palette).toBeVisible();
     const favorite = palette.getByRole('button', { name: /Marcar .* favorito|Mark .* favorite/ }).first();
@@ -118,10 +120,106 @@ test.describe('Recorridos críticos E2E en navegador real (TST-001)', () => {
     await expect(favorite).not.toHaveAttribute('aria-pressed', initialFavorite ?? 'false');
     await page.keyboard.press('Escape');
 
+    await page.locator('.precision-dock').getByRole('button', { name: /Propiedades|Properties/, exact: true }).click();
+    const floating = page.locator('.floating-panel');
+    await expect(floating).toBeVisible();
+    await expect(page.locator('.dock--right')).toHaveCount(0);
+
+    await floating.getByRole('button', { name: /Fijar Propiedades|Pin Properties/ }).click();
+    await expect(floating).toHaveCount(0);
+    await expect(page.locator('.dock--right')).toBeVisible();
+
     const separator = page.getByRole('separator').first();
     await separator.focus();
     await separator.press('End');
     await expect(separator).toHaveAttribute('aria-valuenow', '720');
+
+    await page.getByRole('button', { name: /Hacer flotante Propiedades|Float Properties/ }).click();
+    await expect(floating).toBeVisible();
+  });
+
+  test('Tool Deck, panel flotante y paleta no se superponen', async ({ page }) => {
+    await openWorkspace(page);
+    const tools = page.getByRole('button', { name: /Abrir todas las herramientas|Open all tools/ });
+    const deck = page.locator('.tool-deck');
+    const floating = page.locator('.floating-panel');
+
+    await tools.click();
+    await expect(deck).toBeVisible();
+    await expect(page.locator('.cmdline')).toBeHidden();
+    await page.locator('.precision-dock').getByRole('button', { name: /Propiedades|Properties/, exact: true }).click();
+    await expect(deck).toHaveCount(0);
+    await expect(floating).toBeVisible();
+    await expect(page.locator('.dock--right')).toHaveCount(0);
+
+    await tools.click();
+    await expect(floating).toHaveCount(0);
+    await expect(deck).toBeVisible();
+
+    await page.locator('.precision-dock').getByRole('button', { name: /Buscar comandos|Search commands/ }).click();
+    await expect(deck).toHaveCount(0);
+    await expect(page.getByRole('dialog', { name: /Paleta de comandos|Command palette/ })).toBeVisible();
+
+    await page.keyboard.press('Escape');
+    await page.locator('.precision-dock').getByRole('button', { name: /Propiedades|Properties/, exact: true }).click();
+    await expect(floating).toBeVisible();
+    await page.locator('.search-trigger').click();
+    await expect(page.getByRole('dialog', { name: /Paleta de comandos|Command palette/ })).toBeVisible();
+  });
+
+  test('un diálogo global cierra las superficies flotantes del workspace', async ({ page }) => {
+    await openWorkspace(page);
+    await page.getByRole('button', { name: /Abrir todas las herramientas|Open all tools/ }).click();
+    await expect(page.locator('.tool-deck')).toBeVisible();
+    await page.locator('.topbar__actions').getByRole('button', { name: /Archivo|File/, exact: true }).click();
+    await expect(page.getByRole('dialog', { name: /Archivo|File/ })).toBeVisible();
+    await expect(page.locator('.tool-deck')).toHaveCount(0);
+
+    await page.keyboard.press('Escape');
+    await page.locator('.precision-dock').getByRole('button', { name: /Propiedades|Properties/, exact: true }).click();
+    await expect(page.locator('.floating-panel')).toBeVisible();
+    await page.locator('.topbar__actions').getByRole('button', { name: /Archivo|File/, exact: true }).click();
+    await expect(page.locator('.floating-panel')).toHaveCount(0);
+  });
+
+  test('los campos principales de comandos conservan un foco visible', async ({ page }) => {
+    await openWorkspace(page);
+    await page.getByRole('button', { name: /Abrir todas las herramientas|Open all tools/ }).click();
+    const search = page.getByRole('textbox', { name: /Buscar herramienta|Search tool/ });
+    await search.focus();
+    await expect(search).toBeFocused();
+    expect(await search.evaluate((input) => getComputedStyle(input).outlineStyle)).toBe('solid');
+
+    await page.getByRole('button', { name: /Cerrar herramientas|Close tools/ }).click();
+    await page.locator('.search-trigger').click();
+    const paletteInput = page.locator('.palette__input');
+    await paletteInput.focus();
+    expect(await paletteInput.evaluate((input) => getComputedStyle(input).outlineStyle)).toBe('solid');
+
+    await page.keyboard.press('Escape');
+    await command(page, 'LINE');
+    const commandInput = page.getByRole('textbox', { name: /Línea de comandos|Command line/ });
+    await commandInput.focus();
+    expect(await commandInput.evaluate((input) => getComputedStyle(input).outlineStyle)).toBe('solid');
+  });
+
+  test('cerrar un panel flotante restaura el foco a su lanzador', async ({ page }) => {
+    await openWorkspace(page);
+    const properties = page.locator('.precision-dock').getByRole('button', { name: /Propiedades|Properties/, exact: true });
+    await properties.click();
+    await expect(page.locator('.floating-panel')).toBeVisible();
+    await page.getByRole('button', { name: /Cerrar panel|Close panel/ }).click();
+    await properties.click();
+    await page.getByRole('button', { name: /Cerrar panel|Close panel/ }).click();
+    await expect(properties).toBeFocused();
+  });
+
+  test('un comando activo conserva una sola superficie de prompt', async ({ page }) => {
+    await openWorkspace(page);
+    await command(page, 'LINE');
+    await expect(page.locator('.cmdline__log')).toHaveCount(0);
+    await expect(page.getByLabel(/Línea de comandos|Command line/)).toBeVisible();
+    await expect(page.locator('.precision-dock__context')).toContainText(/Línea|Line/);
   });
 
   test('los journeys principales no tienen violaciones axe critical/serious', async ({ page }) => {
@@ -131,6 +229,24 @@ test.describe('Recorridos críticos E2E en navegador real (TST-001)', () => {
     // los docks contienen formularios de propiedades que no participan en ellos.
     const workspace = await new AxeBuilder({ page }).include('.canvas-host').analyze();
     expect(workspace.violations.filter((violation) => violation.impact === 'critical' || violation.impact === 'serious')).toEqual([]);
+
+    await page.getByRole('button', { name: /Abrir todas las herramientas|Open all tools/ }).click();
+    const toolDeck = await new AxeBuilder({ page }).include('.tool-deck').analyze();
+    expect(toolDeck.violations.filter((violation) => violation.impact === 'critical' || violation.impact === 'serious')).toEqual([]);
+    await page.getByRole('button', { name: /Cerrar herramientas|Close tools/ }).click();
+
+    await page.locator('.search-trigger').click();
+    const commandPalette = await new AxeBuilder({ page }).include('.palette').analyze();
+    expect(commandPalette.violations
+      .filter((violation) => violation.impact === 'critical' || violation.impact === 'serious')
+      .map((violation) => ({ id: violation.id, targets: violation.nodes.slice(0, 3).map((node) => node.target) }))).toEqual([]);
+    await page.keyboard.press('Escape');
+
+    await page.locator('.precision-dock').getByRole('button', { name: /Propiedades|Properties/, exact: true }).click();
+    await expect(page.locator('.floating-panel')).toBeVisible();
+    const floatingPanel = await new AxeBuilder({ page }).include('.floating-panel').analyze();
+    expect(floatingPanel.violations.filter((violation) => violation.impact === 'critical' || violation.impact === 'serious')).toEqual([]);
+    await page.getByRole('button', { name: /Cerrar panel|Close panel/ }).click();
 
     const input = await openImportView(page);
     await expect(input).toBeVisible();

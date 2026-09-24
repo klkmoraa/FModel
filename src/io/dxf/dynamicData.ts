@@ -1,5 +1,6 @@
 import type { DynamicBlockDefinition, DynamicInstanceState } from '../../document/types';
 import { remapDynamicBlockDef } from '../../blocks/remap';
+import { assertDynamicBlockDefinition, assertDynamicInstanceState, InputValidationError } from '../validation';
 import type { DxfRecord, Pair } from './parser';
 
 /**
@@ -50,9 +51,10 @@ export function encodeDefinition(def: DynamicBlockDefinition, idToHandle: (id: s
  * Sustituye cada `@H:<handle>` por el ID nuevo. Las referencias sin objeto equivalente se
  * quitan de las listas (selecciones, estados de visibilidad) o quedan vacías, y se cuentan.
  */
-export function decodeDefinition(json: string, handleToId: (h: string) => string | undefined): { def: DynamicBlockDefinition; missing: number } {
+export function decodeDefinition(json: string, handleToId: (h: string) => string | undefined, entityIds?: ReadonlySet<string>): { def: DynamicBlockDefinition; missing: number } {
   let missing = 0;
-  const parsed = JSON.parse(json) as DynamicBlockDefinition;
+  const parsed: unknown = JSON.parse(json);
+  assertDynamicBlockDefinition(parsed);
   const def = remapDynamicBlockDef(
     parsed,
     (ref) => {
@@ -67,6 +69,7 @@ export function decodeDefinition(json: string, handleToId: (h: string) => string
       },
     },
   );
+  assertDynamicBlockDefinition(def, entityIds);
   return { def, missing };
 }
 
@@ -81,8 +84,10 @@ export function readXrecord(rec: DxfRecord): { blockName: string; json: string }
   const blockName = rec.pairs.find(([c]) => c === 2)?.[1].trim() ?? '';
   const json = rec.pairs.filter(([c]) => c === 3).map(([, v]) => v).join('');
   try {
-    JSON.parse(json);
-  } catch {
+    const parsed: unknown = JSON.parse(json);
+    assertDynamicBlockDefinition(parsed);
+  } catch (error) {
+    if (error instanceof InputValidationError) throw new Error(`estructura de definición dinámica no válida: ${error.message}`);
     throw new Error('JSON de definición dinámica dañado');
   }
   return { blockName, json };
@@ -102,7 +107,9 @@ export function readInstanceXdata(pairs: Pair[]): { baseName: string; state: Dyn
   const baseName = strings[0]?.[1].trim();
   if (!baseName) return null;
   try {
-    return { baseName, state: JSON.parse(strings.slice(1).map(([, v]) => v).join('')) as DynamicInstanceState };
+    const state: unknown = JSON.parse(strings.slice(1).map(([, v]) => v).join(''));
+    assertDynamicInstanceState(state);
+    return { baseName, state };
   } catch {
     return null;
   }

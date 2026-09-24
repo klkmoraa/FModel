@@ -61,6 +61,73 @@ describe('TaskManager', () => {
     expect(tm.getTasks()[0].state).toBe('cancelled');
   });
 
+  it('cancels from an owning command signal even if the task resolves later', async () => {
+    const owner = new AbortController();
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+
+    const promise = tm.runTask(
+      'task-owned',
+      { es: 'Abriendo', en: 'Opening' },
+      async () => {
+        await gate;
+        return 'stale result';
+      },
+      { signal: owner.signal },
+    );
+
+    owner.abort();
+    release();
+
+    await expect(promise).rejects.toMatchObject({ name: 'AbortError' });
+    expect(tm.getTasks()[0].state).toBe('cancelled');
+  });
+
+  it('does not start a task when its owning signal was already aborted', async () => {
+    const owner = new AbortController();
+    owner.abort();
+    const fn = vi.fn(async () => 'should not run');
+
+    const promise = tm.runTask(
+      'task-pre-aborted',
+      { es: 'Abriendo', en: 'Opening' },
+      fn,
+      { signal: owner.signal },
+    );
+
+    await expect(promise).rejects.toMatchObject({ name: 'AbortError' });
+    expect(fn).not.toHaveBeenCalled();
+    expect(tm.getTasks()[0].state).toBe('cancelled');
+  });
+
+  it('does not let an older run overwrite the state of a newer task with the same id', async () => {
+    let releaseOlder!: () => void;
+    let releaseNewer!: () => void;
+    const olderGate = new Promise<void>((resolve) => { releaseOlder = resolve; });
+    const newerGate = new Promise<void>((resolve) => { releaseNewer = resolve; });
+
+    const older = tm.runTask('shared', { es: 'Anterior', en: 'Older' }, async () => {
+      await olderGate;
+      return 'older';
+    });
+    const newer = tm.runTask('shared', { es: 'Reciente', en: 'Newer' }, async () => {
+      await newerGate;
+      return 'newer';
+    });
+
+    releaseOlder();
+    await older;
+    expect(tm.getTasks()).toEqual([
+      expect.objectContaining({ name: { es: 'Reciente', en: 'Newer' }, state: 'running' }),
+    ]);
+
+    releaseNewer();
+    await newer;
+    expect(tm.getTasks()[0]).toEqual(expect.objectContaining({ state: 'completed' }));
+  });
+
   it('handles task failure and preserves error message', async () => {
     const promise = tm.runTask(
       'task-fail',

@@ -112,7 +112,7 @@ function InsertExtras({ editor, e }: { editor: Editor; e: InsertEntity }) {
               <div className="field" key={r.key}>
                 <label title={r.label}>{r.label}</label>
                 {r.options ? (
-                  <select className="select" value={String(r.value)} onChange={(ev) => r.set(ev.target.value)}>
+                  <select className="select" value={String(r.value)} onChange={(ev) => r.set(ev.target.value)} aria-label={r.label}>
                     {r.options.map((o) => (
                       <option key={o.value} value={o.value}>
                         {o.label}
@@ -120,9 +120,9 @@ function InsertExtras({ editor, e }: { editor: Editor; e: InsertEntity }) {
                     ))}
                   </select>
                 ) : r.kind === 'bool' ? (
-                  <input type="checkbox" checked={!!r.value} onChange={(ev) => r.set(ev.target.checked)} />
+                  <input type="checkbox" checked={!!r.value} onChange={(ev) => r.set(ev.target.checked)} aria-label={r.label} />
                 ) : (
-                  <NumberField lang={lang} value={Number(r.value)} readOnly={r.readOnly} suffix={r.kind === 'angle' ? '°' : undefined} onCommit={(v) => r.set(v)} />
+                  <NumberField lang={lang} value={Number(r.value)} readOnly={r.readOnly} suffix={r.kind === 'angle' ? '°' : undefined} onCommit={(v) => r.set(v)} ariaLabel={r.label} />
                 )}
               </div>
             ))}
@@ -141,6 +141,7 @@ function InsertExtras({ editor, e }: { editor: Editor; e: InsertEntity }) {
                 <TextField
                   value={a.text}
                   readOnly={a.def.constant}
+                  ariaLabel={a.tag}
                   onCommit={(v) =>
                     editor.doc.transact('ATTEDIT', (tx) =>
                       tx.updateEntity<InsertEntity>(e.id, (cur) => {
@@ -176,7 +177,7 @@ function CurrentProperties({ editor }: { editor: Editor }) {
         <div className="section__body">
           <div className="field">
             <label>{tr(lang, 'Capa actual', 'Current layer')}</label>
-            <select className="select" value={s.currentLayer} onChange={(e) => set({ currentLayer: e.target.value })}>
+            <select className="select" value={s.currentLayer} onChange={(e) => set({ currentLayer: e.target.value })} aria-label={tr(lang, 'Capa actual', 'Current layer')}>
               {[...doc.data.layers.values()]
                 .filter((l) => !l.frozen)
                 .map((l) => (
@@ -188,19 +189,19 @@ function CurrentProperties({ editor }: { editor: Editor }) {
           </div>
           <div className="field">
             <label>{tr(lang, 'Color', 'Color')}</label>
-            <ColorPicker lang={lang} value={s.currentColor} onChange={(c) => set({ currentColor: c })} />
+            <ColorPicker lang={lang} value={s.currentColor} onChange={(c) => set({ currentColor: c })} ariaLabel={tr(lang, 'Color', 'Color')} />
           </div>
           <div className="field">
             <label>{tr(lang, 'Tipo de línea', 'Linetype')}</label>
-            <LinetypeSelect doc={doc} lang={lang} value={s.currentLinetype} onChange={(v) => set({ currentLinetype: v })} />
+            <LinetypeSelect doc={doc} lang={lang} value={s.currentLinetype} onChange={(v) => set({ currentLinetype: v })} ariaLabel={tr(lang, 'Tipo de línea', 'Linetype')} />
           </div>
           <div className="field">
             <label>{tr(lang, 'Grosor', 'Lineweight')}</label>
-            <LineweightSelect lang={lang} value={s.currentLineweight} onChange={(v) => set({ currentLineweight: v })} />
+            <LineweightSelect lang={lang} value={s.currentLineweight} onChange={(v) => set({ currentLineweight: v })} ariaLabel={tr(lang, 'Grosor', 'Lineweight')} />
           </div>
           <div className="field">
             <label>{tr(lang, 'Estilo de texto', 'Text style')}</label>
-            <select className="select" value={s.currentTextStyle} onChange={(e) => set({ currentTextStyle: e.target.value })}>
+            <select className="select" value={s.currentTextStyle} onChange={(e) => set({ currentTextStyle: e.target.value })} aria-label={tr(lang, 'Estilo de texto', 'Text style')}>
               {[...doc.data.textStyles.values()].map((x) => (
                 <option key={x.id} value={x.id}>
                   {x.name}
@@ -210,7 +211,7 @@ function CurrentProperties({ editor }: { editor: Editor }) {
           </div>
           <div className="field">
             <label>{tr(lang, 'Estilo de cota', 'Dim style')}</label>
-            <select className="select" value={s.currentDimStyle} onChange={(e) => set({ currentDimStyle: e.target.value })}>
+            <select className="select" value={s.currentDimStyle} onChange={(e) => set({ currentDimStyle: e.target.value })} aria-label={tr(lang, 'Estilo de cota', 'Dim style')}>
               {[...doc.data.dimStyles.values()].map((x) => (
                 <option key={x.id} value={x.id}>
                   {x.name}
@@ -220,11 +221,11 @@ function CurrentProperties({ editor }: { editor: Editor }) {
           </div>
           <div className="field">
             <label>{tr(lang, 'Altura de texto', 'Text height')}</label>
-            <NumberField lang={lang} value={s.textHeight} onCommit={(v) => v > 0 && set({ textHeight: v })} />
+            <NumberField lang={lang} value={s.textHeight} onCommit={(v) => v > 0 && set({ textHeight: v })} ariaLabel={tr(lang, 'Altura de texto', 'Text height')} />
           </div>
           <div className="field">
             <label>{tr(lang, 'Escala global de línea', 'Global linetype scale')}</label>
-            <NumberField lang={lang} value={s.ltscale} onCommit={(v) => v > 0 && set({ ltscale: v })} />
+            <NumberField lang={lang} value={s.ltscale} onCommit={(v) => v > 0 && set({ ltscale: v })} ariaLabel={tr(lang, 'Escala global de línea', 'Global linetype scale')} />
           </div>
         </div>
       </details>
@@ -235,15 +236,15 @@ function CurrentProperties({ editor }: { editor: Editor }) {
         <div className="section__body">
           <div className="field">
             <label>{tr(lang, 'Título', 'Title')}</label>
-            <TextField value={s.title} onCommit={(v) => set({ title: v })} />
+            <TextField value={s.title} onCommit={(v) => set({ title: v })} ariaLabel={tr(lang, 'Título', 'Title')} />
           </div>
           <div className="field">
             <label>{tr(lang, 'Autor', 'Author')}</label>
-            <TextField value={s.author} onCommit={(v) => set({ author: v })} />
+            <TextField value={s.author} onCommit={(v) => set({ author: v })} ariaLabel={tr(lang, 'Autor', 'Author')} />
           </div>
           <div className="field">
             <label>{tr(lang, 'Unidades', 'Units')}</label>
-            <select className="select" value={s.units} onChange={(e) => set({ units: e.target.value as typeof s.units, insUnits: e.target.value as typeof s.units })}>
+            <select className="select" value={s.units} onChange={(e) => set({ units: e.target.value as typeof s.units, insUnits: e.target.value as typeof s.units })} aria-label={tr(lang, 'Unidades', 'Units')}>
               {['unitless', 'mm', 'cm', 'm', 'km', 'in', 'ft', 'yd', 'mi'].map((u) => (
                 <option key={u} value={u}>
                   {u}
@@ -253,11 +254,11 @@ function CurrentProperties({ editor }: { editor: Editor }) {
           </div>
           <div className="field">
             <label>{tr(lang, 'Precisión lineal', 'Linear precision')}</label>
-            <NumberField lang={lang} value={s.linearPrecision} onCommit={(v) => set({ linearPrecision: Math.max(0, Math.min(8, Math.round(v))) })} />
+            <NumberField lang={lang} value={s.linearPrecision} onCommit={(v) => set({ linearPrecision: Math.max(0, Math.min(8, Math.round(v))) })} ariaLabel={tr(lang, 'Precisión lineal', 'Linear precision')} />
           </div>
           <div className="field">
             <label>{tr(lang, 'Objetos', 'Objects')}</label>
-            <input className="input input--mono" readOnly value={editor.index.count(editor.inputOwner)} />
+            <input className="input input--mono" readOnly value={editor.index.count(editor.inputOwner)} aria-label={tr(lang, 'Objetos', 'Objects')} />
           </div>
         </div>
       </details>

@@ -66,14 +66,10 @@ pnpm check:features            # documentación generada al día
 pnpm test                      # suite Vitest
 pnpm vitest run ruta/al.test.ts
 pnpm build                     # typecheck + build de producción
-pnpm verify                    # tipos, capas, features, pruebas y build
+pnpm verify                    # lint, tipos, capas, features, pruebas y build
 ```
 
-Mientras `CI-001` siga abierta, `pnpm verify` no incluye lint. La puerta completa actual es:
-
-```bash
-pnpm lint && pnpm verify
-```
+`CI-001` está cerrada: `pnpm verify` incluye lint y es la puerta completa actual.
 
 No ejecutar siempre la suite completa durante la exploración. Usar primero la prueba focalizada y ejecutar la puerta proporcional antes de cerrar.
 
@@ -142,7 +138,7 @@ Empezar con una prueba que falle al corregir un defecto, salvo que sea imposible
 | PWA/service worker | instalación, caché, offline y actualización sin mezclar versiones |
 | Documentación/catálogo | `pnpm check:features` cuando aplique |
 
-Para cambios transversales, release o cierre de una tarea de `fix/features`, ejecutar `pnpm lint && pnpm verify`. Si un comando no pudo ejecutarse, decirlo explícitamente; no presentar como validado lo que no se corrió.
+Para cambios transversales, release o cierre de una tarea de `fix/features`, ejecutar `pnpm verify`. Si un comando no pudo ejecutarse, decirlo explícitamente; no presentar como validado lo que no se corrió.
 
 ## 10. Git y cambios compartidos
 

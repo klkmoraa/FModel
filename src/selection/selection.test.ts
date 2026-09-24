@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createDocument, entityDefaults } from '../document/defaults';
-import type { CircleEntity, Entity, Id, LineEntity, XLineEntity } from '../document/types';
+import type { CircleEntity, Entity, Id, LineEntity, WipeoutEntity, XLineEntity } from '../document/types';
 import { createContext } from '../model/context';
 import { SpatialIndex } from '../spatial/spatialIndex';
 import { entityEditable, entityVisible } from '../model/visibility';
@@ -53,6 +53,65 @@ describe('índice espacial', () => {
 });
 
 describe('designación', () => {
+  it('selecciona un wipeout que contiene una caja de coordenadas grandes', () => {
+    const isolatedDoc = createDocument();
+    const wipeout = isolatedDoc.transact('TEST', (tx) => tx.addEntity<WipeoutEntity>({
+      ...entityDefaults(isolatedDoc), id: 'large-wipeout', order: 1, type: 'wipeout', frame: true,
+      vertices: [
+        { x: 1e308, y: 0 }, { x: 1.2e308, y: 0 },
+        { x: 1.2e308, y: 100 }, { x: 1e308, y: 100 },
+      ],
+    }));
+    const isolatedCtx = createContext(isolatedDoc);
+    const isolatedIndex = new SpatialIndex(isolatedCtx);
+
+    const selected = selectInBox(isolatedCtx, isolatedIndex, wipeout.owner, box(1.05e308, 40, 1.1e308, 60), true);
+
+    expect(selected).toContain(wipeout.id);
+    isolatedIndex.dispose();
+    isolatedCtx.dispose();
+  });
+
+  it('selecciona una línea infinita lejana aunque su vector de dirección sea pequeño', () => {
+    const isolatedDoc = createDocument();
+    const entity = isolatedDoc.transact('TEST', (tx) => tx.addEntity<XLineEntity>({
+      ...entityDefaults(isolatedDoc),
+      id: 'small-direction-xline',
+      order: 1,
+      type: 'xline',
+      origin: { x: 0, y: 0 },
+      direction: { x: 1e-12, y: 0 },
+    }));
+    const isolatedCtx = createContext(isolatedDoc);
+    const isolatedIndex = new SpatialIndex(isolatedCtx);
+
+    const selected = selectInBox(isolatedCtx, isolatedIndex, entity.owner, box(100, -1, 101, 1), true);
+
+    expect(selected).toContain(entity.id);
+    isolatedIndex.dispose();
+    isolatedCtx.dispose();
+  });
+
+  it('no considera que una línea diagonal extrema cruce una caja fuera de ella', () => {
+    const isolatedDoc = createDocument();
+    const entity = isolatedDoc.transact('TEST', (tx) => tx.addEntity<LineEntity>({
+      ...entityDefaults(isolatedDoc),
+      id: 'extreme-diagonal',
+      order: 1,
+      type: 'line',
+      start: { x: -1e308, y: -1e308 },
+      end: { x: 1e308, y: 1e308 },
+    }));
+    const isolatedCtx = createContext(isolatedDoc);
+    const isolatedIndex = new SpatialIndex(isolatedCtx);
+
+    const selected = selectInBox(isolatedCtx, isolatedIndex, entity.owner, box(-1, 999, 1, 1001), true);
+
+    expect(selected).not.toContain(entity.id);
+    isolatedIndex.dispose();
+    isolatedCtx.dispose();
+  });
+
   it('designa el objeto bajo el cursor y prioriza el más cercano', () => {
     const hits = pickAt(ctx, index, owner, { x: 5, y: 0.05 }, 0.5);
     expect(hits[0].id).toBe(abajo.id);
@@ -83,6 +142,31 @@ describe('designación', () => {
     const cruza = selectByFence(ctx, index, owner, [{ x: 5, y: -2 }, { x: 5, y: 12 }]);
     // la línea auxiliar pasa por y = −50, fuera del borde
     expect(sorted(cruza)).toEqual(sorted([abajo.id, arriba.id, circulo.id]));
+  });
+
+  it('no selecciona segmentos que solo cruzan la prolongación del fence', () => {
+    const isolatedDoc = createDocument();
+    const entity = isolatedDoc.transact('TEST', (tx) =>
+      tx.addEntity<LineEntity>({
+        ...entityDefaults(isolatedDoc),
+        id: 'disjoint-collinear',
+        order: 1,
+        type: 'line',
+        start: { x: 4, y: 0 },
+        end: { x: 5, y: 0 },
+      }),
+    );
+    const isolatedCtx = createContext(isolatedDoc);
+    const isolatedIndex = new SpatialIndex(isolatedCtx);
+
+    const selected = selectByFence(isolatedCtx, isolatedIndex, entity.owner, [
+      { x: 0, y: 0 },
+      { x: 2, y: 0 },
+      { x: 10, y: 10 },
+    ]);
+
+    expect(selected).toEqual([]);
+    isolatedIndex.dispose();
   });
 
   it('la selección rápida filtra por tipo y capa', () => {

@@ -2,6 +2,7 @@ import 'fake-indexeddb/auto';
 import { strToU8, zipSync } from 'fflate';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createDocument } from '../document/defaults';
+import { idbWrite } from '../storage/idb';
 import { installDynamicSamples } from './samples';
 import { insertLibraryBlock, makeLibraryBlock, packageBlock } from './library';
 import { readLibraryArchive } from './libraryArchive';
@@ -44,6 +45,42 @@ describe('almacén de la biblioteca', () => {
     expect(items).toHaveLength(1);
     expect(items[0]).toMatchObject({ id: 'lib-1', name: 'Toma doble', categoryId: 'cat-ins-electricas', tags: ['Electricidad'], dynamic: true, savedAt: 5 });
     expect(mem.has(LEGACY_KEY)).toBe(false);
+  });
+
+  it('ignora una biblioteca heredada que no sea una lista sin bloquear el almacén', async () => {
+    mem.set(LEGACY_KEY, 'null');
+
+    await expect(loadLibrary()).resolves.toEqual([]);
+    expect(mem.has(LEGACY_KEY)).toBe(false);
+    expect(await loadCategories()).toHaveLength(DEFAULT_CATEGORIES.length);
+  });
+
+  it('descarta entradas heredadas truncadas y conserva las válidas', async () => {
+    const { pkg } = samplePkg('FM Símbolo eléctrico');
+    mem.set(LEGACY_KEY, JSON.stringify([
+      null,
+      {},
+      { id: 'sin-paquete', name: 'Roto', savedAt: 2 },
+      { id: 'lib-valid', name: 'Toma', category: 'Electricidad', savedAt: 5, package: pkg },
+    ]));
+
+    const items = await loadLibrary();
+    expect(items.map((item) => item.id)).toEqual(['lib-valid']);
+    expect(mem.has(LEGACY_KEY)).toBe(false);
+  });
+
+  it('omite registros corruptos ya persistidos sin romper los listados', async () => {
+    await loadLibrary();
+    await idbWrite(['library', 'libraryCategories'], (store) => {
+      store('library').put({ id: 'lib-corrupt', name: null });
+      store('libraryCategories').put({ id: 'cat-corrupt', name: null, order: 0 });
+      store('libraryCategories').put({ id: 'cat-orphan', name: 'Huérfana', order: 0, parent: 'cat-missing' });
+    });
+
+    await expect(loadLibrary()).resolves.toEqual([]);
+    const categories = await loadCategories();
+    expect(categories).toHaveLength(DEFAULT_CATEGORIES.length);
+    expect(categories.some((category) => category.id === 'cat-corrupt' || category.id === 'cat-orphan')).toBe(false);
   });
 
   it('guarda, sustituye y borra en una transacción; borrar una categoría manda sus bloques a Sin clasificar', async () => {

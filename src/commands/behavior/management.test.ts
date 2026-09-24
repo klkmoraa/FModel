@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import { createDocumentData, entityDefaults } from '../../document/defaults';
+import type { CircleEntity } from '../../document/types';
 import { CommandHarness } from './harness';
 
 describe('Comportamiento de Comandos — Gestión, Consulta y Visualización (CMD-001)', () => {
@@ -6,6 +8,19 @@ describe('Comportamiento de Comandos — Gestión, Consulta y Visualización (CM
 
   beforeEach(() => {
     h = new CommandHarness();
+  });
+
+  it('LIST marca medidas derivadas fuera de rango sin mostrar Infinity', async () => {
+    const circle = h.doc.transact('círculo extremo', (tx) => tx.addEntity<CircleEntity>({
+      ...entityDefaults(h.doc), type: 'circle', center: { x: 0, y: 1e308 }, radius: 1e308,
+    }));
+    h.select(circle.id);
+
+    const result = await h.run('LIST');
+
+    expect(result.ok).toBe(true);
+    expect(result.logs.join(' ')).not.toMatch(/Infinity|NaN/);
+    expect(result.logs.join(' ')).toContain('####');
   });
 
   it('DIST, AREA e ID: son de solo lectura y no mutan el documento', async () => {
@@ -62,6 +77,85 @@ describe('Comportamiento de Comandos — Gestión, Consulta y Visualización (CM
     const sEnd = h.snapshot();
     expect(sEnd.entityCount).toBe(s0.entityCount);
     expect(h.runner.busy).toBe(false);
+  });
+
+  it('CHPROP rechaza escalas y grosores no finitos sin alterar la entidad', async () => {
+    await h.run('LINE', [{ x: 0, y: 0 }, { x: 10, y: 0 }, '']);
+    const line = [...h.doc.data.entities.values()][0];
+    h.select(line.id);
+    const originalScale = line.linetypeScale;
+    const originalWeight = line.lineweight;
+
+    const scale = await h.run('CHPROP', ['Ltscale', 'Infinity', '']);
+    h.select(line.id);
+    const weight = await h.run('CHPROP', ['Lweight', 'Infinity', '']);
+
+    expect(scale.ok).toBe(false);
+    expect(weight.ok).toBe(false);
+    expect(h.doc.entity(line.id)?.linetypeScale).toBe(originalScale);
+    expect(h.doc.entity(line.id)?.lineweight).toBe(originalWeight);
+  });
+
+  it('CHPROP no aplica colores ni tipos de línea desconocidos', async () => {
+    await h.run('LINE', [{ x: 0, y: 0 }, { x: 10, y: 0 }, '']);
+    const line = [...h.doc.data.entities.values()][0];
+    const originalColor = line.color;
+    const originalLinetype = line.linetype;
+
+    h.select(line.id);
+    const color = await h.run('CHPROP', ['Color', 'color-inventado', '']);
+    h.select(line.id);
+    const linetype = await h.run('CHPROP', ['Ltype', 'tipo-inexistente', '']);
+
+    expect(color.ok).toBe(false);
+    expect(linetype.ok).toBe(false);
+    expect(h.doc.entity(line.id)?.color).toBe(originalColor);
+    expect(h.doc.entity(line.id)?.linetype).toBe(originalLinetype);
+  });
+
+  it('CHPROP conserva las opciones válidas ACI y PorBloque', async () => {
+    await h.run('LINE', [{ x: 0, y: 0 }, { x: 10, y: 0 }, '']);
+    const id = [...h.doc.data.entities.keys()][0];
+
+    h.select(id);
+    const color = await h.run('CHPROP', ['Color', 'aci:3', '']);
+    h.select(id);
+    const linetype = await h.run('CHPROP', ['Ltype', 'ByBlock', '']);
+
+    expect(color.ok).toBe(true);
+    expect(linetype.ok).toBe(true);
+    expect(h.doc.entity(id)?.color).toBe('aci:3');
+    expect(h.doc.entity(id)?.linetype).toBe('ByBlock');
+  });
+
+  it('ZOOM Escala rechaza un factor no numérico sin alterar la vista', async () => {
+    const previousScale = h.editor.view.scale;
+
+    const result = await h.run('ZOOM', ['Scale', '.']);
+
+    expect(result.ok).toBe(false);
+    expect(h.editor.view.scale).toBe(previousScale);
+  });
+
+  it('ZOOM Escala aplica un factor relativo válido', async () => {
+    const previousScale = h.editor.view.scale;
+
+    const result = await h.run('ZOOM', ['Scale', '2x']);
+
+    expect(result.ok).toBe(true);
+    expect(h.editor.view.scale).toBe(previousScale * 2);
+  });
+
+  it('ZOOM Previous no restaura una vista del dibujo anterior', async () => {
+    h.editor.view.scale = 10;
+    expect((await h.run('ZOOM', ['In'])).ok).toBe(true);
+
+    h.doc.replaceData(createDocumentData());
+    const newDrawingScale = h.editor.view.scale;
+    expect(newDrawingScale).not.toBe(10);
+    expect((await h.run('ZOOM', ['Previous'])).ok).toBe(true);
+
+    expect(h.editor.view.scale).toBe(newDrawingScale);
   });
 
   it('Comando desconocido: registra mensaje de error claro y el runner se mantiene funcional', async () => {

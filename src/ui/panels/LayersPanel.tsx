@@ -58,8 +58,8 @@ export function LayersPanel({ editor }: { editor: Editor }) {
   );
 
   return (
-    <div className="panel" style={{ gap: 8 }}>
-      <div className="panel__head" style={{ flexWrap: 'wrap' }}>
+    <div className="panel panel--layers" style={{ gap: 8 }}>
+      <div className="panel__head layers-toolbar">
         <button
           className="icon-btn"
           title={tr(lang, 'Nueva capa', 'New layer')}
@@ -131,7 +131,7 @@ export function LayersPanel({ editor }: { editor: Editor }) {
           {tr(lang, 'Purgar vacías', 'Purge empty')}
         </button>
       </div>
-      <div style={{ display: 'flex', gap: 6 }}>
+      <div className="layers-filter">
         <input className="input" placeholder={tr(lang, 'Buscar capa (admite * ?)', 'Search layer (supports * ?)')} value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={(e) => e.stopPropagation()} />
         <select className="select" style={{ width: 130 }} value={filterId} onChange={(e) => setFilterId(e.target.value)} aria-label={tr(lang, 'Filtro de capas', 'Layer filter')}>
           <option value="all">{tr(lang, 'Todas', 'All')}</option>
@@ -156,7 +156,7 @@ export function LayersPanel({ editor }: { editor: Editor }) {
         </button>
       </div>
       <LayerStates editor={editor} />
-      <div style={{ overflow: 'auto', maxHeight: '55dvh', border: '1px solid var(--line-soft)', borderRadius: 'var(--radius-xs)', background: 'var(--surface)' }}>
+      <div className="layers-table">
         <table className="grid" aria-label={tr(lang, 'Capas', 'Layers')}>
           <thead>
             <tr>

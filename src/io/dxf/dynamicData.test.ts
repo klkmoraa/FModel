@@ -3,10 +3,10 @@ import type { DynamicBlockDefinition } from '../../document/types';
 import { chunkText, decodeDefinition, encodeDefinition, instanceXdata, readInstanceXdata, readXrecord, remapStrings, xrecordBody } from './dynamicData';
 
 const def = {
-  parameters: [{ id: 'p1', type: 'linear', name: 'Ancho' }],
-  actions: [{ id: 'a1', type: 'stretch', paramId: 'p1', selection: ['e1', 'e2'] }],
+  parameters: [{ id: 'p1', type: 'linear', name: 'Ancho', label: 'Ancho', showInProperties: true, chainActions: false, gripCount: 2, base: { x: 0, y: 0 }, end: { x: 10, y: 0 }, baseLocation: 'start', valueSet: { kind: 'none' } }],
+  actions: [{ id: 'a1', type: 'stretch', name: 'Estirar', paramId: 'p1', selection: ['e1', 'e2'], paramPoint: 'end', frame: [], axis: 'x', distanceMultiplier: 1, angleOffset: 0 }],
   constraints: [],
-  lookups: [{ id: 'l1', rows: [{ label: 'A', inputs: ['600', 'BEEF'] }] }],
+  lookups: [{ id: 'l1', name: 'Medidas', inputs: ['p1'], lookupName: 'Medida', rows: [{ label: 'A', inputs: ['600'] }], reverse: false }],
   variables: [],
   propertyOrder: ['p1'],
 } as unknown as DynamicBlockDefinition;
@@ -31,16 +31,16 @@ describe('datos dinámicos FModel en DXF', () => {
     expect(missing).toBe(1);
     expect(back.parameters[0].id).toBe('p1');
     // valores de tablas con forma de handle no se tocan
-    expect((back.lookups[0] as unknown as { rows: { inputs: string[] }[] }).rows[0].inputs).toEqual(['600', 'BEEF']);
+    expect((back.lookups[0] as unknown as { rows: { inputs: string[] }[] }).rows[0].inputs).toEqual(['600']);
   });
 
   it('DXF encode/decode remapea handles sin tocar valores de tabla que parezcan IDs o handles', () => {
     const tableDef = {
       parameters: [
-        { id: 'p1', type: 'linear', name: 'e1' },
+        { id: 'p1', type: 'linear', name: 'e1', label: 'e1', showInProperties: true, chainActions: false, gripCount: 2, base: { x: 0, y: 0 }, end: { x: 10, y: 0 }, baseLocation: 'start', valueSet: { kind: 'none' } },
       ],
       actions: [
-        { id: 'a1', type: 'stretch', paramId: 'p1', selection: ['e1'] },
+        { id: 'a1', type: 'stretch', name: 'Estirar', paramId: 'p1', selection: ['e1'], paramPoint: 'end', frame: [], axis: 'x', distanceMultiplier: 1, angleOffset: 0 },
       ],
       constraints: [
         {
@@ -58,7 +58,7 @@ describe('datos dinámicos FModel en DXF', () => {
           inputs: ['p1'],
           lookupName: 'e1',
           rows: [
-            { label: 'e1', inputs: ['e1', '@H:A1', '600'] },
+            { label: 'e1', inputs: ['e1'] },
           ],
           reverse: false,
         },
@@ -85,7 +85,7 @@ describe('datos dinámicos FModel en DXF', () => {
     expect(back.parameters[0].name).toBe('e1');
     expect(back.lookups[0].name).toBe('e1');
     expect(back.lookups[0].rows[0].label).toBe('e1');
-    expect(back.lookups[0].rows[0].inputs).toEqual(['e1', '@H:A1', '600']);
+    expect(back.lookups[0].rows[0].inputs).toEqual(['e1']);
     expect(back.variables[0].name).toBe('e1');
     expect(back.variables[0].expression).toBe('e1 + 10');
     expect(back.variables[0].description).toBe('e1');
@@ -100,6 +100,8 @@ describe('datos dinámicos FModel en DXF', () => {
     expect(() => readXrecord(future)).toThrow(/versión/);
     const broken = { type: 'XRECORD', pairs: xrecordBody('P', '{roto') };
     expect(() => readXrecord(broken)).toThrow(/JSON/);
+    const truncated = { type: 'XRECORD', pairs: xrecordBody('P', JSON.stringify({ parameters: [{}], actions: [], constraints: [], lookups: [], variables: [], propertyOrder: [] })) };
+    expect(() => readXrecord(truncated)).toThrow(/estructura|structure/i);
   });
 
   it('XDATA de instancia: ida y vuelta e ignora otras aplicaciones', () => {
@@ -108,5 +110,6 @@ describe('datos dinámicos FModel en DXF', () => {
     expect(readInstanceXdata(pairs)).toEqual({ baseName: 'Panel', state });
     expect(readInstanceXdata([[1001, 'ACAD'], [1000, 'x']])).toBeNull();
     expect(readInstanceXdata(instanceXdata('Panel', undefined))).toEqual({ baseName: 'Panel', state: { values: {} } });
+    expect(readInstanceXdata(instanceXdata('Panel', { values: { p1: { x: 1 } as never } }))).toBeNull();
   });
 });

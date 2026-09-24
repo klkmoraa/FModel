@@ -23,6 +23,8 @@ export interface HistoryEntry {
 
 export interface HistoryTarget {
   applyChanges(changes: ChangeRecord[], direction: 'undo' | 'redo', label: string): void;
+  /** Restaura estado auxiliar del destino cuando se descarta un grupo. */
+  captureAbortState?(label: string): () => void;
 }
 
 /**
@@ -34,7 +36,7 @@ export class History {
   private undoStack: HistoryEntry[] = [];
   private redoStack: HistoryEntry[] = [];
   private seq = 0;
-  private groupStack: { label: string; start: number }[] = [];
+  private groupStack: { label: string; start: number; redo: HistoryEntry[]; restoreAbortState?: () => void }[] = [];
   private listeners = new Set<() => void>();
   limit = 1000;
 
@@ -54,14 +56,18 @@ export class History {
     }
     const entry: HistoryEntry = { id: ++this.seq, label, changes, timestamp: Date.now(), group: this.groupStack[0]?.label };
     this.undoStack.push(entry);
-    if (this.undoStack.length > this.limit) this.undoStack.splice(0, this.undoStack.length - this.limit);
+    if (!this.groupStack.length) this.trimToLimit();
     this.redoStack = [];
     this.emit();
     return entry;
   }
 
   beginGroup(label: string): void {
-    this.groupStack.push({ label, start: this.undoStack.length });
+    this.groupStack.push({ label, start: this.undoStack.length, redo: [...this.redoStack], restoreAbortState: this.target.captureAbortState?.(label) });
+  }
+
+  private trimToLimit(): void {
+    if (this.undoStack.length > this.limit) this.undoStack.splice(0, this.undoStack.length - this.limit);
   }
 
   /**
@@ -73,9 +79,13 @@ export class History {
     const g = this.groupStack.pop();
     if (!g) return;
     const entries = this.undoStack.splice(g.start);
-    if (!entries.length) return;
+    if (!entries.length) {
+      if (!this.groupStack.length) this.trimToLimit();
+      return;
+    }
     const merged = mergeChanges(entries.flatMap((e) => e.changes));
     if (merged.length) this.undoStack.push({ id: ++this.seq, label: g.label, changes: merged, timestamp: Date.now(), group: this.groupStack[0]?.label });
+    if (!this.groupStack.length) this.trimToLimit();
     this.emit();
   }
 
@@ -85,6 +95,9 @@ export class History {
     if (!g) return;
     const entries = this.undoStack.splice(g.start);
     for (let i = entries.length - 1; i >= 0; i--) this.target.applyChanges(entries[i].changes, 'undo', entries[i].label);
+    this.redoStack = g.redo;
+    g.restoreAbortState?.();
+    if (!this.groupStack.length) this.trimToLimit();
     this.emit();
   }
 
@@ -137,6 +150,7 @@ export class History {
   clear(): void {
     this.undoStack = [];
     this.redoStack = [];
+    this.groupStack = [];
     this.emit();
   }
 

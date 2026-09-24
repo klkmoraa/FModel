@@ -50,6 +50,7 @@ export interface TextSpec {
 }
 
 export interface ImageSpec {
+  assetId: string;
   /** PNG o JPEG como data URL */
   dataUrl: string;
   /** cuadrado unidad (origen abajo-izquierda) → mm de papel */
@@ -87,6 +88,16 @@ export const HAIRLINE_MM = 0.13;
 /** Grosor mínimo reproducible. */
 const MIN_WIDTH_MM = 0.05;
 
+function assertFiniteOutput(value: unknown): void {
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) throw new RangeError('Las coordenadas de trazado exceden el rango numérico válido. / Plot coordinates exceed the valid numeric range.');
+  } else if (Array.isArray(value)) {
+    for (const entry of value) assertFiniteOutput(entry);
+  } else if (value && typeof value === 'object') {
+    for (const entry of Object.values(value)) assertFiniteOutput(entry);
+  }
+}
+
 /**
  * Sumidero vectorial: aplica la pila de matrices, convierte arcos a Bézier exactas,
  * y traduce estilos resueltos (grosor en centésimas de mm, patrón en unidades del espacio)
@@ -121,12 +132,25 @@ export class VectorSink implements DrawSink {
     this.m = multiply(this.m, t);
   }
 
+  private outPath(cmds: PathCmd[]): OutCmd[] {
+    const path = toOutPath(cmds, this.m);
+    assertFiniteOutput(path);
+    return path;
+  }
+
+  private emitPath(cmds: PathCmd[], stroke: StrokeSpec | null, fill: FillSpec | null) {
+    const path = this.outPath(cmds);
+    assertFiniteOutput({ stroke, fill });
+    this.backend.path(path, stroke, fill);
+  }
+
   clip(cmds: PathCmd[]) {
-    this.backend.clip(toOutPath(cmds, this.m), 'evenodd');
+    this.backend.clip(this.outPath(cmds), 'evenodd');
   }
 
   /** Recorta a un rectángulo expresado directamente en mm de papel. */
   clipPaper(b: { minX: number; minY: number; maxX: number; maxY: number }) {
+    assertFiniteOutput(b);
     this.backend.clip(
       [
         { t: 'M', x: b.minX, y: b.minY },
@@ -159,16 +183,16 @@ export class VectorSink implements DrawSink {
 
   stroke(item: PathItem, style: ResolvedStyle, _owner: Entity) {
     if (!item.cmds.length) return;
-    this.backend.path(toOutPath(item.cmds, this.m), this.strokeSpec(style, item.width), null);
+    this.emitPath(item.cmds, this.strokeSpec(style, item.width), null);
   }
 
   fill(item: PathItem, style: ResolvedStyle, fillColor: string, _owner: Entity) {
     if (!item.cmds.length) return;
-    this.backend.path(toOutPath(item.cmds, this.m), null, { color: fillColor, alpha: this.alpha(style.alpha), rule: item.fill === 'nonzero' ? 'nonzero' : 'evenodd' });
+    this.emitPath(item.cmds, null, { color: fillColor, alpha: this.alpha(style.alpha), rule: item.fill === 'nonzero' ? 'nonzero' : 'evenodd' });
   }
 
   wipeout(item: WipeoutItem, style: ResolvedStyle, owner: Entity) {
-    this.backend.path(toOutPath(item.cmds, this.m), null, { color: this.o.paperColor ?? '#ffffff', alpha: 1, rule: 'nonzero' });
+    this.emitPath(item.cmds, null, { color: this.o.paperColor ?? '#ffffff', alpha: 1, rule: 'nonzero' });
     if (item.frame) this.stroke({ k: 'path', cmds: item.cmds, stroke: true, solid: true }, style, owner);
   }
 
@@ -183,8 +207,7 @@ export class VectorSink implements DrawSink {
     if (mode === 0) {
       const r = 0.15 / s;
       cmds.push({ t: 'M', x: x + r, y }, { t: 'A', cx: x, cy: y, r, a0: 0, a1: Math.PI * 2, ccw: true });
-      const out = toOutPath(cmds, this.m);
-      this.backend.path(out, null, { color: style.color, alpha: this.alpha(style.alpha), rule: 'nonzero' });
+      this.emitPath(cmds, null, { color: style.color, alpha: this.alpha(style.alpha), rule: 'nonzero' });
       cmds.length = 0;
     } else if (mode === 2) cmds.push({ t: 'M', x: x - h, y }, { t: 'L', x: x + h, y }, { t: 'M', x, y: y - h }, { t: 'L', x, y: y + h });
     else if (mode === 3) cmds.push({ t: 'M', x: x - h, y: y - h }, { t: 'L', x: x + h, y: y + h }, { t: 'M', x: x - h, y: y + h }, { t: 'L', x: x + h, y: y - h });
@@ -218,7 +241,7 @@ export class VectorSink implements DrawSink {
     const uy = applyToVector(m, { x: -Math.sin(item.rotation), y: Math.cos(item.rotation) });
     const capHeight = Math.hypot(uy.x, uy.y) * item.height;
     if (capHeight < 0.05) return;
-    this.backend.text({
+    const spec: TextSpec = {
       text: item.text,
       x: p.x,
       y: p.y,
@@ -233,18 +256,23 @@ export class VectorSink implements DrawSink {
       color: style.color,
       alpha: this.alpha(style.alpha),
       mask: item.background ? { margin: item.background.margin * Math.hypot(uy.x, uy.y) } : undefined,
-    });
+    };
+    assertFiniteOutput(spec);
+    this.backend.text(spec);
   }
 
   image(item: ImageItem, style: ResolvedStyle, owner: Entity) {
     const url = this.o.images?.(item.assetId, item.pdfPage);
     if (url) {
-      this.backend.image({
+      const spec: ImageSpec = {
+        assetId: item.assetId,
         dataUrl: url,
         m: multiply(this.m, item.m),
         opacity: Math.max(0, Math.min(1, item.opacity ?? 1)) * this.alpha(style.alpha),
         clip: item.clip && item.clip.length > 2 ? item.clip.map((q) => applyToPoint(this.m, q)) : undefined,
-      });
+      };
+      assertFiniteOutput(spec);
+      this.backend.image(spec);
     }
     if (item.frame || !url) {
       const corners = [

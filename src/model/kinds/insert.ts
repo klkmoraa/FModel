@@ -1,5 +1,6 @@
 import { TAU } from '../../geometry/angle';
-import { boxFromPoints, emptyBox, expandBox, isEmptyBox, transformBox } from '../../geometry/bbox';
+import { boxCorners, boxFromPoints, emptyBox, expandBox, isEmptyBox } from '../../geometry/bbox';
+import type { BBox } from '../../geometry/bbox';
 import type { Curve } from '../../geometry/curves';
 import { curveLength, curvePoint, curveTangent, paramAtLength, transformCurve } from '../../geometry/curves';
 import type { Mat2D } from '../../geometry/matrix';
@@ -8,6 +9,7 @@ import { polylineSegments } from '../../geometry/polyline';
 import type { Vec2 } from '../../geometry/vec';
 import { angleOf, len } from '../../geometry/vec';
 import type { ArrayEntity, AttdefEntity, BlockRecord, Entity, InsertEntity, TextEntity } from '../../document/types';
+import { arrayExpansionWithinLimit, arrayInstanceCount, MAX_ARRAY_INSTANCE_COUNT } from '../../document/arrayLimits';
 import type { DisplayItem } from '../graphics';
 import type { EntityKind, EvalContext, GripDef, SnapPointDef } from '../registry';
 import { kindOf, registerKind } from '../registry';
@@ -16,6 +18,33 @@ import { styleFont, textFrame } from './text';
 
 export function blockOf(ctx: EvalContext, id: string): BlockRecord | undefined {
   return ctx.doc.data.blocks.get(id);
+}
+
+function isRepresentableBox(box: BBox): boolean {
+  return !isEmptyBox(box) &&
+    [box.minX, box.minY, box.maxX, box.maxY, box.maxX - box.minX, box.maxY - box.minY].every(Number.isFinite);
+}
+
+function unboundedBox(): BBox {
+  return { minX: -Infinity, minY: -Infinity, maxX: Infinity, maxY: Infinity };
+}
+
+function unionBounds(target: BBox, candidate: BBox): BBox {
+  if (isEmptyBox(target)) return candidate;
+  if (isEmptyBox(candidate)) return target;
+  if (!isRepresentableBox(target) || !isRepresentableBox(candidate)) return unboundedBox();
+  const merged = { ...target };
+  expandBox(merged, candidate);
+  return isRepresentableBox(merged) ? merged : unboundedBox();
+}
+
+function transformBounds(box: BBox, m: Mat2D): BBox {
+  if (isEmptyBox(box)) return emptyBox();
+  if (!isRepresentableBox(box)) return unboundedBox();
+  const points = boxCorners(box).map((p) => applyToPoint(m, p));
+  if (points.some((p) => !Number.isFinite(p.x) || !Number.isFinite(p.y))) return unboundedBox();
+  const transformed = boxFromPoints(points);
+  return isRepresentableBox(transformed) ? transformed : unboundedBox();
 }
 
 export function insertMatrixOf(e: InsertEntity, block: BlockRecord | undefined): Mat2D {
@@ -146,14 +175,16 @@ export const insertKind: EntityKind<InsertEntity> = {
   },
   bbox: (e, ctx) => {
     const block = blockOf(ctx, e.blockId);
-    const b = emptyBox();
+    let bounds = emptyBox();
     if (block) {
       const cache = ctx.blockCache(e.blockId, e.dynamic);
-      for (const m of insertMatrices(e, block)) if (!isEmptyBox(cache.bbox)) expandBox(b, transformBox(cache.bbox, m));
+      for (const m of insertMatrices(e, block)) bounds = unionBounds(bounds, transformBounds(cache.bbox, m));
     }
-    for (const a of insertAttributes(e, ctx)) expandBox(b, boxFromPoints([a.position]));
-    if (isEmptyBox(b)) return boxFromPoints([e.position]);
-    return b;
+    for (const a of insertAttributes(e, ctx)) {
+      const attributeBox = boxFromPoints([a.position]);
+      if (!isEmptyBox(attributeBox)) bounds = unionBounds(bounds, isRepresentableBox(attributeBox) ? attributeBox : unboundedBox());
+    }
+    return isEmptyBox(bounds) ? boxFromPoints([e.position]) : bounds;
   },
   graphics: (e, ctx) => {
     const block = blockOf(ctx, e.blockId);
@@ -245,6 +276,8 @@ export const insertKind: EntityKind<InsertEntity> = {
 export function arrayTransforms(e: ArrayEntity): Mat2D[] {
   const p = e.params;
   const out: Mat2D[] = [];
+  const itemCount = arrayInstanceCount(p);
+  if (itemCount === null) return out;
   if (p.kind === 'rect') {
     const u = { x: Math.cos(p.angle), y: Math.sin(p.angle) };
     const v = { x: -u.y, y: u.x };
@@ -252,7 +285,7 @@ export function arrayTransforms(e: ArrayEntity): Mat2D[] {
       for (let c = 0; c < Math.max(1, p.columns); c++) out.push(translation(u.x * c * p.columnSpacing + v.x * r * p.rowSpacing, u.y * c * p.columnSpacing + v.y * r * p.rowSpacing));
   } else if (p.kind === 'polar') {
     const full = Math.abs(Math.abs(p.fillAngle) - TAU) < 1e-9;
-    const n = Math.max(1, p.count);
+    const n = itemCount / p.rows;
     const step = n > 1 ? p.fillAngle / (full ? n : n - 1) : 0;
     for (let r = 0; r < Math.max(1, p.rows); r++) {
       for (let i = 0; i < n; i++) {
@@ -269,28 +302,31 @@ export function arrayTransforms(e: ArrayEntity): Mat2D[] {
     }
   } else {
     const segs = polylineSegments(p.path.vertices, p.path.closed);
-    const total = segs.reduce((s, c) => s + curveLength(c), 0);
-    const n = Math.max(1, p.count);
+    if (!arrayExpansionWithinLimit(itemCount, 0, segs.length)) return out;
+    const lengths = segs.map(curveLength);
+    const total = lengths.reduce((s, length) => s + length, 0);
+    const n = itemCount;
     const spacing = p.method === 'divide' ? (n > 1 ? total / (p.path.closed ? n : n - 1) : 0) : p.spacing;
     const start = segs.length ? curvePoint(segs[0], 0) : e.basePoint;
     const t0 = segs.length ? curveTangent(segs[0], 0) : { x: 1, y: 0 };
+    const moveToStart = translation(start.x - e.basePoint.x, start.y - e.basePoint.y);
+    let segmentIndex = 0;
+    let segmentStart = 0;
     for (let i = 0; i < n; i++) {
       const s = i * spacing;
       if (s > total + 1e-9) break;
-      let acc = 0;
       let pt = start;
       let tan = t0;
-      for (const c of segs) {
-        const l = curveLength(c);
-        if (acc + l >= s - 1e-12) {
-          const t = paramAtLength(c, s - acc);
-          pt = curvePoint(c, t);
-          tan = curveTangent(c, t);
-          break;
-        }
-        acc += l;
+      while (segmentIndex < segs.length - 1 && segmentStart + lengths[segmentIndex] < s - 1e-12) {
+        segmentStart += lengths[segmentIndex];
+        segmentIndex++;
       }
-      const moveToStart = translation(start.x - e.basePoint.x, start.y - e.basePoint.y);
+      const c = segs[segmentIndex];
+      if (c && segmentStart + lengths[segmentIndex] >= s - 1e-12) {
+        const t = paramAtLength(c, s - segmentStart);
+        pt = curvePoint(c, t);
+        tan = curveTangent(c, t);
+      }
       const rot = p.alignItems ? rotation(angleOf(tan) - angleOf(t0), start) : { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
       out.push(compose(moveToStart, rot, translation(pt.x - start.x, pt.y - start.y)));
     }
@@ -304,19 +340,31 @@ export function arrayItemMatrices(e: ArrayEntity): Mat2D[] {
   return arrayTransforms(e).map((t) => multiply(t, src));
 }
 
+function arrayFitsContext(e: ArrayEntity, ctx: EvalContext): boolean {
+  const instances = arrayInstanceCount(e.params);
+  if (instances === null) return false;
+  const sourceCount = ctx.evaluateBlock(e.sourceBlockId).entities.length;
+  const pathSegments = e.params.kind === 'path'
+    ? Math.max(1, e.params.path.vertices.length - (e.params.path.closed ? 0 : 1))
+    : 1;
+  return arrayExpansionWithinLimit(instances, sourceCount, pathSegments);
+}
+
 export const arrayKind: EntityKind<ArrayEntity> = {
   type: 'array',
   curves: (e, ctx) => {
+    if (!arrayFitsContext(e, ctx)) return [];
     const cache = ctx.blockCache(e.sourceBlockId);
     return arrayItemMatrices(e).flatMap((m) => cache.curves.map((c) => transformCurve(c, m)));
   },
   bbox: (e, ctx) => {
+    if (!arrayFitsContext(e, ctx)) return boxFromPoints([e.basePoint]);
     const cache = ctx.blockCache(e.sourceBlockId);
-    const b = emptyBox();
-    for (const m of arrayItemMatrices(e)) if (!isEmptyBox(cache.bbox)) expandBox(b, transformBox(cache.bbox, m));
-    return isEmptyBox(b) ? boxFromPoints([e.basePoint]) : b;
+    let bounds = emptyBox();
+    for (const m of arrayItemMatrices(e)) bounds = unionBounds(bounds, transformBounds(cache.bbox, m));
+    return isEmptyBox(bounds) ? boxFromPoints([e.basePoint]) : bounds;
   },
-  graphics: (e) => arrayItemMatrices(e).map((m) => ({ k: 'block', blockId: e.sourceBlockId, variant: '', m })),
+  graphics: (e, ctx) => arrayFitsContext(e, ctx) ? arrayItemMatrices(e).map((m) => ({ k: 'block', blockId: e.sourceBlockId, variant: '', m })) : [],
   transform: (e, m) => {
     const p = e.params;
     const lin = { ...m, e: 0, f: 0 };
@@ -364,11 +412,18 @@ export const arrayKind: EntityKind<ArrayEntity> = {
     const dv = (to.x - e.basePoint.x) * v.x + (to.y - e.basePoint.y) * v.y;
     if (g === 'colspacing') return { ...e, params: { ...p, columnSpacing: du } };
     if (g === 'rowspacing') return { ...e, params: { ...p, rowSpacing: dv } };
-    if (g === 'colcount') return { ...e, params: { ...p, columns: Math.max(1, Math.round(du / (p.columnSpacing || 1)) + 1) } };
-    if (g === 'rowcount') return { ...e, params: { ...p, rows: Math.max(1, Math.round(dv / (p.rowSpacing || 1)) + 1) } };
+    if (g === 'colcount') {
+      const columns = Math.min(Math.max(1, Math.round(du / (p.columnSpacing || 1)) + 1), Math.floor(MAX_ARRAY_INSTANCE_COUNT / Math.max(1, p.rows)));
+      return { ...e, params: { ...p, columns } };
+    }
+    if (g === 'rowcount') {
+      const rows = Math.min(Math.max(1, Math.round(dv / (p.rowSpacing || 1)) + 1), Math.floor(MAX_ARRAY_INSTANCE_COUNT / Math.max(1, p.columns)));
+      return { ...e, params: { ...p, rows } };
+    }
     return null;
   },
   explode: (e, ctx) => {
+    if (!arrayFitsContext(e, ctx)) return null;
     const ev = ctx.evaluateBlock(e.sourceBlockId);
     return arrayItemMatrices(e).flatMap((m) => explodeBlockEntities(e, ev.entities, m, ctx));
   },

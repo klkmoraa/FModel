@@ -1,9 +1,11 @@
 import 'fake-indexeddb/auto';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDocument, entityDefaults } from '../document/defaults';
 import type { LineEntity } from '../document/types';
 import * as idb from './idb';
-import { classifyStorageError, Persistence } from './persistence';
+import { classifyStorageError, createDrawingSnapshot, Persistence } from './persistence';
+
+const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+X2y8AAAAASUVORK5CYII=';
 
 const newLine = (doc: ReturnType<typeof createDocument>, x: number) =>
   doc.transact('LINE', (tx) => tx.addEntity<LineEntity>({ ...entityDefaults(doc), id: `l${x}`, order: x, type: 'line', start: { x, y: 0 }, end: { x, y: 10 } }));
@@ -11,11 +13,14 @@ const newLine = (doc: ReturnType<typeof createDocument>, x: number) =>
 let doc = createDocument();
 let persistence = new Persistence(() => doc, () => 'Plano');
 
-beforeEach(() => {
+beforeEach(async () => {
   doc = createDocument({ title: 'Plano' });
   persistence = new Persistence(() => doc, () => 'Plano');
   vi.restoreAllMocks();
+  for (const rec of await idb.idbAll<{ id: string }>('recovery')) await idb.idbDelete('recovery', rec.id);
 });
+
+afterEach(() => vi.unstubAllGlobals());
 
 describe('clasificación de errores de almacenamiento (classifyStorageError)', () => {
   it('clasifica QuotaExceededError estándar, códigos numéricos legacy y variantes de navegador', () => {
@@ -46,6 +51,21 @@ describe('clasificación de errores de almacenamiento (classifyStorageError)', (
 });
 
 describe('autoguardado tipado y modelo de salud (PersistenceHealth)', () => {
+  it('mantiene la marca de salida limpia cuando el intervalo de autoguardado está desactivado', () => {
+    const addEventListener = vi.fn();
+    const removeEventListener = vi.fn();
+    const setInterval = vi.fn();
+    const clearInterval = vi.fn();
+    vi.stubGlobal('window', { addEventListener, removeEventListener, setInterval, clearInterval });
+
+    persistence.start(0);
+
+    expect(addEventListener).toHaveBeenCalledWith('beforeunload', expect.any(Function));
+    expect(setInterval).not.toHaveBeenCalled();
+    persistence.stop();
+    expect(removeEventListener).toHaveBeenCalledWith('beforeunload', expect.any(Function));
+  });
+
   it('autosave sin cambios retorna not-needed y conserva salud intacta', async () => {
     const res = await persistence.autosave();
     expect(res).toEqual({ status: 'not-needed' });
@@ -62,6 +82,21 @@ describe('autoguardado tipado y modelo de salud (PersistenceHealth)', () => {
     const rec = await persistence.pendingRecovery();
     expect(rec?.documentId).toBe(doc.id);
     expect(rec?.file.collections.entities).toHaveLength(1);
+  });
+
+  it('crea una primera versión automática para cada dibujo aunque se alternen dentro de diez minutos', async () => {
+    newLine(doc, 1);
+    const first = await persistence.autosave();
+    expect(first).toMatchObject({ status: 'saved', versionSaved: true });
+
+    const firstDocumentId = doc.id;
+    doc = createDocument({ title: 'Segundo plano' });
+    newLine(doc, 2);
+    const second = await persistence.autosave();
+
+    expect(second).toMatchObject({ status: 'saved', versionSaved: true });
+    expect((await persistence.versions(firstDocumentId)).filter((version) => version.auto)).toHaveLength(1);
+    expect((await persistence.versions(doc.id)).filter((version) => version.auto)).toHaveLength(1);
   });
 
   it('QuotaExceededError en autosave retorna failed/quota y degrada la salud a degraded', async () => {
@@ -136,6 +171,92 @@ describe('autoguardado tipado y modelo de salud (PersistenceHealth)', () => {
     expect(await persistence.pendingRecovery()).toBeNull();
   });
 
+  it('una pestaña limpia no oculta la recuperación de otro dibujo abierto', async () => {
+    newLine(doc, 1);
+    await persistence.autosave();
+    const dirtyDocumentId = doc.id;
+    const cleanDoc = createDocument({ title: 'Otra pestaña' });
+    const cleanPersistence = new Persistence(() => cleanDoc, () => 'Otra pestaña');
+    expect(cleanDoc.id).not.toBe(dirtyDocumentId);
+
+    await cleanPersistence.markCleanExit();
+
+    expect(await persistence.pendingRecovery()).toMatchObject({ documentId: dirtyDocumentId, cleanExit: false });
+  });
+
+  it('una pestaña limpia del mismo dibujo no oculta el borrador de otra pestaña', async () => {
+    const storageA = new Map<string, string>();
+    const storageB = new Map<string, string>();
+    const stubStorage = (items: Map<string, string>) => ({
+      getItem: (key: string) => items.get(key) ?? null,
+      setItem: (key: string, value: string) => { items.set(key, value); },
+    });
+    vi.stubGlobal('sessionStorage', stubStorage(storageA));
+    const dirtyPersistence = new Persistence(() => doc, () => 'Plano');
+    newLine(doc, 2);
+    await dirtyPersistence.autosave();
+
+    const cleanDoc = createDocument({ title: 'Otra pestaña' });
+    cleanDoc.id = doc.id;
+    vi.stubGlobal('sessionStorage', stubStorage(storageB));
+    const cleanPersistence = new Persistence(() => cleanDoc, () => 'Otra pestaña');
+    await cleanPersistence.markCleanExit();
+
+    expect(await dirtyPersistence.pendingRecovery()).toMatchObject({ documentId: doc.id, cleanExit: false });
+  });
+
+  it('conserva dos borradores de pestañas distintas y permite descartar uno a la vez', async () => {
+    const storageA = new Map<string, string>();
+    const storageB = new Map<string, string>();
+    const stubStorage = (items: Map<string, string>) => ({
+      getItem: (key: string) => items.get(key) ?? null,
+      setItem: (key: string, value: string) => { items.set(key, value); },
+    });
+    vi.stubGlobal('sessionStorage', stubStorage(storageA));
+    const tabA = new Persistence(() => doc, () => 'Pestaña A');
+    newLine(doc, 3);
+    await tabA.autosave();
+    const firstSavedAt = (await tabA.pendingRecovery())!.savedAt;
+    vi.spyOn(Date, 'now').mockReturnValue(firstSavedAt + 1_000);
+
+    const secondDoc = createDocument({ title: 'Pestaña B' });
+    newLine(secondDoc, 4);
+    vi.stubGlobal('sessionStorage', stubStorage(storageB));
+    const tabB = new Persistence(() => secondDoc, () => 'Pestaña B');
+    await tabB.autosave();
+
+    const records = (await idb.idbAll<{ id: string }>('recovery')).filter((rec) => rec.id.startsWith('current:'));
+    expect(records).toHaveLength(2);
+    expect((await tabA.pendingRecovery())?.documentId).toBe(secondDoc.id);
+    await tabA.discardRecovery();
+    expect((await tabA.pendingRecovery())?.documentId).toBe(doc.id);
+  });
+
+  it('marcar salida limpia no sobrescribe un autoguardado que entra durante la lectura', async () => {
+    newLine(doc, 1);
+    await persistence.autosave();
+    const stale = (await persistence.pendingRecovery())!;
+    const newer = { ...stale, name: 'Autoguardado más reciente', savedAt: stale.savedAt + 1, cleanExit: false };
+    doc.dirty = false;
+
+    const originalGet = IDBObjectStore.prototype.get;
+    let competingWrite: Promise<unknown> | undefined;
+    const getSpy = vi.spyOn(IDBObjectStore.prototype, 'get').mockImplementation(function (this: IDBObjectStore, key: IDBValidKey | IDBKeyRange) {
+      const request = originalGet.call(this, key);
+      if (this.name === 'recovery' && key === stale.id) {
+        request.addEventListener('success', () => { competingWrite = idb.idbPut('recovery', newer); }, { once: true });
+      }
+      return request;
+    });
+
+    await persistence.markCleanExit();
+    await competingWrite;
+    getSpy.mockRestore();
+
+    const stored = await idb.idbGet<typeof newer>('recovery', stale.id);
+    expect(stored).toMatchObject({ name: newer.name, savedAt: newer.savedAt, cleanExit: false });
+  });
+
   it('descartar el borrador lo elimina', async () => {
     newLine(doc, 1);
     await persistence.autosave();
@@ -144,14 +265,14 @@ describe('autoguardado tipado y modelo de salud (PersistenceHealth)', () => {
   });
 
   it('el borrador lleva los recursos embebidos para poder abrirlo solo', async () => {
-    doc.transact('ASSET', (tx) => tx.add('assets', { id: 'a1', name: 'plano.png', mime: 'image/png', size: 4, dataUrl: 'data:image/png;base64,AAAA' }));
+    doc.transact('ASSET', (tx) => tx.add('assets', { id: 'a1', name: 'plano.png', mime: 'image/png', size: 68, dataUrl: PNG }));
     await persistence.autosave();
     const rec = await persistence.pendingRecovery();
-    expect((rec!.file.collections.assets as { dataUrl?: string }[])[0].dataUrl).toBe('data:image/png;base64,AAAA');
+    expect((rec!.file.collections.assets as { dataUrl?: string }[])[0].dataUrl).toBe(PNG);
   });
 
   it('pendingRecovery() propaga error y degrada la salud ante fallo de lectura', async () => {
-    vi.spyOn(idb, 'idbGet').mockRejectedValueOnce(new DOMException('Quota exceeded', 'QuotaExceededError'));
+    vi.spyOn(idb, 'idbAll').mockRejectedValueOnce(new DOMException('Quota exceeded', 'QuotaExceededError'));
     await expect(persistence.pendingRecovery()).rejects.toThrow();
     expect(persistence.health.status).toBe('degraded');
     expect(persistence.health.lastOp).toBe('recovery');
@@ -176,10 +297,38 @@ describe('operación atómica dibujo + versión (storeDrawingAndVersion)', () =>
   it('storeDrawingAndVersion reutiliza bytes precomputados si se proporcionan', async () => {
     newLine(doc, 2);
     const customBytes = new Uint8Array([1, 2, 3, 4]);
-    const { drawing, version } = await persistence.storeDrawingAndVersion('Plano Rapido', 'V Rapida', customBytes);
+    const { drawing, version } = await persistence.storeDrawingAndVersion('Plano Rapido', 'V Rapida', createDrawingSnapshot(doc, customBytes));
     expect(drawing.bytes).toBe(customBytes);
     expect(version.bytes).toBe(customBytes);
     expect(persistence.health.lastOp).toBe('storeDrawingAndVersion');
+  });
+
+  it('conserva la identidad de la instantánea aunque se abra otro dibujo antes de escribirla', async () => {
+    newLine(doc, 2);
+    const snapshot = createDrawingSnapshot(doc);
+    doc = createDocument({ title: 'Dibujo nuevo' });
+
+    const { drawing, version } = await persistence.storeDrawingAndVersion('Dibujo anterior', 'Guardado manual', snapshot);
+
+    expect(drawing.id).toBe(snapshot.documentId);
+    expect(version.documentId).toBe(snapshot.documentId);
+    expect(version.entityCount).toBe(1);
+    expect(drawing.bytes).toBe(snapshot.bytes);
+    expect(doc.id).not.toBe(snapshot.documentId);
+  });
+
+  it('un guardado antiguo que termina después no sustituye la copia local más reciente', async () => {
+    newLine(doc, 1);
+    const older = createDrawingSnapshot(doc);
+    newLine(doc, 2);
+    const newer = createDrawingSnapshot(doc);
+
+    await persistence.storeDrawingAndVersion('Plano', 'Segundo guardado', newer);
+    await persistence.storeDrawingAndVersion('Plano', 'Primer guardado', older);
+
+    const stored = (await persistence.drawings()).find((drawing) => drawing.id === doc.id);
+    expect(stored?.bytes).toEqual(newer.bytes);
+    expect((await persistence.versions(doc.id)).filter((version) => version.label === 'Primer guardado' || version.label === 'Segundo guardado')).toHaveLength(2);
   });
 
   it('si falla la escritura multi-store, se degrada la salud y se propaga el error', async () => {
@@ -245,6 +394,32 @@ describe('purga controlada de versiones automáticas (purgeAutoVersions)', () =>
 });
 
 describe('sesión restaurable al recargar', () => {
+  it('cada pestaña restaura su propio dibujo aunque otra guarde después', async () => {
+    const tabStorage = (items: Map<string, string>) => ({
+      getItem: (key: string) => items.get(key) ?? null,
+      setItem: (key: string, value: string) => { items.set(key, value); },
+    });
+    const storageA = new Map<string, string>();
+    const storageB = new Map<string, string>();
+    const docA = createDocument({ title: 'Pestaña A' });
+    const docB = createDocument({ title: 'Pestaña B' });
+    newLine(docA, 7);
+    newLine(docB, 8);
+
+    vi.stubGlobal('sessionStorage', tabStorage(storageA));
+    const tabA = new Persistence(() => docA, () => 'Pestaña A');
+    vi.stubGlobal('sessionStorage', tabStorage(storageB));
+    const tabB = new Persistence(() => docB, () => 'Pestaña B');
+    expect(await tabA.saveSession()).toBe(true);
+    expect(await tabB.saveSession()).toBe(true);
+
+    expect((await tabA.loadSession())?.documentId).toBe(docA.id);
+    expect((await tabB.loadSession())?.documentId).toBe(docB.id);
+    vi.stubGlobal('sessionStorage', tabStorage(storageA));
+    const reloadedTabA = new Persistence(() => docA, () => 'Pestaña A');
+    expect((await reloadedTabA.loadSession())?.documentId).toBe(docA.id);
+  });
+
   it('guarda la sesión aunque el dibujo no esté «sucio» y la restaura con su estado', async () => {
     newLine(doc, 3);
     await persistence.saveSession();
@@ -255,12 +430,43 @@ describe('sesión restaurable al recargar', () => {
     expect(rec?.file.collections.entities).toHaveLength(1);
   });
 
+  it('migra la sesión anterior a la clave de la pestaña una sola vez', async () => {
+    newLine(doc, 9);
+    expect(await persistence.saveSession()).toBe(true);
+    const current = (await persistence.loadSession())!;
+    await idb.idbPut('recovery', { ...current, id: 'session' });
+    await idb.idbDelete('recovery', current.id);
+
+    const migrated = await persistence.loadSession();
+
+    expect(migrated).toMatchObject({ id: current.id, documentId: doc.id });
+    expect(await idb.idbGet('recovery', 'session')).toBeUndefined();
+    expect(await idb.idbGet('recovery', current.id)).toMatchObject({ documentId: doc.id });
+  });
+
   it('los cambios programados se escriben al forzar el volcado', async () => {
     persistence.scheduleSession();
     newLine(doc, 4);
     persistence.scheduleSession();
     await persistence.flushSession();
     expect((await persistence.loadSession())?.file.collections.entities).toHaveLength(1);
+  });
+
+  it('el volcado no anuncia éxito si IndexedDB aborta después de aceptar la escritura', async () => {
+    await idb.openDb();
+    newLine(doc, 6);
+    persistence.scheduleSession();
+    vi.spyOn(IDBTransaction.prototype, 'commit').mockImplementation(() => {});
+    const originalPut = IDBObjectStore.prototype.put;
+    vi.spyOn(IDBObjectStore.prototype, 'put').mockImplementation(function (this: IDBObjectStore, value: unknown) {
+      const request = originalPut.call(this, value);
+      request.addEventListener('success', () => this.transaction.abort(), { once: true });
+      return request;
+    });
+
+    expect(await persistence.flushSession()).toBe(false);
+    expect(persistence.health.status).toBe('degraded');
+    expect(persistence.health.lastOp).toBe('session');
   });
 
   it('un dibujo nuevo sustituye a la sesión anterior', async () => {

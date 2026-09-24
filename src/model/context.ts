@@ -16,6 +16,24 @@ registerAllKinds();
 
 export type DynamicEvaluator = (ctx: EvalContext, block: BlockRecord, entities: Entity[], dyn: DynamicInstanceState | undefined) => Entity[];
 
+function isRepresentableBox(box: BBox): boolean {
+  return !isEmptyBox(box) &&
+    [box.minX, box.minY, box.maxX, box.maxY, box.maxX - box.minX, box.maxY - box.minY].every(Number.isFinite);
+}
+
+function unboundedBox(): BBox {
+  return { minX: -Infinity, minY: -Infinity, maxX: Infinity, maxY: Infinity };
+}
+
+function includeRepresentableBox(target: BBox, candidate: BBox): boolean {
+  if (!isRepresentableBox(candidate)) return false;
+  const merged = { ...target };
+  expandBox(merged, candidate);
+  if (!isRepresentableBox(merged)) return false;
+  Object.assign(target, merged);
+  return true;
+}
+
 /**
  * Contexto de evaluación del modelo: cachés de definiciones de bloque, medición de
  * texto y resolución de campos. Se invalida con los eventos del documento.
@@ -115,6 +133,7 @@ export class ModelContext implements EvalContext {
       const snaps: SnapPointDef[] = [];
       const attdefs: Entity[] = [];
       const bbox: BBox = emptyBox();
+      let bboxRepresentable = true;
       for (const e of ev.entities) {
         if (!e.visible) continue;
         if (e.type === 'attdef') {
@@ -125,11 +144,26 @@ export class ModelContext implements EvalContext {
         const cs = k.curves(e, this);
         curves.push(...cs);
         const b = k.bbox(e, this);
-        if (!isEmptyBox(b) && Number.isFinite(b.minX)) expandBox(bbox, b);
-        else for (const c of cs) if (c.kind !== 'ray' && c.kind !== 'xline') expandBox(bbox, curveBBox(c));
+        if (isRepresentableBox(b)) {
+          if (!includeRepresentableBox(bbox, b)) bboxRepresentable = false;
+        } else {
+          const curveBounds = emptyBox();
+          let hasBoundableCurve = false;
+          let curvesRepresentable = true;
+          for (const c of cs) {
+            if (c.kind === 'ray' || c.kind === 'xline') continue;
+            const cb = curveBBox(c);
+            if (!isRepresentableBox(cb) || !includeRepresentableBox(curveBounds, cb)) {
+              curvesRepresentable = false;
+              break;
+            }
+            hasBoundableCurve = true;
+          }
+          if (!curvesRepresentable || (!isEmptyBox(b) && !hasBoundableCurve) || (hasBoundableCurve && !includeRepresentableBox(bbox, curveBounds))) bboxRepresentable = false;
+        }
         snaps.push(...k.snapPoints(e, this));
       }
-      const entry = { curves, bbox, snaps, attdefs };
+      const entry = { curves, bbox: bboxRepresentable ? bbox : unboundedBox(), snaps, attdefs };
       if (this.entryCache.size > 4000) this.entryCache.clear();
       this.entryCache.set(key, entry);
       return entry;

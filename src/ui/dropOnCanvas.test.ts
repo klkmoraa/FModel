@@ -8,7 +8,7 @@ import type { InsertEntity } from '../document/types';
 import { MODEL_SPACE_ID } from '../document/types';
 import { Editor } from '../editor/editor';
 import { registerAllCommands } from '../commands';
-import { dropOnCanvas } from './dropOnCanvas';
+import { dropOnCanvas, parseDropPayload } from './dropOnCanvas';
 
 beforeAll(() => registerAllCommands());
 
@@ -20,6 +20,19 @@ function setup() {
 const inserts = (editor: Editor) => editor.doc.entitiesOf(MODEL_SPACE_ID).filter((e): e is InsertEntity => e.type === 'insert');
 
 describe('soltar en el lienzo', () => {
+  it('rechaza JSON y payloads incompletos antes de ejecutar una herramienta', async () => {
+    expect(parseDropPayload('{roto')).toBeNull();
+    expect(parseDropPayload('null')).toBeNull();
+    expect(parseDropPayload(JSON.stringify({ kind: 'library-block' }))).toBeNull();
+    expect(parseDropPayload(JSON.stringify({ kind: 'block', name: 'Puerta' }))).toEqual({ kind: 'block', name: 'Puerta' });
+    expect(parseDropPayload(`${' '.repeat(1_000_000)}{"kind":"block","name":"Puerta"}`)).toBeNull();
+
+    const editor = setup();
+    await dropOnCanvas(editor, { kind: 'command' }, { x: 0, y: 0 });
+    expect(editor.runner.busy).toBe(false);
+    expect(editor.doc.data.entities.size).toBe(0);
+  });
+
   it('el punto de suelta usa las referencias a objetos aunque no haya orden en curso', async () => {
     const editor = setup();
     await editor.runner.script('LINE', [{ x: 10, y: 10 }, { x: 40, y: 10 }, '']);

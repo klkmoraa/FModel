@@ -22,12 +22,14 @@ import type {
 } from '../../document/types';
 import { MODEL_SPACE_ID } from '../../document/types';
 import type { DxfFile, DxfRecord } from './parser';
-import { parseDxf, R } from './parser';
+import { assertDxfLimits, parseDxf, R } from './parser';
 import { decodeDefinition, readInstanceXdata, readXrecord } from './dynamicData';
 import { acadIndex, anonymousRepresentations, instanceNodes, readAcadDynamicBlocks } from './acadDynamic';
 import type { PolyVertex } from '../../geometry/polyline';
 import { curvesToVertices } from '../../geometry/polyline';
 import type { Curve } from '../../geometry/curves';
+import { assertFiniteValues } from '../validation';
+import { assertInputBytes, INPUT_LIMITS, InputLimitError } from '../limits';
 
 export interface ImportReport {
   version: string;
@@ -46,6 +48,21 @@ const INSUNITS: Record<number, DrawingUnits> = { 0: 'unitless', 1: 'in', 2: 'ft'
 
 const ARROWS: Record<string, ArrowType> = { '': 'closed-filled', _CLOSEDBLANK: 'closed', _CLOSED: 'closed', _OPEN: 'open', _OPEN30: 'open30', _DOT: 'dot', _DOTSMALL: 'dot-small', _OBLIQUE: 'tick', _ARCHTICK: 'architectural', _INTEGRAL: 'integral', _NONE: 'none' };
 
+const IMPORTED_ENTITY_TYPES = new Set(['LINE', 'POINT', 'CIRCLE', 'ARC', 'ELLIPSE', 'LWPOLYLINE', 'POLYLINE', 'SPLINE', 'TEXT', 'MTEXT', 'INSERT', 'ATTDEF', 'HATCH', 'SOLID', 'TRACE', 'XLINE', 'RAY', 'DIMENSION', 'ARC_DIMENSION', 'LEADER', 'MULTILEADER', 'MLEADER', 'WIPEOUT', 'MLINE', 'VIEWPORT', 'ACAD_TABLE']);
+const tooManyEntities = () => new InputLimitError('El DXF produciría demasiadas entidades. / The DXF would produce too many entities.');
+
+function assertDxfOutputLimit(dxf: DxfFile, existing: number): void {
+  let possible = existing;
+  const count = (records: DxfRecord[]) => {
+    for (const record of records) {
+      possible += record.type === '3DFACE' ? 4 : IMPORTED_ENTITY_TYPES.has(record.type) ? 1 : 0;
+      if (possible > INPUT_LIMITS.maxEntities) throw tooManyEntities();
+    }
+  };
+  for (const block of dxf.blocks) count(block.entities);
+  count(dxf.entities);
+}
+
 export function importDxfIntoDocument(doc: CadDocument, text: string, opts: { replace?: boolean; owner?: Id } = {}): ImportReport {
   return importDxfFile(doc, parseDxf(text), opts);
 }
@@ -56,6 +73,8 @@ export function importDxfIntoDocument(doc: CadDocument, text: string, opts: { re
  */
 /** `acadDynamic: false` importa los bloques dinámicos de AutoCAD como sus representaciones estáticas. */
 export function importDxfFile(doc: CadDocument, dxf: DxfFile, opts: { replace?: boolean; owner?: Id; format?: 'DXF' | 'DWG'; acadDynamic?: boolean } = {}): ImportReport {
+  assertDxfLimits(dxf);
+  assertDxfOutputLimit(dxf, opts.replace ? 0 : doc.data.entities.size);
   const fmt = opts.format ?? 'DXF';
   const report: ImportReport = { version: dxf.version, units: 'mm', imported: {}, transformed: {}, ignored: {}, layers: 0, blocks: 0, layouts: 0, warnings: [], summary: { es: '', en: '' } };
   const ok = (t: string) => (report.imported[t] = (report.imported[t] ?? 0) + 1);
@@ -80,7 +99,8 @@ export function importDxfFile(doc: CadDocument, dxf: DxfFile, opts: { replace?: 
     const ltscale = Number(hv('$LTSCALE', 40));
     if (Number.isFinite(ltscale) && ltscale > 0) settingsPatch.ltscale = ltscale;
     const pdmode = Number(hv('$PDMODE', 70));
-    if (Number.isFinite(pdmode)) settingsPatch.pointDisplay = { mode: pdmode, size: Number(hv('$PDSIZE', 40) ?? 0) || 0 };
+    const pdsize = Number(hv('$PDSIZE', 40) ?? 0);
+    if (Number.isFinite(pdmode)) settingsPatch.pointDisplay = { mode: pdmode, size: Number.isFinite(pdsize) ? pdsize : 0 };
     const textsize = Number(hv('$TEXTSIZE', 40));
     if (Number.isFinite(textsize) && textsize > 0) settingsPatch.textHeight = textsize;
     tx.setSettings(settingsPatch);
@@ -94,6 +114,10 @@ export function importDxfFile(doc: CadDocument, dxf: DxfFile, opts: { replace?: 
       if (!name || ['BYLAYER', 'BYBLOCK'].includes(name.toUpperCase())) continue;
       if (ltByName.has(name.toUpperCase())) continue;
       const pattern = r.nums(49);
+      if (!pattern.every(Number.isFinite)) {
+        report.warnings.push(`Tipo de línea «${name}» con segmentos inválidos: se omite. / Linetype «${name}» has invalid segments and was skipped.`);
+        continue;
+      }
       const id = newId('lt');
       tx.add('linetypes', { id, name, description: r.str(3), pattern });
       ltByName.set(name.toUpperCase(), id);
@@ -268,6 +292,11 @@ export function importDxfFile(doc: CadDocument, dxf: DxfFile, opts: { replace?: 
       if (upper.startsWith('*D')) continue; // cotas: se regeneran nativamente
       if (variantRefs.get(upper) === true) continue;
       if (acadDefinitionOf(upper)) continue; // representación estática de una instancia dinámica
+      if (!Number.isFinite(b.base.x) || !Number.isFinite(b.base.y)) {
+        report.warnings.push(`Bloque «${b.name}» con punto base inválido: se omite. / Block «${b.name}» has an invalid base point and was skipped.`);
+        ignored('BLOCK', 'punto base no finito / non-finite base point');
+        continue;
+      }
       const isXref = !!(b.flags & 4);
       const existing = doc.findByName('blocks', b.name);
       const id = existing?.id ?? newId('blk');
@@ -310,6 +339,8 @@ export function importDxfFile(doc: CadDocument, dxf: DxfFile, opts: { replace?: 
     const handleToId = new Map<string, Id>();
     let currentHandle = '';
     const add = (e: Omit<Entity, 'id' | 'order'>) => {
+      if (doc.data.entities.size >= INPUT_LIMITS.maxEntities) throw tooManyEntities();
+      assertFiniteValues(e);
       const created = tx.addEntity(e as never) as Entity;
       if (currentHandle && !handleToId.has(currentHandle)) handleToId.set(currentHandle, created.id);
       return created;
@@ -325,6 +356,7 @@ export function importDxfFile(doc: CadDocument, dxf: DxfFile, opts: { replace?: 
           const consumed = convert(rec, r, owner, recs, i);
           i += consumed;
         } catch (err) {
+          if (err instanceof InputLimitError) throw err;
           report.warnings.push(`${rec.type}: ${err instanceof Error ? err.message : String(err)}`);
           ignored(rec.type, 'error de conversión');
         }
@@ -636,10 +668,15 @@ export function importDxfFile(doc: CadDocument, dxf: DxfFile, opts: { replace?: 
     for (const [upper, json] of fmDynamic) {
       const id = blockIdByName.get(upper);
       if (!id || !created.has(id)) continue;
-      const { def, missing } = decodeDefinition(json, (h) => handleToId.get(h.toUpperCase()));
-      tx.update('blocks', id, { dynamic: def });
-      ok('Bloque dinámico');
-      if (missing) report.warnings.push(`${doc.data.blocks.get(id)?.name}: ${missing} referencia(s) de la definición dinámica sin objeto equivalente.`);
+      try {
+        const entityIds = new Set(doc.entitiesOf(id).map((entity) => entity.id));
+        const { def, missing } = decodeDefinition(json, (h) => handleToId.get(h.toUpperCase()), entityIds);
+        tx.update('blocks', id, { dynamic: def });
+        ok('Bloque dinámico');
+        if (missing) report.warnings.push(`${doc.data.blocks.get(id)?.name}: ${missing} referencia(s) de la definición dinámica sin objeto equivalente.`);
+      } catch (error) {
+        report.warnings.push(`Bloque dinámico de FModel no recuperado: ${error instanceof Error ? error.message : String(error)}; se conserva la geometría importada.`);
+      }
     }
 
     for (const [upper, acad] of acadDynamic) {
@@ -684,6 +721,7 @@ function transparencyOf(v: number): number {
  * anteriores usan la página de códigos de $DWGCODEPAGE (Windows-1252 si no se reconoce).
  */
 export function decodeDxfBytes(bytes: Uint8Array): string {
+  assertInputBytes(bytes, 'DXF');
   const head = new TextDecoder('latin1').decode(bytes.subarray(0, 8192));
   const ver = /\$ACADVER\s*\r?\n\s*1\s*\r?\n\s*(AC\d{4})/.exec(head)?.[1];
   if (!ver || ver >= 'AC1021' || bytes[0] === 0xef) return new TextDecoder('utf-8').decode(bytes);
@@ -719,6 +757,7 @@ function convertHatch(r: R, base: Omit<EntityBase, 'id' | 'type' | 'order'>): Om
     return i < pairs.length ? Number(pairs[i++][1]) : NaN;
   };
   for (let l = 0; l < loopCount; l++) {
+    if (i >= pairs.length) return null;
     const flags = next(92);
     if (Number.isNaN(flags)) break;
     if (flags & 2) {
@@ -727,6 +766,7 @@ function convertHatch(r: R, base: Omit<EntityBase, 'id' | 'type' | 'order'>): Om
       const n = next(93);
       const vertices: PolyVertex[] = [];
       for (let k = 0; k < n; k++) {
+        if (i >= pairs.length) return null;
         const x = next(10);
         const y = next(20);
         const bulge = hasBulge ? next(42) : 0;
@@ -737,6 +777,7 @@ function convertHatch(r: R, base: Omit<EntityBase, 'id' | 'type' | 'order'>): Om
       const ne = next(93);
       const curves: Curve[] = [];
       for (let k = 0; k < ne; k++) {
+        if (i >= pairs.length) return null;
         const et = next(72);
         if (et === 1) curves.push({ kind: 'line', a: { x: next(10), y: next(20) }, b: { x: next(11), y: next(21) } });
         else if (et === 2) {
@@ -765,9 +806,15 @@ function convertHatch(r: R, base: Omit<EntityBase, 'id' | 'type' | 'order'>): Om
           const nk = next(95);
           const nc = next(96);
           const knots: number[] = [];
-          for (let q = 0; q < nk; q++) knots.push(next(40));
+          for (let q = 0; q < nk; q++) {
+            if (i >= pairs.length) return null;
+            knots.push(next(40));
+          }
           const ctrl: Vec2[] = [];
-          for (let q = 0; q < nc; q++) ctrl.push({ x: next(10), y: next(20) });
+          for (let q = 0; q < nc; q++) {
+            if (i >= pairs.length) return null;
+            ctrl.push({ x: next(10), y: next(20) });
+          }
           curves.push({ kind: 'spline', s: { degree, knots, ctrl } });
         } else break;
       }

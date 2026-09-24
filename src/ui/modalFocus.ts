@@ -54,20 +54,14 @@ export function useModalFocusTrap(dialogRef: RefObject<HTMLElement | null>, onCl
         return;
       }
 
-      const firstFocusable = focusable[0]!;
-      const lastFocusable = focusable[focusable.length - 1]!;
       const active = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       const activeIndex = active ? focusable.indexOf(active) : -1;
-
-      if (event.shiftKey && activeIndex <= 0) {
-        event.preventDefault();
-        event.stopPropagation();
-        lastFocusable.focus({ preventScroll: true });
-      } else if (!event.shiftKey && (activeIndex === -1 || activeIndex === focusable.length - 1)) {
-        event.preventDefault();
-        event.stopPropagation();
-        firstFocusable.focus({ preventScroll: true });
-      }
+      const nextIndex = event.shiftKey
+        ? activeIndex <= 0 ? focusable.length - 1 : activeIndex - 1
+        : activeIndex < 0 || activeIndex === focusable.length - 1 ? 0 : activeIndex + 1;
+      event.preventDefault();
+      event.stopPropagation();
+      focusable[nextIndex]!.focus({ preventScroll: true });
     };
 
     document.addEventListener('keydown', handleKeyDown, true);

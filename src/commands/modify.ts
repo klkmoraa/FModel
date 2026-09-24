@@ -1,7 +1,7 @@
-import polygonClipping from 'polygon-clipping';
-import { boxFromCorners } from '../geometry/bbox';
+import { boxCenter, boxFromCorners } from '../geometry/bbox';
 import type { Curve } from '../geometry/curves';
 import { tessellateCurve } from '../geometry/curves';
+import { TessellationLimitError } from '../geometry/spline';
 import type { Mat2D } from '../geometry/matrix';
 import { compose, reflection, rotation, scaling, translation } from '../geometry/matrix';
 import { intersectCurves } from '../geometry/intersect';
@@ -18,6 +18,9 @@ import { cornerEntities, polylineAllCorners } from '../modify/filletEntities';
 import { distanceToEntity, OFFSETTABLE, offsetEntity } from '../modify/offsetEntity';
 import { planOverkill } from '../audit/overkill';
 import { purge } from '../audit/purge';
+import { arrayExpansionWithinLimit, arrayInstanceCount } from '../document/arrayLimits';
+import { assertFiniteValues } from '../io/validation';
+import { INPUT_LIMITS } from '../io/limits';
 import { selectByFence, selectInBox, selectInPolygon } from '../selection/pick';
 import { K, L } from './helpers';
 import type { CommandApi, CommandDef } from './types';
@@ -25,19 +28,27 @@ import { CommandError } from './types';
 import {
   type ClipboardPackage,
   type LegacyClipboardPackage,
+  ClipboardError,
   createClipboardPackage,
   parseClipboardPackage,
   pasteClipboardPackage,
 } from '../io/clipboard';
 
 function transformed(api: CommandApi, ids: Id[], m: Mat2D | null): Entity[] {
-  if (!m) return [];
+  if (!m || Object.values(m).some((value) => !Number.isFinite(value))) return [];
   const out: Entity[] = [];
   for (const id of ids) {
     const e = api.editor.doc.entity(id);
     if (!e) continue;
     const t = kindOf(e).transform(e, m, api.editor.ctx);
-    if (t) out.push(t);
+    if (t) {
+      try {
+        assertFiniteValues(t);
+      } catch {
+        return [];
+      }
+      out.push(t);
+    }
   }
   return out;
 }
@@ -47,8 +58,6 @@ async function selectOrFail(api: CommandApi, types?: Entity['type'][]): Promise<
   if (!ids.length) throw new CommandError(L('No se designó ningún objeto.', 'No objects were selected.'));
   return ids;
 }
-
-let erasedStack: Entity[][] = [];
 
 const ERASE: CommandDef = {
   name: 'ERASE',
@@ -61,7 +70,7 @@ const ERASE: CommandDef = {
     const ids = await selectOrFail(api);
     const removed = ids.map((id) => api.editor.doc.entity(id)!).filter(Boolean);
     api.apply('ERASE', (tx) => ids.forEach((id) => tx.removeEntity(id)));
-    erasedStack = [removed, ...erasedStack].slice(0, 5);
+    api.editor.erasedStack = [removed, ...api.editor.erasedStack].slice(0, 5);
     api.info(L(`${ids.length} objeto(s) borrado(s). Se puede deshacer.`, `${ids.length} object(s) erased. This can be undone.`));
   },
 };
@@ -73,9 +82,10 @@ const OOPS: CommandDef = {
   label: L('Recuperar borrado', 'Oops'),
   description: L('Restaura los últimos objetos borrados con ERASE sin deshacer otros cambios.', 'Restores the objects last erased with ERASE without undoing other changes.'),
   run(api) {
-    const last = erasedStack.shift();
+    const last = api.editor.erasedStack[0];
     if (!last?.length) throw new CommandError(L('No hay objetos borrados que recuperar.', 'No erased objects to restore.'));
     api.apply('OOPS', (tx) => last.forEach((e) => !api.editor.doc.entity(e.id) && tx.add('entities', e)));
+    api.editor.erasedStack.shift();
   },
 };
 
@@ -591,29 +601,47 @@ function makeArraySource(api: CommandApi, ids: Id[], basePoint: Vec2): { blockId
   return { blockId, layer: first.layer };
 }
 
+function assertArrayBudget(instances: number, sourceCount: number, pathSegments = 1): void {
+  if (!arrayExpansionWithinLimit(instances, sourceCount, pathSegments)) {
+    throw new CommandError(L('La matriz supera el límite de expansión permitido.', 'Array exceeds the allowed expansion limit.'));
+  }
+}
+
 async function arrayCommand(api: CommandApi, kind: 'rect' | 'polar' | 'path') {
   const doc = api.editor.doc;
   const ids = await selectOrFail(api);
   const ext = ids.map((id) => kindOf(doc.entity(id)!).bbox(doc.entity(id)!, api.editor.ctx)).reduce((b, x) => ({ minX: Math.min(b.minX, x.minX), minY: Math.min(b.minY, x.minY), maxX: Math.max(b.maxX, x.maxX), maxY: Math.max(b.maxY, x.maxY) }));
-  const basePoint = { x: (ext.minX + ext.maxX) / 2, y: (ext.minY + ext.maxY) / 2 };
+  if (Object.values(ext).some((value) => !Number.isFinite(value))) throw new CommandError(L('La extensión de la matriz excede el rango numérico válido.', 'Array extents exceed the valid numeric range.'));
+  const basePoint = boxCenter(ext);
   let params: ArrayEntity['params'];
   const w = Math.max(ext.maxX - ext.minX, 1e-6);
   const h = Math.max(ext.maxY - ext.minY, 1e-6);
+  if (!Number.isFinite(basePoint.x) || !Number.isFinite(basePoint.y) || !Number.isFinite(w) || !Number.isFinite(h)) throw new CommandError(L('La extensión de la matriz excede el rango numérico válido.', 'Array extents exceed the valid numeric range.'));
   if (kind === 'rect') {
     const cols = await api.getNumber({ prompt: L('Número de columnas', 'Number of columns'), integer: true, min: 1, max: 5000, defaultValue: 4 });
     if (cols.kind !== 'value') return;
     const rows = await api.getNumber({ prompt: L('Número de filas', 'Number of rows'), integer: true, min: 1, max: 5000, defaultValue: 3 });
     if (rows.kind !== 'value') return;
-    const cs = await api.getDistance({ prompt: L('Distancia entre columnas', 'Spacing between columns'), defaultValue: w * 1.5, allowNegative: true });
-    if (cs.kind !== 'value') return;
-    const rs = await api.getDistance({ prompt: L('Distancia entre filas', 'Spacing between rows'), defaultValue: h * 1.5, allowNegative: true });
-    if (rs.kind !== 'value') return;
+    assertArrayBudget(cols.value * rows.value, ids.length);
+    const defaultColumnSpacing = w * 1.5;
+    const cs = await api.getDistance({ prompt: L('Distancia entre columnas', 'Spacing between columns'), ...(Number.isFinite(defaultColumnSpacing) ? { defaultValue: defaultColumnSpacing } : { allowNone: true }), allowNegative: true });
+    if (cs.kind !== 'value') {
+      if (!Number.isFinite(defaultColumnSpacing) && cs.kind === 'none') throw new CommandError(L('Indique una separación finita entre columnas.', 'Specify a finite spacing between columns.'));
+      return;
+    }
+    const defaultRowSpacing = h * 1.5;
+    const rs = await api.getDistance({ prompt: L('Distancia entre filas', 'Spacing between rows'), ...(Number.isFinite(defaultRowSpacing) ? { defaultValue: defaultRowSpacing } : { allowNone: true }), allowNegative: true });
+    if (rs.kind !== 'value') {
+      if (!Number.isFinite(defaultRowSpacing) && rs.kind === 'none') throw new CommandError(L('Indique una separación finita entre filas.', 'Specify a finite spacing between rows.'));
+      return;
+    }
     params = { kind: 'rect', columns: cols.value, rows: rows.value, columnSpacing: cs.value, rowSpacing: rs.value, angle: 0 };
   } else if (kind === 'polar') {
     const c = await api.getPoint({ prompt: L('Precise el punto central de la matriz', 'Specify center point of array') });
     if (c.kind !== 'point') return;
     const n = await api.getNumber({ prompt: L('Número de elementos', 'Number of items'), integer: true, min: 2, max: 5000, defaultValue: 6 });
     if (n.kind !== 'value') return;
+    assertArrayBudget(n.value, ids.length);
     const fill = await api.getAngle({ prompt: L('Ángulo a llenar (+ CCW, − CW)', 'Angle to fill (+ CCW, − CW)'), defaultValue: Math.PI * 2 });
     if (fill.kind !== 'value') return;
     const rot = await api.getKeyword({ prompt: L('¿Girar elementos?', 'Rotate items?'), keywords: [K('Yes', 'Sí', 'Yes', ['s', 'y']), K('No', 'No', 'No', ['n'])], defaultValue: 'Yes' });
@@ -622,13 +650,20 @@ async function arrayCommand(api: CommandApi, kind: 'rect' | 'polar' | 'path') {
     const path = await api.getEntity({ prompt: L('Designe la trayectoria', 'Select path curve'), types: ['line', 'arc', 'lwpolyline', 'spline', 'circle', 'ellipse'] });
     if (path.kind !== 'entity') return;
     const pe = doc.entity(path.id)!;
-    const curves = kindOf(pe).curves(pe, api.editor.ctx);
-    const pts = curves.flatMap((c, i) => tessellateCurve(c, 1e-3).slice(i ? 1 : 0));
+    const curves = pe.type === 'lwpolyline' ? [] : kindOf(pe).curves(pe, api.editor.ctx);
+    let pts: Vec2[];
+    try {
+      pts = curves.flatMap((c, i) => tessellateCurve(c, 1e-3, INPUT_LIMITS.maxPointsPerEntity).slice(i ? 1 : 0));
+    } catch (error) {
+      if (!(error instanceof TessellationLimitError)) throw error;
+      throw new CommandError(L('La trayectoria supera el límite de puntos permitido.', 'The path exceeds the allowed point limit.'));
+    }
     const closed = pe.type === 'circle' || (pe.type === 'lwpolyline' && pe.closed);
     const vertices = pe.type === 'lwpolyline' ? pe.vertices.map((v) => ({ ...v })) : pts.map((p) => ({ ...p, bulge: 0 }));
     const method = await api.getKeyword({ prompt: L('Método', 'Method'), keywords: [K('Divide', 'Dividir', 'Divide', ['d']), K('Measure', 'Medir', 'Measure', ['m'])], defaultValue: 'Divide' });
     const n = await api.getNumber({ prompt: L('Número de elementos', 'Number of items'), integer: true, min: 1, max: 5000, defaultValue: 8 });
     if (n.kind !== 'value') return;
+    assertArrayBudget(n.value, ids.length, Math.max(1, vertices.length - (closed ? 0 : 1)));
     let spacing = 0;
     if (method.kind === 'keyword' && method.key === 'Measure') {
       const s = await api.getDistance({ prompt: L('Distancia entre elementos', 'Distance between items'), defaultValue: w * 1.5 });
@@ -638,6 +673,14 @@ async function arrayCommand(api: CommandApi, kind: 'rect' | 'polar' | 'path') {
     const align = await api.getKeyword({ prompt: L('¿Alinear elementos con la trayectoria?', 'Align items to path?'), keywords: [K('Yes', 'Sí', 'Yes', ['s', 'y']), K('No', 'No', 'No', ['n'])], defaultValue: 'Yes' });
     params = { kind: 'path', path: { vertices, closed }, count: n.value, spacing, alignItems: !(align.kind === 'keyword' && align.key === 'No'), method: method.kind === 'keyword' && method.key === 'Measure' ? 'measure' : 'divide' };
   }
+  try {
+    assertFiniteValues(params);
+  } catch {
+    throw new CommandError(L('Los parámetros de la matriz exceden el rango numérico válido.', 'Array parameters exceed the valid numeric range.'));
+  }
+  const instances = arrayInstanceCount(params);
+  if (instances === null) throw new CommandError(L('Los parámetros de la matriz exceden el rango numérico válido.', 'Array parameters exceed the valid numeric range.'));
+  assertArrayBudget(instances, ids.length, params.kind === 'path' ? Math.max(1, params.path.vertices.length - (params.path.closed ? 0 : 1)) : 1);
   const assoc = await api.getKeyword({ prompt: L('¿Matriz asociativa (editable)?', 'Associative (editable) array?'), keywords: [K('Yes', 'Sí', 'Yes', ['s', 'y']), K('No', 'No', 'No', ['n'])], defaultValue: 'Yes' });
   const src = makeArraySource(api, ids, basePoint);
   const arr = api.apply('ARRAY', (tx) =>
@@ -1167,13 +1210,19 @@ const PASTECLIP: CommandDef = {
   description: L('Pega objetos del portapapeles en un punto de inserción.', 'Pastes clipboard objects at an insertion point.'),
   async run(api) {
     let pkg: ClipboardPackage | LegacyClipboardPackage | null = null;
+    let text: string | undefined;
     try {
-      const txt = await navigator.clipboard?.readText();
-      if (txt) {
-        pkg = parseClipboardPackage(txt);
-      }
+      text = await navigator.clipboard?.readText();
     } catch {
-      /* sin contenido compatible o permiso denegado en el navegador */
+      /* portapapeles del sistema no disponible o permiso denegado */
+    }
+    if (text) {
+      try {
+        pkg = parseClipboardPackage(text);
+      } catch (error) {
+        if (error instanceof ClipboardError) throw new CommandError(error.l10n);
+        throw error;
+      }
     }
     if (!pkg) {
       pkg = clipboard;
@@ -1227,6 +1276,7 @@ async function booleanCommand(api: CommandApi, op: 'union' | 'difference' | 'int
   const a = polys(baseIds);
   const b = polys(otherIds);
   if (!a.length) throw new CommandError(L('Se requieren regiones, círculos o polilíneas cerradas.', 'Regions, circles or closed polylines are required.'));
+  const polygonClipping = (await import('polygon-clipping')).default;
   let result;
   if (op === 'union') result = polygonClipping.union(a[0] as never, ...(a.slice(1) as never[]));
   else if (op === 'intersection') result = polygonClipping.intersection(a[0] as never, ...(a.slice(1) as never[]));
@@ -1250,4 +1300,3 @@ const SUBTRACT: CommandDef = { name: 'SUBTRACT', aliases: ['SU', 'DIFERENCIA'], 
 const INTERSECT: CommandDef = { name: 'INTERSECT', aliases: ['IN', 'INTERSECCION'], category: 'modify', label: L('Intersección', 'Intersect'), description: L('Intersección de regiones 2D.', 'Intersects 2D regions.'), icon: 'region', run: (api) => booleanCommand(api, 'intersection') };
 
 export const MODIFY_COMMANDS: CommandDef[] = [ERASE, OOPS, MOVE, COPY, ROTATE, SCALE, MIRROR, OFFSET, TRIM, EXTEND, FILLET, CHAMFER, STRETCH, ARRAY, ARRAYRECT, ARRAYPOLAR, ARRAYPATH, JOIN, BREAK, BREAKATPOINT, EXPLODE, PEDIT, LENGTHEN, REVERSE, ALIGN, MATCHPROP, OVERKILL, PURGE, DRAWORDER, TEXTTOFRONT, GROUP, UNGROUP, COPYCLIP, CUTCLIP, PASTECLIP, UNION, SUBTRACT, INTERSECT];
-

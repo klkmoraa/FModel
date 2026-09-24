@@ -3,7 +3,7 @@ import type { ArcCurve, Curve, LineCurve } from './curves';
 import { curveEnd, curveLength, curvePoint, curveStart, tessellateCurve } from './curves';
 import { TOL } from './tolerance';
 import type { Vec2 } from './vec';
-import { dist, samePoint } from './vec';
+import { dist, mid, samePoint } from './vec';
 
 /** Vértice de polilínea ligera: `bulge` = tan(ángulo incluido / 4), positivo CCW. */
 export interface PolyVertex {
@@ -19,8 +19,7 @@ export function bulgeToArc(p1: Vec2, p2: Vec2, bulge: number): ArcCurve {
   const chord = dist(p1, p2);
   const theta = 4 * Math.atan(bulge); // ángulo incluido con signo
   const r = chord / (2 * Math.sin(Math.abs(theta) / 2));
-  const mx = (p1.x + p2.x) / 2;
-  const my = (p1.y + p2.y) / 2;
+  const { x: mx, y: my } = mid(p1, p2);
   const sagittaDist = r * Math.cos(Math.abs(theta) / 2); // distancia del centro a la cuerda
   const dx = (p2.x - p1.x) / chord;
   const dy = (p2.y - p1.y) / chord;
@@ -95,11 +94,12 @@ export function polylineLength(vertices: readonly PolyVertex[], closed: boolean)
 export function polylineSignedArea(vertices: readonly PolyVertex[]): number {
   const n = vertices.length;
   if (n < 2) return 0;
+  const origin = vertices[0];
   let area = 0;
   for (let i = 0; i < n; i++) {
     const a = vertices[i];
     const b = vertices[(i + 1) % n];
-    area += (a.x * b.y - b.x * a.y) / 2;
+    area += ((a.x - origin.x) * (b.y - origin.y) - (b.x - origin.x) * (a.y - origin.y)) / 2;
     const bulge = a.bulge ?? 0;
     if (Math.abs(bulge) > 1e-12) {
       const arc = bulgeToArc(a, b, bulge);
@@ -112,33 +112,41 @@ export function polylineSignedArea(vertices: readonly PolyVertex[]): number {
 }
 
 export function pointsSignedArea(pts: readonly Vec2[]): number {
+  if (pts.length < 2) return 0;
+  const origin = pts[0];
   let area = 0;
   for (let i = 0, n = pts.length; i < n; i++) {
     const a = pts[i];
     const b = pts[(i + 1) % n];
-    area += a.x * b.y - b.x * a.y;
+    area += (a.x - origin.x) * (b.y - origin.y) - (b.x - origin.x) * (a.y - origin.y);
   }
   return area / 2;
 }
 
 export function polylineCentroid(vertices: readonly PolyVertex[]): Vec2 {
   const pts = tessellatePolyline(vertices, true, 1e-4);
+  if (!pts.length) return { x: 0, y: 0 };
+  const origin = pts[0];
   let cx = 0;
   let cy = 0;
   let a = 0;
   for (let i = 0, n = pts.length; i < n; i++) {
     const p = pts[i];
     const q = pts[(i + 1) % n];
-    const f = p.x * q.y - q.x * p.y;
+    const px = p.x - origin.x;
+    const py = p.y - origin.y;
+    const qx = q.x - origin.x;
+    const qy = q.y - origin.y;
+    const f = px * qy - qx * py;
     a += f;
-    cx += (p.x + q.x) * f;
-    cy += (p.y + q.y) * f;
+    cx += (px + qx) * f;
+    cy += (py + qy) * f;
   }
   if (Math.abs(a) < 1e-15) {
-    const s = pts.reduce((acc, p) => ({ x: acc.x + p.x, y: acc.y + p.y }), { x: 0, y: 0 });
-    return { x: s.x / (pts.length || 1), y: s.y / (pts.length || 1) };
+    const s = pts.reduce((acc, p) => ({ x: acc.x + (p.x - origin.x), y: acc.y + (p.y - origin.y) }), { x: 0, y: 0 });
+    return { x: origin.x + s.x / pts.length, y: origin.y + s.y / pts.length };
   }
-  return { x: cx / (3 * a), y: cy / (3 * a) };
+  return { x: origin.x + cx / (3 * a), y: origin.y + cy / (3 * a) };
 }
 
 export function tessellatePolyline(vertices: readonly PolyVertex[], closed: boolean, tol = 1e-3): Vec2[] {

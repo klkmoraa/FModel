@@ -1,14 +1,15 @@
-import { beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createDocument, entityDefaults } from '../document/defaults';
 import type { LineEntity } from '../document/types';
 import { Editor } from '../editor/editor';
 import { writePackage } from '../io/native';
 import { attachXref, readXrefSource } from '../xref/xref';
 import { registerAllCommands } from './index';
-import { reloadReference } from './references';
+import { decodeImageSize, reloadReference } from './references';
 import type { CommandApi } from './types';
 
 beforeAll(() => registerAllCommands());
+afterEach(() => vi.unstubAllGlobals());
 
 function createHostWithXref() {
   const src = createDocument({ title: 'Planta' });
@@ -38,6 +39,29 @@ function createHostWithXref() {
 }
 
 describe('referencias commands', () => {
+  it('rechaza imágenes sin dimensiones utilizables y cancela una decodificación pendiente', async () => {
+    class ZeroImage {
+      src = '';
+      naturalWidth = 0;
+      naturalHeight = 20;
+      decode = async () => undefined;
+    }
+    vi.stubGlobal('Image', ZeroImage);
+    await expect(decodeImageSize('data:image/svg+xml;base64,PHN2Zy8+')).rejects.toThrow(/dimensions/i);
+
+    class PendingImage {
+      src = '';
+      naturalWidth = 20;
+      naturalHeight = 20;
+      decode = () => new Promise<void>(() => undefined);
+    }
+    vi.stubGlobal('Image', PendingImage);
+    const controller = new AbortController();
+    const decoding = decodeImageSize('data:image/png;base64,eA==', controller.signal);
+    controller.abort();
+    await expect(decoding).rejects.toMatchObject({ name: 'AbortError' });
+  });
+
   it('reloadReference sin acceso al archivo marca status not-found pero conserva snapshot intacto', async () => {
     const { editor, doc, xrefId } = createHostWithXref();
     const block = doc.data.blocks.get(xrefId)!;

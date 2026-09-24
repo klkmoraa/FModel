@@ -35,6 +35,9 @@ const pdfGeometry = new PdfGeometryCache(
   () => editor.emit('overlay'),
 );
 editor.ctx.pdfGeometry = (assetId, page) => pdfGeometry.get(assetId, page);
+editor.doc.subscribe((event) => {
+  if (event.source === 'load' || event.changes.some((change) => change.coll === 'assets')) pdfGeometry.clear();
+});
 
 const persistence = new Persistence(
   () => editor.doc,
@@ -78,11 +81,6 @@ registerServiceWorker((apply) => {
   editor.runner.message('info', { es: 'Hay una versión nueva de FModel lista. Guarda tu trabajo y escribe ACTUALIZAR para aplicarla.', en: 'A new FModel version is ready. Save your work and type UPDATEAPP to apply it.' });
   setPendingUpdate(apply);
 });
-consumeLaunchQueue((file) => {
-  queueLaunchedFile(file);
-  editor.command('_OPENLAUNCHED');
-});
-
 // exposición para depuración en consola y pruebas E2E
 (globalThis as unknown as { fmodel: unknown }).fmodel = {
   editor,
@@ -134,4 +132,13 @@ void restoreSession().finally(() => {
       <App editor={editor} />
     </StrictMode>,
   );
+  // File Handling puede entregar el archivo inmediatamente al registrar el consumidor.
+  // Se activa al final para que una recuperación tardía nunca reemplace el archivo recibido.
+  consumeLaunchQueue((file) => {
+    queueLaunchedFile(file);
+    editor.command('_OPENLAUNCHED');
+  }, (error) => {
+    const detail = error instanceof Error ? error.message : String(error);
+    editor.runner.message('error', { es: `No se pudo abrir el archivo recibido: ${detail}`, en: `Could not open the received file: ${detail}` });
+  });
 });

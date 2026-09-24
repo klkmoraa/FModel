@@ -13,7 +13,7 @@ import { K, L } from './helpers';
 import type { CommandApi, CommandDef } from './types';
 import { CommandError } from './types';
 
-const fmt = (api: CommandApi, v: number) => formatLength(v, api.editor.doc.settings.linearFormat, Math.max(4, api.editor.doc.settings.linearPrecision));
+const fmt = (api: CommandApi, v: number) => Number.isFinite(v) ? formatLength(v, api.editor.doc.settings.linearFormat, Math.max(4, api.editor.doc.settings.linearPrecision)) : '####';
 
 // ------------------------------------------------------------------ consulta
 
@@ -135,10 +135,11 @@ const LIST: CommandDef = {
       const len = k.length?.(e, api.editor.ctx);
       const area = k.area?.(e, api.editor.ctx);
       const layer = doc.data.layers.get(e.layer)?.name;
+      const finiteBox = [b.minX, b.minY, b.maxX, b.maxY].every(Number.isFinite);
       api.info(
         L(
-          `${typeLabel(e.type, 'es')} · capa «${layer}» · ID ${e.id}${len ? ` · longitud ${fmt(api, len)}` : ''}${area ? ` · área ${fmt(api, area)}` : ''}${Number.isFinite(b.minX) ? ` · extensión (${fmt(api, b.minX)}, ${fmt(api, b.minY)}) – (${fmt(api, b.maxX)}, ${fmt(api, b.maxY)})` : ''}`,
-          `${typeLabel(e.type, 'en')} · layer "${layer}" · ID ${e.id}${len ? ` · length ${fmt(api, len)}` : ''}${area ? ` · area ${fmt(api, area)}` : ''}${Number.isFinite(b.minX) ? ` · extents (${fmt(api, b.minX)}, ${fmt(api, b.minY)}) – (${fmt(api, b.maxX)}, ${fmt(api, b.maxY)})` : ''}`,
+          `${typeLabel(e.type, 'es')} · capa «${layer}» · ID ${e.id}${len ? ` · longitud ${fmt(api, len)}` : ''}${area ? ` · área ${fmt(api, area)}` : ''}${finiteBox ? ` · extensión (${fmt(api, b.minX)}, ${fmt(api, b.minY)}) – (${fmt(api, b.maxX)}, ${fmt(api, b.maxY)})` : ''}`,
+          `${typeLabel(e.type, 'en')} · layer "${layer}" · ID ${e.id}${len ? ` · length ${fmt(api, len)}` : ''}${area ? ` · area ${fmt(api, area)}` : ''}${finiteBox ? ` · extents (${fmt(api, b.minX)}, ${fmt(api, b.minY)}) – (${fmt(api, b.maxX)}, ${fmt(api, b.maxY)})` : ''}`,
         ),
       );
     }
@@ -375,6 +376,16 @@ const RENAME: CommandDef = {
   },
 };
 
+function commandColor(value: string): string | null {
+  const normalized = value.trim().toLowerCase();
+  if (normalized.startsWith('porc') || normalized === 'bylayer') return 'ByLayer';
+  if (normalized.startsWith('porb') || normalized === 'byblock') return 'ByBlock';
+  if (/^#[0-9a-f]{6}$/.test(normalized)) return normalized;
+  const aci = /^(?:aci:)?(\d{1,3})$/.exec(normalized);
+  const index = aci ? Number(aci[1]) : 0;
+  return index >= 1 && index <= 255 ? `aci:${index}` : null;
+}
+
 function setCurrent(name: string, aliases: string[], label: [string, string], key: 'currentColor' | 'currentLinetype' | 'currentLineweight'): CommandDef {
   return {
     name,
@@ -404,8 +415,7 @@ function setCurrent(name: string, aliases: string[], label: [string, string], ke
       }
       const v = await api.getString({ prompt: L('Color: 1–255, #rrggbb, PorCapa o PorBloque', 'Color: 1–255, #rrggbb, ByLayer or ByBlock'), defaultValue: s.currentColor });
       if (v.kind !== 'string') return;
-      const t = v.value.trim().toLowerCase();
-      const c = t.startsWith('porc') || t === 'bylayer' ? 'ByLayer' : t.startsWith('porb') || t === 'byblock' ? 'ByBlock' : /^#[0-9a-f]{6}$/.test(t) ? t : /^\d+$/.test(t) && Number(t) >= 1 && Number(t) <= 255 ? `aci:${Number(t)}` : null;
+      const c = commandColor(v.value);
       if (!c) throw new CommandError(L('Color no válido.', 'Invalid color.'));
       api.apply(name, (tx) => tx.setSettings({ currentColor: c }));
     },
@@ -434,12 +444,27 @@ const CHPROP: CommandDef = {
           continue;
         }
         patch = { layer: l.id };
-      } else if (k.key === 'Color') patch = { color: /^\d+$/.test(v.value) ? `aci:${v.value}` : v.value.toLowerCase().startsWith('porc') || v.value.toLowerCase() === 'bylayer' ? 'ByLayer' : v.value };
+      } else if (k.key === 'Color') {
+        const color = commandColor(v.value);
+        if (!color) throw new CommandError(L('Color no válido.', 'Invalid color.'));
+        patch = { color };
+      }
       else if (k.key === 'Ltype') {
-        const lt = doc.findByName('linetypes', v.value);
-        patch = { linetype: lt ? lt.id : 'ByLayer' };
-      } else if (k.key === 'Ltscale') patch = { linetypeScale: Math.max(1e-9, parseFloat(v.value) || 1) };
-      else patch = { lineweight: Math.round((parseFloat(v.value) || 0) * 100) };
+        const value = v.value.trim().toLowerCase();
+        const linetype = value.startsWith('porc') || value === 'bylayer' ? 'ByLayer'
+          : value.startsWith('porb') || value === 'byblock' ? 'ByBlock'
+            : doc.findByName('linetypes', v.value)?.id;
+        if (!linetype) throw new CommandError(L(`No existe el tipo de línea «${v.value}».`, `Linetype "${v.value}" not found.`));
+        patch = { linetype };
+      } else if (k.key === 'Ltscale') {
+        const scale = Number(v.value.trim());
+        if (!Number.isFinite(scale) || scale <= 0) throw new CommandError(L('Escala de tipo de línea no válida.', 'Invalid linetype scale.'));
+        patch = { linetypeScale: Math.max(1e-9, scale) };
+      } else {
+        const weight = Math.round(Number(v.value.trim()) * 100);
+        if (!Number.isFinite(weight)) throw new CommandError(L('Valor de grosor no válido.', 'Invalid lineweight value.'));
+        patch = { lineweight: weight };
+      }
       api.apply('CHPROP', (tx) => ids.forEach((id) => tx.updateEntity(id, patch as never)));
     }
   },

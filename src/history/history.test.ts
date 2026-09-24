@@ -62,6 +62,78 @@ describe('historial transaccional', () => {
     expect(ids()).toEqual(['l1']);
   });
 
+  it('cancelar una transacción conserva el estado de cambios sin guardar', () => {
+    const { doc, ids } = newDoc();
+    const line = { ...entityDefaults(doc), id: 'cancelada', type: 'line' as const, start: { x: 0, y: 0 }, end: { x: 1, y: 1 } };
+    expect(doc.dirty).toBe(false);
+
+    expect(() => doc.transact('FALLA', (tx) => {
+      tx.addEntity<LineEntity>(line);
+      throw new Error('interrumpida');
+    })).toThrow('interrumpida');
+
+    expect(ids()).toEqual([]);
+    expect(doc.history.canUndo()).toBe(false);
+    expect(doc.dirty).toBe(false);
+  });
+
+  it('propaga a los reactores una segunda mutación del mismo registro', () => {
+    const { doc, line, ids } = newDoc();
+    line(0);
+    doc.addReactor((tx, changes) => {
+      if (changes.some((change) => change.id === 'l1' && (change.after as LineEntity | undefined)?.end.x === 2)) {
+        tx.updateEntity<LineEntity>('l1', { end: { x: 3, y: 0 } });
+      }
+    });
+    doc.addReactor((tx, changes) => {
+      if (changes.some((change) => change.id === 'l1' && (change.after as LineEntity | undefined)?.end.x === 3)) {
+        tx.addEntity<LineEntity>({ ...entityDefaults(doc), id: 'derivada', type: 'line', start: { x: 0, y: 0 }, end: { x: 1, y: 0 } });
+      }
+    });
+
+    doc.transact('EDIT', (tx) => tx.updateEntity<LineEntity>('l1', { end: { x: 2, y: 0 } }));
+
+    expect(ids()).toEqual(['l1', 'derivada']);
+    doc.undo();
+    expect(ids()).toEqual(['l1']);
+    expect((doc.entity('l1') as LineEntity).end.x).toBe(0);
+  });
+
+  it('entrega a los reactores solo el estado final previo a la confirmación', () => {
+    const { doc, line, ids } = newDoc();
+    line(0);
+    doc.addReactor((tx, changes) => {
+      if (changes.some((change) => change.id === 'l1' && (change.after as LineEntity | undefined)?.end.x === 2)) {
+        tx.addEntity<LineEntity>({ ...entityDefaults(doc), id: 'intermedia', type: 'line', start: { x: 0, y: 0 }, end: { x: 1, y: 0 } });
+      }
+    });
+
+    doc.transact('EDIT', (tx) => {
+      tx.updateEntity<LineEntity>('l1', { end: { x: 2, y: 0 } });
+      tx.updateEntity<LineEntity>('l1', { end: { x: 4, y: 0 } });
+    });
+
+    expect(ids()).toEqual(['l1']);
+    expect((doc.entity('l1') as LineEntity).end.x).toBe(4);
+  });
+
+  it('revierte una transacción si los reactores no convergen', () => {
+    const { doc, ids } = newDoc();
+    doc.addReactor((tx, changes) => {
+      if (changes.some((change) => change.id === 'cíclica')) {
+        tx.updateEntity<LineEntity>('cíclica', (line) => ({ ...line, end: { x: line.end.x + 1, y: 0 } }));
+      }
+    });
+
+    expect(() => doc.transact('CYCLE', (tx) => tx.addEntity<LineEntity>({
+      ...entityDefaults(doc), id: 'cíclica', type: 'line', start: { x: 0, y: 0 }, end: { x: 1, y: 0 },
+    }))).toThrow('no converge');
+
+    expect(ids()).toEqual([]);
+    expect(doc.history.canUndo()).toBe(false);
+    expect(doc.dirty).toBe(false);
+  });
+
   it('un grupo se deshace en un solo paso', () => {
     const { doc, line, ids } = newDoc();
     doc.history.beginGroup('SESIÓN');
@@ -112,6 +184,91 @@ describe('historial transaccional', () => {
     expect(ids()).toEqual(['l1']);
     expect(doc.history.canRedo()).toBe(false);
     expect(doc.history.entries()).toHaveLength(1);
+    expect(doc.dirty).toBe(true);
+  });
+
+  it('no pierde cambios de un grupo abierto al alcanzar el límite del historial', () => {
+    const { doc, line, ids } = newDoc();
+    doc.history.limit = 2;
+    doc.history.beginGroup('BEDIT');
+    line(0);
+    line(5);
+    line(10);
+
+    doc.history.abortGroup();
+
+    expect(ids()).toEqual([]);
+    expect(doc.history.entries()).toHaveLength(0);
+    expect(doc.history.canRedo()).toBe(false);
+  });
+
+  it('agrupa todos los cambios antes de aplicar el límite del historial', () => {
+    const { doc, line, ids } = newDoc();
+    doc.history.limit = 2;
+    doc.history.beginGroup('BEDIT');
+    line(0);
+    line(5);
+    line(10);
+    doc.history.endGroup();
+
+    expect(doc.history.entries()).toHaveLength(1);
+    doc.undo();
+    expect(ids()).toEqual([]);
+  });
+
+  it('descarta el rehacer de cambios cancelados y restaura el rehacer previo', () => {
+    const { doc, line, ids } = newDoc();
+    line(0);
+    doc.undo();
+    expect(doc.history.canRedo()).toBe(true);
+
+    doc.history.beginGroup('BEDIT');
+    line(5);
+    doc.undo();
+    doc.history.abortGroup();
+
+    expect(ids()).toEqual([]);
+    expect(doc.history.peekRedo()?.label).toBe('LINE');
+    doc.redo();
+    expect(ids()).toEqual(['l1']);
+    expect(doc.history.canRedo()).toBe(false);
+  });
+
+  it('descartar un grupo conserva el estado limpio anterior', () => {
+    const { doc, line, ids } = newDoc();
+    doc.history.beginGroup('BEDIT');
+    line(0);
+    expect(doc.dirty).toBe(true);
+
+    doc.history.abortGroup();
+
+    expect(ids()).toEqual([]);
+    expect(doc.dirty).toBe(false);
+  });
+
+  it('descartar tras guardar durante el grupo mantiene los cambios sin guardar', () => {
+    const { doc, line, ids } = newDoc();
+    doc.history.beginGroup('BEDIT');
+    line(0);
+    doc.dirty = false;
+
+    doc.history.abortGroup();
+
+    expect(ids()).toEqual([]);
+    expect(doc.dirty).toBe(true);
+  });
+
+  it('descartar grupos anidados conserva el estado limpio inicial', () => {
+    const { doc, line, ids } = newDoc();
+    doc.history.beginGroup('BEDIT');
+    doc.history.beginGroup('COMANDO');
+    line(0);
+
+    doc.history.abortGroup();
+    doc.history.abortGroup();
+
+    expect(ids()).toEqual([]);
+    expect(doc.dirty).toBe(false);
   });
 
   it('el encuadre continuo de un viewport se fusiona en un paso', () => {
@@ -138,6 +295,19 @@ describe('historial transaccional', () => {
     doc.replaceData(createDocument().data, doc.id);
     expect(doc.history.canUndo()).toBe(false);
     expect(doc.history.canRedo()).toBe(false);
+  });
+
+  it('abrir otro dibujo termina los grupos del historial anterior', () => {
+    const { doc, line, ids } = newDoc();
+    doc.history.beginGroup('BEDIT');
+    line(0);
+    doc.replaceData(createDocument().data);
+
+    expect(doc.history.inGroup).toBe(false);
+    line(5);
+    expect(ids()).toEqual(['l2']);
+    doc.undo();
+    expect(ids()).toEqual([]);
   });
 });
 

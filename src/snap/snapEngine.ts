@@ -2,6 +2,7 @@ import { normAngleSigned, TAU } from '../geometry/angle';
 import { tangentPointsFromPoint } from '../geometry/construct';
 import type { Curve } from '../geometry/curves';
 import { closestParam, closestPoint, curveDerivative, curveEnd, curvePoint, curveStart, distanceToCurve, isBounded } from '../geometry/curves';
+import { linearTol } from '../geometry/tolerance';
 import { intersectCurves } from '../geometry/intersect';
 import type { Vec2 } from '../geometry/vec';
 import { add, dist, dot, normalize, scale, sub } from '../geometry/vec';
@@ -193,10 +194,14 @@ export function findOsnapCandidates(q: SnapQuery): { candidates: SnapCandidate[]
           const l2 = dot(d, d);
           if (l2 > 0) foot = add(n.c.a, scale(d, dot(sub(lp, n.c.a), d) / l2));
         } else if (n.c.kind === 'arc') {
-          const dir = normalize(sub(c, n.c.c));
-          const candidates = [add(n.c.c, scale(normalize(sub(lp, n.c.c)), n.c.r)), sub(n.c.c, scale(normalize(sub(lp, n.c.c)), n.c.r))];
-          foot = candidates.reduce((a, b) => (dist(a, c) < dist(b, c) ? a : b));
-          void dir;
+          const radial = sub(lp, n.c.c);
+          const magnitude = Math.max(Math.abs(lp.x), Math.abs(lp.y), Math.abs(n.c.c.x), Math.abs(n.c.c.y), n.c.r);
+          const tol = linearTol(magnitude);
+          const candidates = Math.hypot(radial.x, radial.y) <= tol
+            ? [closestPoint(n.c, c)]
+            : [add(n.c.c, scale(normalize(radial), n.c.r)), sub(n.c.c, scale(normalize(radial), n.c.r))];
+          const onArc = candidates.filter((candidate) => distanceToCurve(n.c, candidate) <= tol);
+          if (onArc.length) foot = onArc.reduce((a, b) => (dist(a, c) < dist(b, c) ? a : b));
         } else if (isBounded(n.c)) {
           const t = closestParam(n.c, c);
           const pt = curvePoint(n.c, t);

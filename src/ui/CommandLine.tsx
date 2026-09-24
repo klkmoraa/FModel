@@ -13,12 +13,13 @@ export const CommandLine = forwardRef<CommandLineHandle, { editor: Editor; onDis
   const [text, setText] = useState('');
   const [active, setActive] = useState(0);
   const [histIdx, setHistIdx] = useState(-1);
-  // en el teléfono el historial tapa el lienzo y la barra táctil ya muestra la petición en curso
-  const [showLog, setShowLog] = useState(() => typeof matchMedia === 'undefined' || !matchMedia('(max-width: 820px)').matches);
+  // El historial es una consulta puntual, no otra capa permanente sobre el dibujo.
+  const [showLog, setShowLog] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const logRef = useRef<HTMLDivElement>(null);
   const lang = editor.lang;
   const pending = editor.runner.pending;
+  const isIdle = !pending && !editor.runner.active && !text;
   const prompt = pending ? editor.runner.promptText(pending.req) : '';
   const multiline = pending?.req.kind === 'string' && pending.req.multiline;
 
@@ -109,7 +110,7 @@ export const CommandLine = forwardRef<CommandLineHandle, { editor: Editor; onDis
   const recentLog = editor.runner.log.slice(-40);
 
   return (
-    <div className="cmdline">
+    <div className={`cmdline${isIdle ? ' cmdline--idle' : ''}`}>
       {showLog && (
         <div className="cmdline__log" ref={logRef} aria-live="polite">
           {recentLog.map((l, i) => (
