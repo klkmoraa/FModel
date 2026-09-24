@@ -2,12 +2,18 @@
 
 > Archivo generado con `node scripts/features-md.mjs` desde `src/app/features.ts`, la misma fuente que la pestaña «Estado de funciones» de la ayuda (F1). No lo edites a mano.
 
-**Disponible**: 3 · **Experimental**: 44 · **Planeado**: 0 · **No comprometido**: 1
+**Disponible**: 3 · **Experimental**: 45 · **Planeado**: 0 · **No comprometido**: 1
 
 - **Disponible**: funciona de extremo a extremo y tiene pruebas con evidencia vinculada.
 - **Experimental**: funciona con limitaciones documentadas y evidencia parcial.
 - **Planeado**: no implementado todavía; no hay botones que lo simulen.
 - **No comprometido**: fuera de alcance por motivos legales o técnicos.
+
+## Geotecnia
+
+| Función | Estado | Comandos | Evidencia | Notas |
+|---|---|---|---|---|
+| Carta de Newmark interactiva con áreas ocupadas e incremento de esfuerzo vertical | Experimental | `NEWMARK` | — | Calcula la intersección geométrica para cimentaciones escalonadas y exporta la lámina SVG. |
 
 ## Lienzo
 

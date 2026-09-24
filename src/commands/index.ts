@@ -13,6 +13,7 @@ import { REFERENCE_COMMANDS } from './references';
 import { registerCommands } from './registry';
 import { UTILITY_COMMANDS } from './utility';
 import { VIEW_COMMANDS } from './view';
+import { GEOTECH_COMMANDS } from './geotech';
 
 let done = false;
 
@@ -32,5 +33,6 @@ export function registerAllCommands() {
   registerCommands(OUTPUT_COMMANDS);
   registerCommands(REFERENCE_COMMANDS);
   registerCommands(AUDIT_COMMANDS);
+  registerCommands(GEOTECH_COMMANDS);
   registerCommands([GRIP]);
 }

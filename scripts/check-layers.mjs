@@ -26,6 +26,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'src');
 
 const LAYERS = {
   geometry: 0,
+  geotech: 0,
   lib: 0,
   view: 0,
   document: 1,

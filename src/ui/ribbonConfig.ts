@@ -21,6 +21,13 @@ const t = (cmd: string, icon: string, es: string, en: string, size: 'lg' | 'sm' 
 
 export const RIBBON: RibbonTab[] = [
   {
+    id: 'geotechnics',
+    label: { es: 'Geotecnia', en: 'Geotechnics' },
+    groups: [
+      { label: { es: 'Incrementos de esfuerzo', en: 'Stress increments' }, tools: [t('NEWMARK', 'circle', 'Carta de Newmark', 'Newmark chart', 'lg')] },
+    ],
+  },
+  {
     id: 'home',
     label: { es: 'Inicio', en: 'Home' },
     groups: [
