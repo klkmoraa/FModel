@@ -57,7 +57,7 @@
 | 31 | DAT-006 | P2 | Acotar entidades y puntos durante la importación DXF | Cerrada | DAT-003 | [Integridad](./01-integridad-archivos.md#dat-006--acotar-entidades-y-puntos-durante-la-importación-dxf) |
 | 32 | DAT-007 | P2 | Mantener coherentes los límites del escritor y lector nativos | Cerrada | DAT-003 | [Integridad](./01-integridad-archivos.md#dat-007--mantener-coherentes-los-límites-del-escritor-y-lector-nativos) |
 | 33 | DAT-008 | P2 | Rechazar bibliotecas grandes antes de serializar sus bloques | Cerrada | DAT-003 | [Integridad](./01-integridad-archivos.md#dat-008--rechazar-bibliotecas-grandes-antes-de-serializar-sus-bloques) |
-| 34 | GEO-003 | P2 | Seleccionar líneas infinitas con cualquier magnitud de dirección | En curso | GEO-001 | [Geometría](./02-geometria-comandos.md#geo-003--seleccionar-líneas-infinitas-con-cualquier-magnitud-de-dirección) |
+| 34 | GEO-003 | P2 | Seleccionar líneas infinitas con cualquier magnitud de dirección | Cerrada | GEO-001 | [Geometría](./02-geometria-comandos.md#geo-003--seleccionar-líneas-infinitas-con-cualquier-magnitud-de-dirección) |
 
 ## Mapa de dependencias
 

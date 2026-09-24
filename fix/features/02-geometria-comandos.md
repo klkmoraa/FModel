@@ -71,8 +71,9 @@
 
 ## GEO-003 — Seleccionar líneas infinitas con cualquier magnitud de dirección
 
-- [>] **Estado:** En curso
+- [x] **Estado:** Cerrada
 - **Responsable:** Codex · **Inicio:** 2026-09-23
+- **Cierre:** 2026-09-23 · commit `d0981f9`
 - **Prioridad:** P2 — selección por captura incorrecta
 - **Depende de:** GEO-001
 - **Bloquea:** —
@@ -87,9 +88,9 @@
 **Criterios de aceptación:**
 
 - [x] Una línea infinita seleccionable cruza cajas lejanas sin depender de la magnitud almacenada en su vector de dirección.
-- [ ] Puerta general de cierre del backlog: `pnpm verify`.
+- [x] Puerta general de cierre del backlog: `pnpm verify`.
 
-**Evidencia focalizada:** la prueba falló antes del cambio (`[]` no incluía la XLINE) y `src/selection/selection.test.ts` pasó 12/12 después; `pnpm typecheck` pasó.
+**Evidencia de cierre:** la prueba falló antes del cambio (`[]` no incluía la XLINE) y `src/selection/selection.test.ts` pasó 12/12 después. `pnpm verify` pasó tras integrar `origin/main`: lint, tipos, capas (600 importaciones), catálogo, build y 851/851 pruebas.
 
 ---
 

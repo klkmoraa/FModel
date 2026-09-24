@@ -8,7 +8,9 @@ import { useEditorEvents } from './hooks';
 import { RIBBON, type RibbonGroup, type RibbonTool } from './ribbonConfig';
 
 export function toolsForRibbonTab(tabId: string): RibbonGroup[] {
-  const tab = RIBBON.find((candidate) => candidate.id === tabId) ?? RIBBON[0];
+  const tab = RIBBON.find((candidate) => candidate.id === tabId)
+    ?? RIBBON.find((candidate) => candidate.id === 'home')
+    ?? RIBBON[0];
   const seen = new Set<string>();
   return tab.groups
     .map((group) => ({

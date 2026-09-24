@@ -54,6 +54,8 @@ export default defineConfig({
   test: {
     include: ['src/**/*.test.ts'],
     environment: 'node',
+    // Limita la contención que hace vencer las pruebas de 5 s en equipos con muchos núcleos.
+    maxWorkers: 8,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],
