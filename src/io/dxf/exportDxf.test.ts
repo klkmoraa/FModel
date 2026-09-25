@@ -124,3 +124,21 @@ describe('DXF export', () => {
     expect(decodeDxfBytes(utf8).endsWith('Sección')).toBe(true);
   });
 });
+
+describe('exportación de marcas de centro y cortes de cota', () => {
+  it('exporta la marca como líneas con su tipo de línea y lo declara en el informe', () => {
+    const doc = createDocument();
+    const ctx = createContext(doc);
+    doc.transact('seed', (tx) => {
+      const d = entityDefaults(doc);
+      tx.addEntity({ ...d, linetype: 'lt-center2', type: 'centermark', mode: 'mark', center: { x: 10, y: 10 }, radius: 5, rotation: 0, crossSize: 0.1, crossGap: 0.05, extension: 3.5 } as never);
+      tx.addEntity<DimensionEntity>({ ...d, type: 'dimension', dimType: 'linear', style: DIMSTYLE_ISO_ID, overrides: {}, p1: { x: 0, y: 0 }, p2: { x: 100, y: 0 }, p3: { x: 50, y: 20 }, rotation: 0, breaks: [{ p: { x: 50, y: 20 } }] });
+    });
+    const { text, report } = exportDxf(doc, ctx);
+    const parsed = parseDxf(text);
+    const lines = parsed.entities.filter((e) => e.type === 'LINE');
+    expect(lines.length).toBeGreaterThanOrEqual(6);
+    expect(report.transformed.CENTERMARK?.count).toBe(1);
+    expect(text).toContain('CENTER2');
+  });
+});

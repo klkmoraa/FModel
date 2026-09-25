@@ -5,6 +5,7 @@ import { angleOf, dist, sub } from '../geometry/vec';
 import type { Entity } from '../document/types';
 import { assertFiniteValues } from '../io/validation';
 import { kindOf } from '../model/registry';
+import { previewConstrained } from '../constraints/drawing';
 import { fail, K, L } from './helpers';
 import type { CommandDef } from './types';
 
@@ -110,12 +111,11 @@ export const GRIP: CommandDef = {
           base,
           allowNone: true,
           keywords: [K('Base', 'punto Base', 'Base point', ['b']), K('Copy', 'Copiar', 'Copy', ['c']), K('Undo', 'desHacer', 'Undo', ['h', 'u']), K('eXit', 'Salir', 'eXit', ['s', 'x'])],
+          // sin Copiar, la vista previa incluye lo que las restricciones del dibujo arrastrarían
           preview: (p) => {
-            if (mode === 'STRETCH') {
-              const entities = stretchPreview(p);
-              return entities ? { entities } : null;
-            }
-            return { entities: transformed(transformOf(mode, p)) };
+            const entities = mode === 'STRETCH' ? stretchPreview(p) : transformed(transformOf(mode, p));
+            if (!entities) return null;
+            return { entities: copy ? entities : previewConstrained(doc.data, entities) };
           },
         });
         if (r.kind === 'none') {

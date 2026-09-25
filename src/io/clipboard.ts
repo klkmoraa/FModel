@@ -70,7 +70,7 @@ export interface PasteClipboardResult {
 }
 
 /** Empaqueta entidades con su cierre transitivo de dependencias para transferir entre dibujos. */
-export function createClipboardPackage(doc: CadDocument, entityIds: Id[], ctx?: ModelContext): ClipboardPackage {
+export function createClipboardPackage(doc: CadDocument, entityIds: Id[], ctx?: ModelContext, basePoint?: Vec2): ClipboardPackage {
   const modelCtx = ctx ?? new ModelContext(doc);
   const entities = entityIds.map((id) => doc.entity(id)).filter(Boolean) as Entity[];
   if (entities.length === 0) {
@@ -90,7 +90,7 @@ export function createClipboardPackage(doc: CadDocument, entityIds: Id[], ctx?: 
     }),
     { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity },
   );
-  const base: Vec2 = {
+  const base: Vec2 = basePoint && Number.isFinite(basePoint.x) && Number.isFinite(basePoint.y) ? { x: basePoint.x, y: basePoint.y } : {
     x: Number.isFinite(b.minX) ? b.minX : 0,
     y: Number.isFinite(b.minY) ? b.minY : 0,
   };
@@ -499,6 +499,9 @@ function cleanEntityForComparison(e: Entity, mappings?: ComparisonMappings): Rec
   }
   if (e.type === 'hatch' && Array.isArray(e.associative)) {
     copy.associative = e.associative.length > 0 ? e.associative.length : undefined;
+  }
+  if (e.type === 'centermark' && Array.isArray(e.sources)) {
+    copy.sources = e.sources.map((r) => ({ part: r.part }));
   }
 
   if (mappings) {
@@ -1388,6 +1391,11 @@ export function pasteClipboardPackage(
       if (clone.type === 'leader' && clone.annotation) {
         clone.annotation = blockEntityMap.get(clone.annotation);
       }
+      if (clone.type === 'centermark' && clone.sources) {
+        const mapped = clone.sources.map((r) => (blockEntityMap.has(r.entityId) ? { ...r, entityId: blockEntityMap.get(r.entityId)! } : null));
+        if (mapped.every(Boolean)) clone.sources = mapped as NonNullable<typeof clone.sources>;
+        else delete (clone as { sources?: unknown }).sources;
+      }
 
       // Asociatividad de sombreados (hatch) dentro del bloque
       if (clone.type === 'hatch' && clone.associative) {
@@ -1489,6 +1497,13 @@ export function pasteClipboardPackage(
 
       if (clone.type === 'leader' && clone.annotation) {
         clone.annotation = topEntityMap.get(clone.annotation);
+      }
+
+      // Marcas y ejes de centro: siguen asociados solo si su origen viene en el paquete
+      if (clone.type === 'centermark' && clone.sources) {
+        const mapped = clone.sources.map((r) => (topEntityMap.has(r.entityId) ? { ...r, entityId: topEntityMap.get(r.entityId)! } : null));
+        if (mapped.every(Boolean)) clone.sources = mapped as NonNullable<typeof clone.sources>;
+        else delete (clone as { sources?: unknown }).sources;
       }
 
       // Asociatividad de sombreados (hatch)

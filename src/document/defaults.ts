@@ -347,6 +347,9 @@ export function createDocumentData(opts: { title?: string; units?: DrawingUnits;
     layerStates: new Map(),
     layerFilters: new Map(),
     assets: new Map(),
+    constraints: new Map(),
+    parameters: new Map(),
+    parameterSets: new Map(),
   };
 }
 

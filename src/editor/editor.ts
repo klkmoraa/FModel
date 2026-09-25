@@ -29,6 +29,9 @@ import type { ResolvedPoint } from '../snap/snapEngine';
 import { AcquisitionState, resolvePoint } from '../snap/snapEngine';
 import type { SnapType } from '../model/registry';
 import { SpatialIndex } from '../spatial/spatialIndex';
+import { installDrawingConstraints } from '../constraints/drawing';
+import { installCenterMarks } from '../annotation/centerMarks';
+import { installDimensionBreaks } from '../annotation/dimBreaks';
 import { ViewTransform } from '../view/viewTransform';
 import type { Preferences } from './preferences';
 import { loadPreferences, savePreferences } from './preferences';
@@ -129,6 +132,9 @@ export class Editor {
     this.index = new SpatialIndex(this.ctx);
     this.selection = new SelectionSet(doc);
     this.runner = new CommandRunner(this);
+    installDrawingConstraints(doc, { infer: () => this.prefs.inferConstraints });
+    installCenterMarks(doc);
+    installDimensionBreaks(doc, this.ctx);
     doc.subscribe((e) => {
       if (e.source === 'load') {
         this.selection.clear();

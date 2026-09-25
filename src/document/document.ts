@@ -34,6 +34,9 @@ export const COLLECTIONS: CollectionName[] = [
   'layerStates',
   'layerFilters',
   'assets',
+  'constraints',
+  'parameters',
+  'parameterSets',
 ];
 
 export class TransactionError extends Error {}

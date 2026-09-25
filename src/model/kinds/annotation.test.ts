@@ -47,3 +47,17 @@ describe('annotation entity bounds', () => {
     expect(bounds.maxY).toBeGreaterThanOrEqual(120);
   });
 });
+
+describe('marca de centro', () => {
+  it('dibuja cruz y ejes como tramos separados, sin unirlos entre sí', async () => {
+    const { centerMarkKind } = await import('./centermark');
+    const { createDocument, entityDefaults } = await import('../../document/defaults');
+    const { createContext } = await import('../context');
+    const doc = createDocument();
+    const mark = { ...entityDefaults(doc), id: 'm', order: 1, type: 'centermark' as const, mode: 'mark' as const, center: { x: 0, y: 0 }, radius: 10, rotation: 0, crossSize: 0.1, crossGap: 0.05, extension: 3 };
+    const [item] = centerMarkKind.graphics(mark, createContext(doc));
+    const cmds = item.k === 'path' ? item.cmds : [];
+    expect(cmds.filter((c) => c.t === 'M')).toHaveLength(6);
+    expect(cmds.filter((c) => c.t === 'L')).toHaveLength(6);
+  });
+});

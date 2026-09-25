@@ -3,7 +3,7 @@ import { arrayExpansionWithinLimit, arrayInstanceCount } from '../document/array
 import { INPUT_LIMITS } from './limits';
 
 export const ENTITY_TYPES: ReadonlySet<string> = new Set([
-  'point', 'line', 'ray', 'xline', 'circle', 'arc', 'ellipse', 'lwpolyline', 'polyline2d', 'spline', 'mline', 'region', 'hatch', 'text', 'mtext', 'leader', 'mleader', 'table', 'wipeout', 'image', 'pdfunderlay', 'insert', 'attdef', 'dimension', 'viewport', 'array',
+  'point', 'line', 'ray', 'xline', 'circle', 'arc', 'ellipse', 'lwpolyline', 'polyline2d', 'spline', 'mline', 'region', 'hatch', 'text', 'mtext', 'leader', 'mleader', 'table', 'wipeout', 'image', 'pdfunderlay', 'insert', 'attdef', 'dimension', 'viewport', 'array', 'centermark',
 ]);
 
 export class InputValidationError extends Error {
@@ -370,6 +370,17 @@ function validDynConstraint(value: unknown): boolean {
   return false;
 }
 
+const isParameterName = (value: unknown): value is string =>
+  typeof value === 'string' && value.length <= 64 && /^[A-Za-z_][A-Za-z0-9_]*$/.test(value) && !['pi', 'e'].includes(value.toLowerCase());
+
+const isFormula = (value: unknown): value is string => typeof value === 'string' && value.length <= 500;
+
+/** Las cotas del dibujo usan nombres de parámetro y fórmulas acotadas. */
+function validDrawingDimension(value: Record<string, unknown>): boolean {
+  if (value.kind !== 'dimensional') return true;
+  return isParameterName(value.name) && isFormula(value.expression);
+}
+
 function validLookupTable(value: unknown): boolean {
   return isRecord(value) && isNonEmptyString(value.id) && isNonEmptyString(value.name) && isIdArray(value.inputs) &&
     typeof value.lookupName === 'string' && Array.isArray(value.rows) && value.rows.every((row) =>
@@ -527,6 +538,17 @@ export function assertDocumentRecord(collection: string, value: unknown): void {
         Object.values(value.layers).every((layer) => isRecord(layer) && fieldsMatch(layer, ['on', 'frozen', 'locked', 'plot'], isBoolean) &&
           typeof layer.color === 'string' && isNonEmptyString(layer.linetype) && fieldsMatch(layer, ['lineweight', 'transparency'], isFiniteNumber));
       break;
+    case 'constraints':
+      valid = validDynConstraint(value) && isRecord(value) && isNonEmptyString(value.owner) && validDrawingDimension(value);
+      break;
+    case 'parameters':
+      valid = isRecord(value) && isNonEmptyString(value.id) && isParameterName(value.name) && isFormula(value.expression) &&
+        typeof value.description === 'string' && value.description.length <= 2000;
+      break;
+    case 'parameterSets':
+      valid = isRecord(value) && isNonEmptyString(value.id) && isNonEmptyString(value.name) && value.name.length <= 64 && isRecord(value.values) &&
+        Object.keys(value.values).length <= 10_000 && Object.entries(value.values).every(([name, formula]) => isParameterName(name) && isFormula(formula));
+      break;
     case 'layerFilters': {
       const rule = validNamedRecord(value) && isRecord(value.rule) ? value.rule : undefined;
       const layers = isRecord(value) ? value.layers : undefined;
@@ -675,7 +697,16 @@ export function assertEntityRecord(value: unknown): asserts value is Entity {
         isVec2(entity.p3) && (entity.p4 === undefined || isVec2(entity.p4)) &&
         (entity.center === undefined || isVec2(entity.center)) && (entity.arcPoint === undefined || isVec2(entity.arcPoint)) &&
         isFiniteNumber(entity.rotation) && (entity.origin === undefined || isVec2(entity.origin)) &&
-        (entity.radius === undefined || (isFiniteNumber(entity.radius) && entity.radius >= 0)) && validDimensionAssociations(entity.assoc);
+        (entity.radius === undefined || (isFiniteNumber(entity.radius) && entity.radius >= 0)) && validDimensionAssociations(entity.assoc) &&
+        (entity.breaks === undefined || (Array.isArray(entity.breaks) && entity.breaks.length <= 1000 &&
+          entity.breaks.every((b) => isRecord(b) && isVec2(b.p) && (b.size === undefined || (isFiniteNumber(b.size) && b.size > 0))))) && isOptionalBoolean(entity.breakAuto) &&
+        (entity.breakSize === undefined || (isFiniteNumber(entity.breakSize) && entity.breakSize > 0));
+      break;
+    case 'centermark':
+      valid = (entity.mode === 'mark' || entity.mode === 'line') && isVec2(entity.center) && isFiniteNumber(entity.radius) && entity.radius >= 0 &&
+        (entity.mode === 'mark' || isVec2(entity.end)) && (entity.end === undefined || isVec2(entity.end)) && isFiniteNumber(entity.rotation) &&
+        ['crossSize', 'crossGap', 'extension'].every((field) => isFiniteNumber(entity[field]) && Number(entity[field]) >= 0) &&
+        (entity.sources === undefined || (Array.isArray(entity.sources) && entity.sources.length <= 2 && entity.sources.every(validGeoRef)));
       break;
     case 'viewport':
       valid = isVec2(entity.center) && isFiniteNumber(entity.width) && isFiniteNumber(entity.height) &&

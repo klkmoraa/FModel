@@ -46,10 +46,10 @@ export function compareDrawings(base: DocumentData, current: DocumentData): Draw
     else if (!sameRecord(strip(b), strip(e))) diff.modified.push({ id, before: b });
   }
   for (const [id, e] of base.entities) if (!current.entities.has(id)) diff.removed.push(e);
-  const colls: Exclude<CollectionName, 'entities'>[] = ['layers', 'linetypes', 'textStyles', 'dimStyles', 'mleaderStyles', 'tableStyles', 'mlineStyles', 'blocks', 'layouts', 'groups', 'views', 'layerStates', 'layerFilters', 'assets'];
+  const colls: Exclude<CollectionName, 'entities'>[] = ['layers', 'linetypes', 'textStyles', 'dimStyles', 'mleaderStyles', 'tableStyles', 'mlineStyles', 'blocks', 'layouts', 'groups', 'views', 'layerStates', 'layerFilters', 'assets', 'constraints', 'parameters', 'parameterSets'];
   for (const c of colls) {
-    const a = base[c] as Map<Id, unknown>;
-    const b = current[c] as Map<Id, unknown>;
+    const a = (base[c] as Map<Id, unknown> | undefined) ?? new Map<Id, unknown>();
+    const b = (current[c] as Map<Id, unknown> | undefined) ?? new Map<Id, unknown>();
     const r: RecordDiff = { added: 0, removed: 0, modified: 0 };
     for (const [id, rec] of b) {
       if (!a.has(id)) r.added++;

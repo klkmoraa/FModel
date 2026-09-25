@@ -399,6 +399,38 @@ export interface DimensionEntity extends EntityBase {
   /** posición del texto movida por el usuario */
   textPosition?: Vec2;
   assoc?: DimAssocRef[];
+  /**
+   * Cortes (DIMBREAK): centro en coordenadas del dibujo donde otro objeto cruza la cota y,
+   * en los manuales, su longitud en unidades de dibujo.
+   */
+  breaks?: { p: Vec2; size?: number }[];
+  /** Recalcular los cortes cuando cambian la cota o los objetos que la cruzan. */
+  breakAuto?: boolean;
+  /** Longitud del corte en unidades de papel (se aplica la escala de la cota). */
+  breakSize?: number;
+}
+
+/**
+ * Marca o eje de centro (CENTERMARK / CENTERLINE). Guarda su geometría resuelta; si tiene
+ * `sources`, un reactor la mantiene asociada al círculo/arco o a los dos tramos de origen.
+ */
+export interface CenterMarkEntity extends EntityBase {
+  type: 'centermark';
+  mode: 'mark' | 'line';
+  /** mark: centro del círculo o arco; line: inicio del eje (sin prolongación) */
+  center: Vec2;
+  /** mark: radio del objeto de origen */
+  radius: number;
+  /** line: fin del eje (sin prolongación) */
+  end?: Vec2;
+  rotation: number;
+  /** tamaño de la cruz como fracción del radio */
+  crossSize: number;
+  /** hueco entre la cruz y los ejes como fracción del radio */
+  crossGap: number;
+  /** prolongación más allá del objeto, en unidades de dibujo */
+  extension: number;
+  sources?: GeoRef[];
 }
 
 export interface ViewportEntity extends EntityBase {
@@ -462,7 +494,8 @@ export type Entity =
   | AttdefEntity
   | DimensionEntity
   | ViewportEntity
-  | ArrayEntity;
+  | ArrayEntity
+  | CenterMarkEntity;
 
 export type EntityType = Entity['type'];
 export type EntityOf<T extends EntityType> = Extract<Entity, { type: T }>;
@@ -888,6 +921,29 @@ export interface DimConstraint {
 
 export type BlockConstraint = GeoConstraint | DimConstraint;
 
+/**
+ * Restricción del dibujo: relaciona entidades de un mismo espacio (modelo o presentación).
+ * Las dimensionales usan `isParameter: false`; su `name` comparte espacio de nombres con
+ * los parámetros de usuario.
+ */
+export type DrawingConstraint = BlockConstraint & { owner: Id };
+
+/** Parámetro de usuario del dibujo, usable en las fórmulas de las cotas de restricción. */
+export interface DrawingParameter {
+  id: Id;
+  name: string;
+  expression: string;
+  description: string;
+}
+
+/** Variante con nombre: expresiones guardadas para parámetros y cotas de restricción. */
+export interface ParameterSet {
+  id: Id;
+  name: string;
+  /** nombre de parámetro o cota → expresión */
+  values: Record<string, string>;
+}
+
 export interface LookupTable {
   id: Id;
   name: string;
@@ -1063,6 +1119,9 @@ export interface DocumentData {
   layerStates: Map<Id, LayerStateRecord>;
   layerFilters: Map<Id, LayerFilterRecord>;
   assets: Map<Id, AssetRecord>;
+  constraints: Map<Id, DrawingConstraint>;
+  parameters: Map<Id, DrawingParameter>;
+  parameterSets: Map<Id, ParameterSet>;
 }
 
 export type CollectionName = Exclude<keyof DocumentData, 'settings'>;

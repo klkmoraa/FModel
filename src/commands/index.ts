@@ -14,6 +14,8 @@ import { registerCommands } from './registry';
 import { UTILITY_COMMANDS } from './utility';
 import { VIEW_COMMANDS } from './view';
 import { GEOTECH_COMMANDS } from './geotech';
+import { CONSTRAINT_COMMANDS } from './constraints';
+import { PRODUCTION_COMMANDS } from './production';
 
 let done = false;
 
@@ -34,5 +36,7 @@ export function registerAllCommands() {
   registerCommands(REFERENCE_COMMANDS);
   registerCommands(AUDIT_COMMANDS);
   registerCommands(GEOTECH_COMMANDS);
+  registerCommands(CONSTRAINT_COMMANDS);
+  registerCommands(PRODUCTION_COMMANDS);
   registerCommands([GRIP]);
 }

@@ -469,6 +469,143 @@ const paths: Record<string, JSX.Element> = {
       <rect x="9" y="9" width="6" height="6" transform="rotate(45 12 12)" />
     </>
   ),
+  gccoincident: (
+    <>
+      <path d="M4 18 12 12l8 6" />
+      <circle cx="12" cy="12" r="2" />
+    </>
+  ),
+  gchorizontal: (
+    <>
+      <path d="M5 12h14" />
+      <rect x="3" y="10" width="4" height="4" />
+      <rect x="17" y="10" width="4" height="4" />
+    </>
+  ),
+  gcvertical: (
+    <>
+      <path d="M12 5v14" />
+      <rect x="10" y="3" width="4" height="4" />
+      <rect x="10" y="17" width="4" height="4" />
+    </>
+  ),
+  gcparallel: <path d="M4 16 14 6M10 20 20 10" />,
+  gcperpendicular: <path d="M5 19h14M12 19V5M12 15h4v4" />,
+  gctangent: (
+    <>
+      <circle cx="12" cy="13" r="5" />
+      <path d="M3 8h18" />
+    </>
+  ),
+  gcconcentric: (
+    <>
+      <circle cx="12" cy="12" r="8" />
+      <circle cx="12" cy="12" r="4" />
+      <circle cx="12" cy="12" r="0.8" />
+    </>
+  ),
+  gcequal: <path d="M4 8h7M13 16h7M6 5v6M9 5v6M15 13v6M18 13v6" />,
+  gcsymmetric: (
+    <>
+      <path d="M12 3v18" strokeDasharray="2 2" />
+      <circle cx="6" cy="12" r="2" />
+      <circle cx="18" cy="12" r="2" />
+    </>
+  ),
+  gccollinear: <path d="M3 17 9 13M13 10.5 21 5" />,
+  gcfix: (
+    <>
+      <circle cx="12" cy="8" r="3" />
+      <path d="M12 11v6M6 20h12M8 17h8" />
+    </>
+  ),
+  autoconstrain: (
+    <>
+      <rect x="5" y="7" width="14" height="10" />
+      <rect x="3.5" y="5.5" width="3" height="3" />
+      <rect x="17.5" y="15.5" width="3" height="3" />
+      <path d="M19 3v4M17 5h4" />
+    </>
+  ),
+  delconstraint: (
+    <>
+      <path d="M5 19 19 5" />
+      <rect x="9" y="9" width="6" height="6" transform="rotate(45 12 12)" />
+      <path d="m15 15 5 5M20 15l-5 5" />
+    </>
+  ),
+  parameters: <path d="M4 7h16M4 12h16M4 17h16M9 5v4M15 10v4M7 15v4" />,
+  constraintbar: (
+    <>
+      <rect x="3" y="9" width="7" height="6" rx="1.5" />
+      <rect x="14" y="9" width="7" height="6" rx="1.5" />
+      <path d="M10 12h4" />
+    </>
+  ),
+  constraintinfer: (
+    <>
+      <path d="M4 18 12 12h8" />
+      <circle cx="12" cy="12" r="2" />
+      <path d="M17 3l-2 4h4l-2 4" />
+    </>
+  ),
+  qdim: <path d="M4 20V9M10 20v-9M16 20V9M20 20V9M4 11h16M4 11l2-1M4 11l2 1M20 11l-2-1M20 11l-2 1" />,
+  dimspace: <path d="M4 7h16M4 12h16M4 17h16M4 5v4M20 5v4M4 10v4M20 10v4M4 15v4M20 15v4" />,
+  dimbreak: <path d="M4 6v12M20 6v12M4 10h5M15 10h5M12 3v18" />,
+  centermark: (
+    <>
+      <circle cx="12" cy="12" r="6" />
+      <path d="M12 2v5M12 17v5M2 12h5M17 12h5M10 12h4M12 10v4" />
+    </>
+  ),
+  centerline: (
+    <>
+      <path d="M4 6h16M4 18h16" />
+      <path d="M2 12h20" strokeDasharray="4 2 1 2" />
+    </>
+  ),
+  blend: <path d="M2 18h6M16 6h6M8 18c5 0 3-12 8-12" />,
+  copytolayer: (
+    <>
+      <path d="m12 4-9 5 9 5 9-5z" />
+      <path d="m3 14 9 5 4-2.2" />
+      <path d="M19 14v7M15.5 17.5h7" />
+    </>
+  ),
+  laywalk: (
+    <>
+      <path d="m10 4-7 4 7 4 7-4z" />
+      <path d="m3 12 7 4 7-4" />
+      <path d="m16 17 4 3-4 3" />
+    </>
+  ),
+  txt2mtxt: <path d="M3 5h7M6.5 5v8M13 7h8M13 11h8M3 16h18M3 20h12" />,
+  textalign: <path d="M5 3v18M8 6h11M8 11h7M8 16h10" />,
+  massprop: (
+    <>
+      <path d="M4 18 7 5l12 3-2 11z" />
+      <path d="M11.5 9.5v5M9 12h5" />
+    </>
+  ),
+  copybase: (
+    <>
+      <rect x="4" y="4" width="11" height="11" rx="1" />
+      <path d="M9 19h11V9" />
+      <circle cx="4" cy="4" r="1.6" />
+    </>
+  ),
+  pasteorig: (
+    <>
+      <path d="M9 3h6v3H9zM7 5H5v16h14V5h-2" />
+      <path d="M12 10v8M8 14h8" />
+    </>
+  ),
+  pasteblock: (
+    <>
+      <path d="M9 3h6v3H9zM7 5H5v16h14V5h-2" />
+      <rect x="8.5" y="10" width="7" height="7" />
+    </>
+  ),
   qselect: (
     <>
       <path d="M4 4h6M4 4v6M20 20h-6M20 20v-6" />

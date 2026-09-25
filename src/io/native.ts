@@ -6,6 +6,7 @@ import { assertInputBytes, assertZipLimits, assertZipOutputEntries } from './lim
 import { INPUT_LIMITS } from './limits';
 import { assertArrayExpansionLimits, assertDocumentRecord, assertDocumentSettings, assertDynamicBlockDefinition, assertEntityRecord, assertFiniteValues, assertPointLimits, ENTITY_TYPES, InputValidationError } from './validation';
 import { assertAssetRecord, AssetValidationError } from './assets';
+import { constraintProblem, namedExpressions } from '../constraints/drawing';
 
 /**
  * Formato nativo FModel 2D CAD.
@@ -17,7 +18,7 @@ import { assertAssetRecord, AssetValidationError } from './assets';
  * Nunca se escriben coordenadas en píxeles: todo va en unidades de dibujo.
  */
 export const FORMAT = 'fmodel-2dcad';
-export const FORMAT_VERSION = 3;
+export const FORMAT_VERSION = 4;
 
 export interface NativeFile {
   format: typeof FORMAT;
@@ -30,7 +31,7 @@ export interface NativeFile {
 }
 
 function maxNativeCollectionSize(collection: CollectionName): number {
-  return collection === 'entities' ? INPUT_LIMITS.maxEntities :
+  return collection === 'entities' || collection === 'constraints' ? INPUT_LIMITS.maxEntities :
     collection === 'blocks' ? INPUT_LIMITS.maxBlocks :
       collection === 'assets' ? INPUT_LIMITS.maxAssets : INPUT_LIMITS.maxBlocks;
 }
@@ -57,6 +58,8 @@ const MIGRATIONS: Migration[] = [
     for (const e of (f.collections.entities ?? []) as { order?: number }[]) if (e.order === undefined) e.order = ++i;
     return { ...f, version: 3 };
   },
+  // v3 → v4: restricciones, parámetros y variantes del dibujo
+  (f) => ({ ...f, collections: { ...f.collections, constraints: f.collections.constraints ?? [], parameters: f.collections.parameters ?? [], parameterSets: f.collections.parameterSets ?? [] }, version: 4 }),
 ];
 
 export function toNativeFile(data: DocumentData, documentId: Id, opts: { embedAssets?: boolean } = {}): NativeFile {
@@ -336,6 +339,21 @@ export function fromNativeFile(input: unknown): { data: DocumentData; documentId
     if (!block.dynamic) continue;
     const entityIds = new Set([...data.entities.values()].filter((entity) => entity.owner === block.id).map((entity) => entity.id));
     assertNativeInput(() => assertDynamicBlockDefinition(block.dynamic, entityIds));
+  }
+
+  // restricciones del dibujo: se retiran las que ya no tienen sentido; los nombres no se repiten
+  for (const [id, constraint] of data.constraints) {
+    const problem = constraintProblem(data, constraint);
+    if (problem) {
+      data.constraints.delete(id);
+      warnings.push(`Se retiró una restricción: ${problem.es} / Removed a constraint: ${problem.en}`);
+    }
+  }
+  const names = new Set<string>();
+  for (const named of namedExpressions(data)) {
+    const key = named.name.toLowerCase();
+    if (names.has(key)) throw new NativeFormatError(`El nombre de parámetro «${named.name}» está repetido. / Parameter name "${named.name}" is duplicated.`);
+    names.add(key);
   }
 
   for (const [id, group] of data.groups) {

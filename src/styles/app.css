@@ -2857,3 +2857,83 @@ kbd {
   border-radius: 6px;
 }
 .libimp__stretch { display: inline-flex; gap: 4px; align-items: center; font-size: 12px; color: var(--ink-secondary); white-space: nowrap; }
+
+/* ---------------------------------------------------------------- parámetros del dibujo */
+.params__tools {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+}
+.params__toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: 12px;
+}
+.params__hint {
+  display: block;
+  color: var(--ink-muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+.params__row {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.3fr) minmax(52px, auto) auto;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  font-size: 12px;
+}
+.params__row.is-conflict {
+  box-shadow: inset 2px 0 0 var(--fs-signal-attention);
+  padding-left: 6px;
+}
+.params__name {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.params__name .eyebrow {
+  font-size: 9px;
+}
+.params__formula .input {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+}
+.params__value {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--ink-muted);
+}
+.params__row.is-conflict .params__value {
+  color: var(--fs-signal-attention);
+}
+.params__actions {
+  display: flex;
+  gap: 2px;
+}
+.params__add {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.3fr) auto;
+  gap: 4px;
+  margin-top: 4px;
+}
+.params__add--two {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+@media (max-width: 820px) {
+  .params__tools {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .params__row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .params__value {
+    text-align: left;
+  }
+  .params__actions .icon-btn {
+    width: 40px !important;
+    height: 40px !important;
+  }
+}

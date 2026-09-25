@@ -298,3 +298,32 @@ export function topoSortExpressions(exprs: Record<string, string>): string[] {
   for (const k of Object.keys(exprs)) visit(k, []);
   return order;
 }
+
+/**
+ * Sustituye una variable por otra en el texto de una expresión, respetando el resto del
+ * texto (espacios, formato). No toca funciones (`nombre(`) ni identificadores más largos.
+ */
+export function renameVariable(src: string, from: string, to: string): string {
+  let out = '';
+  let i = 0;
+  while (i < src.length) {
+    const ch = src[i];
+    if (/[0-9.]/.test(ch)) {
+      const m = /^(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?/.exec(src.slice(i));
+      const len = m ? m[0].length : 1;
+      out += src.slice(i, i + len);
+      i += len;
+      continue;
+    }
+    if (/[A-Za-z_À-ɏ]/.test(ch)) {
+      const id = /^[A-Za-z_À-ɏ][A-Za-z0-9_.À-ɏ]*/.exec(src.slice(i))![0];
+      const rest = src.slice(i + id.length);
+      out += id === from && !/^\s*\(/.test(rest) ? to : id;
+      i += id.length;
+      continue;
+    }
+    out += ch;
+    i++;
+  }
+  return out;
+}

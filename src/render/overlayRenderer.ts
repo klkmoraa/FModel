@@ -9,6 +9,7 @@ import { renderHighlight, renderPreviewEntities } from './sceneRenderer';
 import { CanvasSink } from './canvasSink';
 import { drawEntity } from './traverse';
 import { drawAuthoringOverlay } from './authoringOverlay';
+import { drawDrawingConstraints } from './constraintOverlay';
 
 export const SNAP_LABELS: Record<SnapType, { es: string; en: string }> = {
   endpoint: { es: 'Punto final', en: 'Endpoint' },
@@ -246,6 +247,7 @@ export function renderOverlay(g: CanvasRenderingContext2D, editor: Editor, opts:
 
   g.setTransform(dpr, 0, 0, dpr, 0, 0);
   drawAuthoringOverlay(g, editor, theme);
+  drawDrawingConstraints(g, editor, theme);
 
   // grips
   if (!req && !editor.runner.busy && editor.selection.size) {

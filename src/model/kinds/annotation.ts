@@ -87,6 +87,7 @@ export const dimensionKind: EntityKind<DimensionEntity> = {
       if (p) (out as unknown as Record<string, Vec2>)[k] = applyToPoint(m, p);
     }
     if (e.radius !== undefined) out.radius = e.radius * uniformScale(m);
+    if (e.breaks) out.breaks = e.breaks.map((b) => ({ p: applyToPoint(m, b.p), size: b.size === undefined ? undefined : b.size * uniformScale(m) }));
     return out;
   },
   snapPoints: (e, ctx) => {

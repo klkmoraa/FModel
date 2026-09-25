@@ -44,6 +44,7 @@ export const RIBBON: RibbonTab[] = [
           t('SPLINE', 'spline', 'Spline', 'Spline'),
           t('HATCH', 'hatch', 'Sombreado', 'Hatch'),
           t('XLINE', 'xline', 'Auxiliar', 'Xline'),
+          t('BLEND', 'blend', 'Enlace', 'Blend'),
         ],
       },
       {
@@ -71,7 +72,7 @@ export const RIBBON: RibbonTab[] = [
       },
       {
         label: { es: 'Capas', en: 'Layers' },
-        tools: [t('LAYER', 'layers', 'Capas', 'Layers', 'lg'), t('LAYISO', 'isolate', 'Aislar capa', 'Isolate layer'), t('LAYUNISO', 'layers', 'Restaurar capas', 'Unisolate'), t('MATCHPROP', 'matchprop', 'Igualar', 'Match')],
+        tools: [t('LAYER', 'layers', 'Capas', 'Layers', 'lg'), t('LAYISO', 'isolate', 'Aislar capa', 'Isolate layer'), t('LAYUNISO', 'layers', 'Restaurar capas', 'Unisolate'), t('LAYWALK', 'laywalk', 'Recorrer capas', 'Layer walk'), t('COPYTOLAYER', 'copytolayer', 'Copiar a capa', 'Copy to layer'), t('MATCHPROP', 'matchprop', 'Igualar', 'Match')],
       },
       {
         label: { es: 'Bloque', en: 'Block' },
@@ -79,7 +80,7 @@ export const RIBBON: RibbonTab[] = [
       },
       {
         label: { es: 'Utilidades', en: 'Utilities' },
-        tools: [t('DIST', 'measure', 'Medir', 'Measure'), t('QSELECT', 'qselect', 'Selección rápida', 'Quick select'), t('ZOOM', 'zoomextents', 'Extensión', 'Extents', 'sm', ['E'])],
+        tools: [t('DIST', 'measure', 'Medir', 'Measure'), t('MASSPROP', 'massprop', 'Propiedades de masa', 'Mass properties'), t('QSELECT', 'qselect', 'Selección rápida', 'Quick select'), t('ZOOM', 'zoomextents', 'Extensión', 'Extents', 'sm', ['E'])],
       },
     ],
   },
@@ -96,11 +97,12 @@ export const RIBBON: RibbonTab[] = [
     id: 'annotate',
     label: { es: 'Anotar', en: 'Annotate' },
     groups: [
-      { label: { es: 'Texto', en: 'Text' }, tools: [t('MTEXT', 'mtext', 'Líneas múltiples', 'Multiline', 'lg'), t('TEXT', 'text', 'Una línea', 'Single line'), t('STYLE', 'text', 'Estilos de texto', 'Text styles'), t('FIND', 'qselect', 'Buscar', 'Find')] },
+      { label: { es: 'Texto', en: 'Text' }, tools: [t('MTEXT', 'mtext', 'Líneas múltiples', 'Multiline', 'lg'), t('TEXT', 'text', 'Una línea', 'Single line'), t('STYLE', 'text', 'Estilos de texto', 'Text styles'), t('FIND', 'qselect', 'Buscar', 'Find'), t('TXT2MTXT', 'txt2mtxt', 'A texto múltiple', 'To Mtext'), t('TEXTALIGN', 'textalign', 'Alinear textos', 'Align text')] },
       {
         label: { es: 'Cotas', en: 'Dimensions' },
         tools: [
           t('DIMLINEAR', 'dimlinear', 'Lineal', 'Linear', 'lg'),
+          t('QDIM', 'qdim', 'Acotación rápida', 'Quick dimension', 'lg'),
           t('DIMALIGNED', 'dimaligned', 'Alineada', 'Aligned'),
           t('DIMANGULAR', 'dimangular', 'Angular', 'Angular'),
           t('DIMRADIUS', 'dimradius', 'Radio', 'Radius'),
@@ -109,9 +111,12 @@ export const RIBBON: RibbonTab[] = [
           t('DIMORDINATE', 'dimordinate', 'Coordenada', 'Ordinate'),
           t('DIMCONTINUE', 'dimcontinue', 'Continua', 'Continue'),
           t('DIMBASELINE', 'dimbaseline', 'Línea base', 'Baseline'),
+          t('DIMSPACE', 'dimspace', 'Espaciar', 'Adjust space'),
+          t('DIMBREAK', 'dimbreak', 'Cortar', 'Break'),
           t('DIMSTYLE', 'dimlinear', 'Estilos', 'Styles'),
         ],
       },
+      { label: { es: 'Marcas de centro', en: 'Centerlines' }, tools: [t('CENTERMARK', 'centermark', 'Marca de centro', 'Center mark', 'lg'), t('CENTERLINE', 'centerline', 'Eje de centro', 'Centerline', 'lg')] },
       { label: { es: 'Directrices', en: 'Leaders' }, tools: [t('MLEADER', 'mleader', 'Directriz múltiple', 'Multileader', 'lg'), t('MLEADERSTYLE', 'mleader', 'Estilos', 'Styles')] },
       { label: { es: 'Tablas', en: 'Tables' }, tools: [t('TABLE', 'table', 'Tabla', 'Table', 'lg'), t('TABLESTYLE', 'table', 'Estilos', 'Styles')] },
       { label: { es: 'Marcas', en: 'Markup' }, tools: [t('REVCLOUD', 'revcloud', 'Nube', 'Revision cloud', 'lg'), t('WIPEOUT', 'wipeout', 'Cobertura', 'Wipeout')] },
@@ -122,6 +127,43 @@ export const RIBBON: RibbonTab[] = [
     id: 'parametric',
     label: { es: 'Paramétrico', en: 'Parametric' },
     groups: [
+      {
+        label: { es: 'Geométricas', en: 'Geometric' },
+        tools: [
+          t('AUTOCONSTRAIN', 'autoconstrain', 'Automáticas', 'Auto constrain', 'lg'),
+          t('GCCOINCIDENT', 'gccoincident', 'Coincidente', 'Coincident'),
+          t('GCCOLLINEAR', 'gccollinear', 'Colineal', 'Collinear'),
+          t('GCCONCENTRIC', 'gcconcentric', 'Concéntrica', 'Concentric'),
+          t('GCFIX', 'gcfix', 'Fija', 'Fix'),
+          t('GCPARALLEL', 'gcparallel', 'Paralela', 'Parallel'),
+          t('GCPERPENDICULAR', 'gcperpendicular', 'Perpendicular', 'Perpendicular'),
+          t('GCHORIZONTAL', 'gchorizontal', 'Horizontal', 'Horizontal'),
+          t('GCVERTICAL', 'gcvertical', 'Vertical', 'Vertical'),
+          t('GCTANGENT', 'gctangent', 'Tangente', 'Tangent'),
+          t('GCSYMMETRIC', 'gcsymmetric', 'Simétrica', 'Symmetric'),
+          t('GCEQUAL', 'gcequal', 'Igual', 'Equal'),
+        ],
+      },
+      {
+        label: { es: 'Cotas de restricción', en: 'Dimensional' },
+        tools: [
+          t('DCLINEAR', 'dimlinear', 'Lineal', 'Linear', 'lg'),
+          t('DCALIGNED', 'dimaligned', 'Alineada', 'Aligned'),
+          t('DCANGULAR', 'dimangular', 'Angular', 'Angular'),
+          t('DCRADIUS', 'dimradius', 'Radio', 'Radius'),
+          t('DCDIAMETER', 'dimdiameter', 'Diámetro', 'Diameter'),
+          t('DCCONVERT', 'constraint', 'Convertir cota', 'Convert'),
+        ],
+      },
+      {
+        label: { es: 'Gestionar', en: 'Manage' },
+        tools: [
+          t('PARAMETERS', 'parameters', 'Parámetros', 'Parameters', 'lg'),
+          t('DELCONSTRAINT', 'delconstraint', 'Borrar restricciones', 'Delete constraints'),
+          t('CONSTRAINTBAR', 'constraintbar', 'Mostrar/ocultar', 'Show/hide'),
+          t('CONSTRAINTINFER', 'constraintinfer', 'Inferir al dibujar', 'Infer'),
+        ],
+      },
       { label: { es: 'Bloques dinámicos', en: 'Dynamic blocks' }, tools: [t('BEDIT', 'bedit', 'Editor de bloques', 'Block editor', 'lg'), t('DYNBLOCKSAMPLES', 'dynblock', 'Ejemplos dinámicos', 'Dynamic samples', 'lg'), t('BTESTBLOCK', 'dynblock', 'Probar bloque', 'Test block'), t('BVSTATE', 'dynblock', 'Estados de visibilidad', 'Visibility states'), t('BCLOSE', 'bedit', 'Cerrar editor', 'Close editor')] },
       { label: { es: 'Autoría', en: 'Authoring' }, tools: [t('BPARAMETER', 'dynblock', 'Parámetro', 'Parameter'), t('BACTION', 'dynblock', 'Acción', 'Action'), t('BVARIABLE', 'constraint', 'Variable', 'Variable')] },
       { label: { es: 'Restricciones', en: 'Constraints' }, tools: [t('BCONSTRAINT', 'constraint', 'Geométrica', 'Geometric'), t('BCPARAMETER', 'constraint', 'Parámetro de restricción', 'Constraint parameter')] },
@@ -141,6 +183,7 @@ export const RIBBON: RibbonTab[] = [
       },
       { label: { es: 'Matrices', en: 'Arrays' }, tools: [t('ARRAYRECT', 'array', 'Rectangular', 'Rectangular', 'lg'), t('ARRAYPOLAR', 'polararray', 'Polar', 'Polar'), t('ARRAYPATH', 'spline', 'Trayectoria', 'Path')] },
       { label: { es: 'Organizar', en: 'Organize' }, tools: [t('GROUP', 'group', 'Agrupar', 'Group'), t('UNGROUP', 'group', 'Desagrupar', 'Ungroup'), t('DRAWORDER', 'draworder', 'Orden', 'Draw order'), t('EXPLODE', 'explode', 'Descomponer', 'Explode'), t('ERASE', 'erase', 'Borrar', 'Erase'), t('MATCHPROP', 'matchprop', 'Igualar propiedades', 'Match properties')] },
+      { label: { es: 'Portapapeles', en: 'Clipboard' }, tools: [t('COPYBASE', 'copybase', 'Copiar con base', 'Copy with base point'), t('PASTEBLOCK', 'pasteblock', 'Pegar como bloque', 'Paste as block'), t('PASTEORIG', 'pasteorig', 'Pegar en origen', 'Paste to original')] },
       { label: { es: 'Booleanas', en: 'Booleans' }, tools: [t('REGION', 'region', 'Región', 'Region'), t('UNION', 'region', 'Unión', 'Union'), t('SUBTRACT', 'region', 'Diferencia', 'Subtract'), t('INTERSECT', 'region', 'Intersección', 'Intersect')] },
     ],
   },

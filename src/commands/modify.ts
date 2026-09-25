@@ -17,6 +17,8 @@ import { breakEntity, extendEntity, joinEntities, lengthenEntity, reverseEntity,
 import { cornerEntities, polylineAllCorners } from '../modify/filletEntities';
 import { distanceToEntity, OFFSETTABLE, offsetEntity } from '../modify/offsetEntity';
 import { planOverkill } from '../audit/overkill';
+import { insertBlock } from '../blocks/blockOps';
+import { previewConstrained } from '../constraints/drawing';
 import { purge } from '../audit/purge';
 import { arrayExpansionWithinLimit, arrayInstanceCount } from '../document/arrayLimits';
 import { assertFiniteValues } from '../io/validation';
@@ -99,7 +101,16 @@ async function baseAndSecond(api: CommandApi, ids: Id[], build: (base: Vec2, p: 
   }
   if (b.kind !== 'point') return null;
   base = b.p;
-  const second = await api.getPoint({ prompt: L(prompts.second.es, prompts.second.en), base, rubber: 'line', allowNone: true, preview: (p) => ({ entities: transformed(api, ids, build(base, p)) }) });
+  const second = await api.getPoint({
+    prompt: L(prompts.second.es, prompts.second.en),
+    base,
+    rubber: 'line',
+    allowNone: true,
+    preview: (p) => {
+      const moved = transformed(api, ids, build(base, p));
+      return { entities: copy ? moved : previewConstrained(api.editor.doc.data, moved) };
+    },
+  });
   if (second.kind === 'none') return copy ? null : { base: { x: 0, y: 0 }, p: base };
   if (second.kind !== 'point') return null;
   return { base, p: second.p };
@@ -574,7 +585,7 @@ const STRETCH: CommandDef = {
     const stretched = (d: Vec2) => ids.map((id) => stretchEntity(editor.doc.entity(id)!, inside, d, editor.ctx)).filter(Boolean) as Entity[];
     const base = await api.getPoint({ prompt: L('Precise el punto base', 'Specify base point') });
     if (base.kind !== 'point') return;
-    const second = await api.getPoint({ prompt: L('Precise el segundo punto', 'Specify second point'), base: base.p, rubber: 'line', preview: (p) => ({ entities: stretched(sub(p, base.p)) }) });
+    const second = await api.getPoint({ prompt: L('Precise el segundo punto', 'Specify second point'), base: base.p, rubber: 'line', preview: (p) => ({ entities: previewConstrained(editor.doc.data, stretched(sub(p, base.p))) }) });
     if (second.kind !== 'point') return;
     const out = stretched(sub(second.p, base.p));
     api.apply('STRETCH', (tx) => out.forEach((e) => tx.put('entities', e)));
@@ -1187,21 +1198,70 @@ const UNGROUP: CommandDef = {
 // ------------------------------------------------------------------ portapapeles
 
 let clipboard: ClipboardPackage | LegacyClipboardPackage | null = null;
+/** Última copia hecha en esta sesión: su dibujo de origen y el texto enviado al sistema. */
+let lastCopy: { docId: Id; json: string } | null = null;
 
-async function clip(api: CommandApi, cut: boolean) {
+async function clip(api: CommandApi, cut: boolean, base?: Vec2) {
   const ids = await selectOrFail(api);
-  const pkg = createClipboardPackage(api.editor.doc, ids, api.editor.ctx);
+  const pkg = createClipboardPackage(api.editor.doc, ids, api.editor.ctx, base);
   clipboard = pkg;
+  const json = JSON.stringify(pkg);
+  lastCopy = { docId: api.editor.doc.id, json };
   try {
-    await navigator.clipboard?.writeText(JSON.stringify(pkg));
+    await navigator.clipboard?.writeText(json);
   } catch {
     /* portapapeles del sistema no disponible */
   }
   if (cut) api.apply('CUTCLIP', (tx) => ids.forEach((id) => tx.removeEntity(id)));
 }
 
+/** Paquete del portapapeles del sistema (si es de FModel) o, si no, el de esta sesión. */
+async function readClipboard(): Promise<{ pkg: ClipboardPackage | LegacyClipboardPackage; text?: string }> {
+  let pkg: ClipboardPackage | LegacyClipboardPackage | null = null;
+  let text: string | undefined;
+  try {
+    text = await navigator.clipboard?.readText();
+  } catch {
+    /* portapapeles del sistema no disponible o permiso denegado */
+  }
+  if (text) {
+    try {
+      pkg = parseClipboardPackage(text);
+    } catch (error) {
+      if (error instanceof ClipboardError) throw new CommandError(error.l10n);
+      throw error;
+    }
+  }
+  if (!pkg) {
+    pkg = clipboard;
+    text = lastCopy?.json;
+  }
+  if (!pkg) throw new CommandError(L('El portapapeles no contiene objetos de FModel.', 'The clipboard has no FModel objects.'));
+  return { pkg, text };
+}
+
+function pasteWarnings(api: CommandApi, warnings: string[]) {
+  if (warnings.length > 0) api.warn(L(`Pegado con avisos: ${warnings.join('; ')}`, `Pasted with warnings: ${warnings.join('; ')}`));
+}
+
 const COPYCLIP: CommandDef = { name: 'COPYCLIP', aliases: ['COPIARPP'], category: 'utility', readOnly: true, label: L('Copiar al portapapeles', 'Copy to clipboard'), description: L('Copia objetos para pegarlos en este u otro dibujo.', 'Copies objects to paste in this or another drawing.'), run: (api) => clip(api, false) };
 const CUTCLIP: CommandDef = { name: 'CUTCLIP', aliases: ['CORTARPP'], category: 'utility', label: L('Cortar', 'Cut'), description: L('Corta objetos al portapapeles.', 'Cuts objects to the clipboard.'), run: (api) => clip(api, true) };
+
+const COPYBASE: CommandDef = {
+  name: 'COPYBASE',
+  aliases: ['COPIARBASE'],
+  category: 'utility',
+  readOnly: true,
+  label: L('Copiar con punto base', 'Copy with base point'),
+  description: L('Copia objetos al portapapeles con un punto base: al pegar, el cursor sujeta ese punto.', 'Copies objects to the clipboard with a base point: when pasting, the cursor holds that point.'),
+  icon: 'copybase',
+  async run(api) {
+    const b = await api.getPoint({ prompt: L('Precise el punto base', 'Specify base point') });
+    if (b.kind !== 'point') return;
+    await clip(api, false, b.p);
+  },
+};
+
 const PASTECLIP: CommandDef = {
   name: 'PASTECLIP',
   aliases: ['PEGARPP'],
@@ -1209,26 +1269,7 @@ const PASTECLIP: CommandDef = {
   label: L('Pegar', 'Paste'),
   description: L('Pega objetos del portapapeles en un punto de inserción.', 'Pastes clipboard objects at an insertion point.'),
   async run(api) {
-    let pkg: ClipboardPackage | LegacyClipboardPackage | null = null;
-    let text: string | undefined;
-    try {
-      text = await navigator.clipboard?.readText();
-    } catch {
-      /* portapapeles del sistema no disponible o permiso denegado */
-    }
-    if (text) {
-      try {
-        pkg = parseClipboardPackage(text);
-      } catch (error) {
-        if (error instanceof ClipboardError) throw new CommandError(error.l10n);
-        throw error;
-      }
-    }
-    if (!pkg) {
-      pkg = clipboard;
-    }
-    if (!pkg) throw new CommandError(L('El portapapeles no contiene objetos de FModel.', 'The clipboard has no FModel objects.'));
-    const d = pkg;
+    const { pkg: d } = await readClipboard();
     const baseX = d.base?.x ?? 0;
     const baseY = d.base?.y ?? 0;
     const moved = (p: Vec2) => d.entities.map((e) => kindOf(e).transform(e, translation(p.x - baseX, p.y - baseY), api.editor.ctx)).filter(Boolean) as Entity[];
@@ -1240,9 +1281,65 @@ const PASTECLIP: CommandDef = {
     const doc = api.editor.doc;
     const res = api.apply('PASTECLIP', (tx) => pasteClipboardPackage(doc, d, api.editor.inputOwner, p.p, tx));
     api.editor.selection.set(res.insertedIds);
-    if (res.warnings.length > 0) {
-      api.warn(L(`Pegado con avisos: ${res.warnings.join('; ')}`, `Pasted with warnings: ${res.warnings.join('; ')}`));
+    pasteWarnings(api, res.warnings);
+  },
+};
+
+const PASTEORIG: CommandDef = {
+  name: 'PASTEORIG',
+  aliases: ['PEGARORIG'],
+  category: 'utility',
+  label: L('Pegar en coordenadas originales', 'Paste to original coordinates'),
+  description: L('Pega los objetos del portapapeles exactamente en las coordenadas que tenían en el dibujo de origen.', 'Pastes clipboard objects at exactly the coordinates they had in the source drawing.'),
+  icon: 'pasteorig',
+  async run(api) {
+    const { pkg, text } = await readClipboard();
+    const doc = api.editor.doc;
+    if (lastCopy && text === lastCopy.json && lastCopy.docId === doc.id) {
+      throw new CommandError(L('PASTEORIG pega en otro dibujo: aquí los objetos quedarían duplicados encima de los originales. Usa PASTECLIP.', 'PASTEORIG pastes into another drawing: here the objects would be duplicated on top of the originals. Use PASTECLIP.'));
     }
+    const res = api.apply('PASTEORIG', (tx) => pasteClipboardPackage(doc, pkg, api.editor.inputOwner, pkg.base ?? { x: 0, y: 0 }, tx));
+    api.editor.selection.set(res.insertedIds);
+    pasteWarnings(api, res.warnings);
+    api.info(L(`${res.insertedIds.length} objeto(s) pegado(s) en sus coordenadas originales.`, `${res.insertedIds.length} object(s) pasted at original coordinates.`));
+  },
+};
+
+/** Nombre libre de bloque anónimo pegado, al estilo A$C… de AutoCAD. */
+function pastedBlockName(api: CommandApi): string {
+  const used = new Set([...api.editor.doc.data.blocks.values()].map((b) => b.name.toLowerCase()));
+  for (;;) {
+    const name = `A$C${newId().slice(-8).toUpperCase()}`;
+    if (!used.has(name.toLowerCase())) return name;
+  }
+}
+
+const PASTEBLOCK: CommandDef = {
+  name: 'PASTEBLOCK',
+  aliases: ['PEGARBLOQUE'],
+  category: 'utility',
+  label: L('Pegar como bloque', 'Paste as block'),
+  description: L('Pega el contenido del portapapeles como una referencia a un bloque nuevo (se puede renombrar con RENAME).', 'Pastes the clipboard content as a reference to a new block (rename it with RENAME).'),
+  icon: 'pasteblock',
+  async run(api) {
+    const { pkg } = await readClipboard();
+    const base = pkg.base ?? { x: 0, y: 0 };
+    const moved = (p: Vec2) => pkg.entities.map((e) => kindOf(e).transform(e, translation(p.x - base.x, p.y - base.y), api.editor.ctx)).filter(Boolean) as Entity[];
+    const p = await api.getPoint({ prompt: L('Precise el punto de inserción', 'Specify insertion point'), preview: (q) => ({ entities: moved(q).map((e) => ({ ...e, owner: api.editor.inputOwner })) }) });
+    if (p.kind !== 'point') return;
+    const doc = api.editor.doc;
+    const name = pastedBlockName(api);
+    const res = api.apply('PASTEBLOCK', (tx) => {
+      const block: BlockRecord = { id: newId('blk'), name, kind: 'normal', basePoint: base, description: '', units: doc.settings.insUnits, explodable: true, scaleUniformly: false, annotative: false, revision: 1 };
+      tx.add('blocks', block);
+      const pasted = pasteClipboardPackage(doc, pkg, block.id, base, tx);
+      if (!pasted.insertedIds.length) throw new CommandError(L('El portapapeles no contiene objetos que pegar.', 'The clipboard has no objects to paste.'));
+      const insert = insertBlock(tx, doc, block.id, api.editor.inputOwner, p.p);
+      return { insert, warnings: pasted.warnings };
+    });
+    api.editor.selection.set([res.insert.id]);
+    pasteWarnings(api, res.warnings);
+    api.info(L(`Pegado como bloque «${name}».`, `Pasted as block "${name}".`));
   },
 };
 
@@ -1299,4 +1396,4 @@ const UNION: CommandDef = { name: 'UNION', aliases: ['UNI', 'UNIONREG'], categor
 const SUBTRACT: CommandDef = { name: 'SUBTRACT', aliases: ['SU', 'DIFERENCIA'], category: 'modify', label: L('Diferencia', 'Subtract'), description: L('Resta regiones 2D.', 'Subtracts 2D regions.'), icon: 'region', run: (api) => booleanCommand(api, 'difference') };
 const INTERSECT: CommandDef = { name: 'INTERSECT', aliases: ['IN', 'INTERSECCION'], category: 'modify', label: L('Intersección', 'Intersect'), description: L('Intersección de regiones 2D.', 'Intersects 2D regions.'), icon: 'region', run: (api) => booleanCommand(api, 'intersection') };
 
-export const MODIFY_COMMANDS: CommandDef[] = [ERASE, OOPS, MOVE, COPY, ROTATE, SCALE, MIRROR, OFFSET, TRIM, EXTEND, FILLET, CHAMFER, STRETCH, ARRAY, ARRAYRECT, ARRAYPOLAR, ARRAYPATH, JOIN, BREAK, BREAKATPOINT, EXPLODE, PEDIT, LENGTHEN, REVERSE, ALIGN, MATCHPROP, OVERKILL, PURGE, DRAWORDER, TEXTTOFRONT, GROUP, UNGROUP, COPYCLIP, CUTCLIP, PASTECLIP, UNION, SUBTRACT, INTERSECT];
+export const MODIFY_COMMANDS: CommandDef[] = [ERASE, OOPS, MOVE, COPY, ROTATE, SCALE, MIRROR, OFFSET, TRIM, EXTEND, FILLET, CHAMFER, STRETCH, ARRAY, ARRAYRECT, ARRAYPOLAR, ARRAYPATH, JOIN, BREAK, BREAKATPOINT, EXPLODE, PEDIT, LENGTHEN, REVERSE, ALIGN, MATCHPROP, OVERKILL, PURGE, DRAWORDER, TEXTTOFRONT, GROUP, UNGROUP, COPYCLIP, CUTCLIP, PASTECLIP, COPYBASE, PASTEORIG, PASTEBLOCK, UNION, SUBTRACT, INTERSECT];

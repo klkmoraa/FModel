@@ -25,6 +25,7 @@ const TYPE_LABELS: Record<string, [string, string]> = {
   dimension: ['Cota', 'Dimension'],
   viewport: ['Viewport', 'Viewport'],
   array: ['Matriz asociativa', 'Associative array'],
+  centermark: ['Marca de centro', 'Center mark'],
 };
 
 export function typeLabel(type: string, lang: 'es' | 'en'): string {

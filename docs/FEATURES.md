@@ -2,7 +2,7 @@
 
 > Archivo generado con `node scripts/features-md.mjs` desde `src/app/features.ts`, la misma fuente que la pestaña «Estado de funciones» de la ayuda (F1). No lo edites a mano.
 
-**Disponible**: 3 · **Experimental**: 45 · **Planeado**: 0 · **No comprometido**: 1
+**Disponible**: 3 · **Experimental**: 54 · **Planeado**: 0 · **No comprometido**: 1
 
 - **Disponible**: funciona de extremo a extremo y tiene pruebas con evidencia vinculada.
 - **Experimental**: funciona con limitaciones documentadas y evidencia parcial.
@@ -39,6 +39,7 @@
 | Línea, polilínea, círculo, arco, rectángulo, polígono, elipse, spline, punto, rayo, línea auxiliar, nube de revisión, arandela | Experimental | `LINE` `PLINE` `CIRCLE` `ARC` `RECTANG` `POLYGON` `ELLIPSE` `SPLINE` `POINT` `RAY` `XLINE` `REVCLOUD` `DONUT` | `BEH-DRAW` `E2E-CRITICAL-JOURNEYS` | Evidencia ejecutada pendiente para: SPLINE. La función no se publica como Disponible hasta enlazar cada comando a una prueba real. |
 | Sombreado con islas, contorno, región, cobertura, multilínea, dividir y medir | Experimental | `HATCH` `BOUNDARY` `REGION` `WIPEOUT` `MLINE` `DIVIDE` `MEASURE` | `BEH-DRAW` `GEO-CURVES` | Evidencia ejecutada pendiente para: HATCH, BOUNDARY, WIPEOUT, MLINE, DIVIDE, MEASURE. La función no se publica como Disponible hasta enlazar cada comando a una prueba real. |
 | Texto, texto de párrafos, directriz múltiple y tabla | Experimental | `TEXT` `MTEXT` `MLEADER` `TABLE` | `BEH-ANNOTATE` | Evidencia ejecutada pendiente para: TABLE. La función no se publica como Disponible hasta enlazar cada comando a una prueba real. |
+| Curvas de enlace tangentes (G1) o suaves con curvatura continua (G2) entre dos objetos | Experimental | `BLEND` | `BEH-PRODUCTION` `GEO-BLEND` | Crea una spline de Bézier sujeta, exportable a DXF sin pérdida. |
 
 ## Modificar
 
@@ -54,6 +55,7 @@
 |---|---|---|---|---|
 | Administrador de capas: estados, filtros, aislar, fusionar, congelación por viewport; herencia PorCapa/PorBloque | Experimental | `LAYER` `LAYERSTATE` `LAYISO` `LAYMRG` `VPLAYER` | `BEH-MANAGEMENT` | Evidencia ejecutada pendiente para: LAYER, LAYERSTATE, LAYISO, LAYMRG, VPLAYER. La función no se publica como Disponible hasta enlazar cada comando a una prueba real. |
 | Inspector de propiedades con edición por lotes e igualar propiedades | Experimental | `PROPERTIES` `MATCHPROP` | `BEH-MANAGEMENT` | Evidencia ejecutada pendiente para: PROPERTIES, MATCHPROP. La función no se publica como Disponible hasta enlazar cada comando a una prueba real. |
+| Copiar objetos a otra capa y recorrer las capas una a una | Experimental | `COPYTOLAYER` `LAYWALK` | `BEH-PRODUCTION` | LAYWALK solo cambia la vista y la restaura al salir. |
 
 ## Anotación
 
@@ -62,6 +64,9 @@
 | Estilos de texto, cota, directriz múltiple, tabla y multilínea; lista de escalas | Experimental | `STYLE` `SCALELISTEDIT` | `BEH-ANNOTATE` | Evidencia ejecutada pendiente para: STYLE, SCALELISTEDIT. La función no se publica como Disponible hasta enlazar cada comando a una prueba real. |
 | Cotas lineales, alineadas, angulares, radio, diámetro, arco, coordenada, continuas y de línea base; asociativas | Experimental | `DIMLINEAR` `DIMALIGNED` `DIMANGULAR` `DIMRADIUS` `DIMDIAMETER` `DIMARC` `DIMORDINATE` `DIMCONTINUE` `DIMBASELINE` | `BEH-ANNOTATE` | Evidencia ejecutada pendiente para: DIMANGULAR, DIMRADIUS, DIMDIAMETER, DIMARC, DIMORDINATE, DIMCONTINUE, DIMBASELINE. La función no se publica como Disponible hasta enlazar cada comando a una prueba real. |
 | Campos, tolerancias, prefijos/sufijos, unidades alternativas y escala anotativa | Experimental | `FIELD` | `BEH-ANNOTATE` | Evidencia ejecutada pendiente para: FIELD. La función no se publica como Disponible hasta enlazar cada comando a una prueba real. |
+| Acotación rápida en cadena, línea base, coordenadas, radio y diámetro; espaciado y cortes de cota | Experimental | `QDIM` `DIMSPACE` `DIMBREAK` | `BEH-PRODUCTION` `ANNOT-LAYOUT` | Las cotas de QDIM son asociativas. Los cortes automáticos se recalculan al mover la cota o lo que la cruza; los manuales no. |
+| Marcas y ejes de centro asociativos | Experimental | `CENTERMARK` `CENTERLINE` | `BEH-PRODUCTION` `IO-NATIVE` | Siguen al círculo, arco o tramos de origen; si se copian o se mueven por su cuenta quedan independientes. DXF las exporta como líneas. |
+| Texto de una línea a texto múltiple y alineación o distribución de textos | Experimental | `TXT2MTXT` `TEXTALIGN` | `BEH-PRODUCTION` | TXT2MTXT combina de arriba abajo y conserva barras, llaves y campos. |
 
 ## Bloques
 
@@ -75,6 +80,13 @@
 | Bloques dinámicos: parámetros, acciones, estados de visibilidad, tablas de consulta, fórmulas y variables | Experimental | `BEDIT` `BPARAMETER` `BACTION` `BVSTATE` `BVARIABLE` | `BEH-LIBRARY` `IO-DXF` | Evidencia ejecutada pendiente para: BEDIT, BPARAMETER, BACTION, BVSTATE, BVARIABLE. La función no se publica como Disponible hasta enlazar cada comando a una prueba real. |
 | Editor de bloques con prueba, edición en contexto, validación y vista previa en vivo | Experimental | `BEDIT` `BTESTBLOCK` `BCLOSE` | `BEH-LIBRARY` | Evidencia ejecutada pendiente para: BEDIT, BTESTBLOCK, BCLOSE. La función no se publica como Disponible hasta enlazar cada comando a una prueba real. |
 | Restricciones geométricas y dimensionales dentro de bloques, con glifos, cotas de restricción y conflictos en el lienzo | Experimental | `BCONSTRAINT` `BCPARAMETER` | `SOLVER-CONSTRAINTS` | Resolvedor numérico por mínimos cuadrados amortiguados: las restricciones incompatibles se marcan en conflicto en lugar de ignorarse. |
+
+## Paramétrico
+
+| Función | Estado | Comandos | Evidencia | Notas |
+|---|---|---|---|---|
+| Restricciones geométricas en el dibujo (coincidente, horizontal, vertical, paralela, perpendicular, tangente, concéntrica, igual, simétrica, colineal, fija) con inferencia automática | Experimental | `GEOMCONSTRAINT` `AUTOCONSTRAIN` `DELCONSTRAINT` `CONSTRAINTBAR` `CONSTRAINTINFER` | `BEH-PARAMETRIC` `PARAMETRIC-MODEL` `SOLVER-CONSTRAINTS` | Un reactor transaccional mantiene la geometría resuelta dentro de la misma transacción que la edita (un solo paso de deshacer). Al mover un objeto, lo unido lo sigue; «Fija» impide que el solver lo mueva pero no bloquea MOVE. Se guardan en .fmodel v4; DXF las exporta como geometría fija y lo avisa. |
+| Cotas de restricción con nombre y fórmula, parámetros de usuario, variantes y conversión de cotas asociativas | Experimental | `DIMCONSTRAINT` `PARAMETERS` `PARAMEDIT` | `BEH-PARAMETRIC` `PARAMETRIC-MODEL` `IO-NATIVE` | Cambiar un valor mueve el segundo punto de la cota y deja anclado el primero; un valor sin solución, un ciclo o una fórmula inválida se rechazan sin tocar el dibujo. Renombrar actualiza las fórmulas y variantes que lo usan. |
 
 ## Paletas
 
@@ -121,6 +133,7 @@
 |---|---|---|---|---|
 | Auditoría con corrección, informe de salud, limpieza de duplicados y elementos sin uso | Experimental | `AUDIT` `HEALTHREPORT` `OVERKILL` `PURGE` | `BEH-MANAGEMENT` `WORKER-ASYNC` | Evidencia ejecutada pendiente para: HEALTHREPORT, OVERKILL, PURGE. La función no se publica como Disponible hasta enlazar cada comando a una prueba real. |
 | Comparación de revisiones | Experimental | `COMPARE` | `BEH-MANAGEMENT` | Evidencia ejecutada pendiente para: COMPARE. La función no se publica como Disponible hasta enlazar cada comando a una prueba real. |
+| Propiedades de masa: área, centroide, inercias, producto de inercia, ejes principales y radios de giro | Experimental | `MASSPROP` | `BEH-PRODUCTION` `GEO-MASSPROP` | Integración exacta en líneas y arcos (Green + Gauss-Legendre); huecos restados por anidamiento; splines aproximadas y avisadas. |
 
 ## Productividad
 
@@ -130,6 +143,7 @@
 | Autoguardado, recuperación tras cierre y versiones locales | Experimental | `VERSIONS` `RECOVER` | `STORAGE-PERSISTENCE` `E2E-CRITICAL-JOURNEYS` | Evidencia ejecutada pendiente para: VERSIONS, RECOVER. La función no se publica como Disponible hasta enlazar cada comando a una prueba real. |
 | Español e inglés | Experimental | `OPTIONS` | `UI-A11Y` | Evidencia ejecutada pendiente para: OPTIONS. La función no se publica como Disponible hasta enlazar cada comando a una prueba real. |
 | Aplicación instalable con uso sin conexión (PWA) y apertura de .fmodel/.dxf desde el sistema | Experimental | `UPDATEAPP` | `PWA-SW` `E2E-CRITICAL-JOURNEYS` | El service worker precarga toda la versión y está cubierto por pruebas; la instalación y la apertura de archivos dependen del navegador (Safari no abre archivos desde el sistema). |
+| Copiar con punto base, pegar en coordenadas originales y pegar como bloque | Experimental | `COPYBASE` `PASTEORIG` `PASTEBLOCK` | `BEH-PRODUCTION` | PASTEORIG se rechaza en el mismo dibujo de origen para no duplicar objetos encima. |
 
 ## Rendimiento
 

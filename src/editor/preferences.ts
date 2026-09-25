@@ -23,6 +23,10 @@ export interface Preferences {
   rolloverHighlight: boolean;
   /** tarjeta flotante de propiedades al seleccionar (QP) */
   quickProperties: boolean;
+  /** muestra los glifos y cotas de las restricciones del dibujo */
+  constraintBar: boolean;
+  /** crea restricciones al dibujar sobre referencias exactas */
+  inferConstraints: boolean;
   crosshairSize: number; // % de la pantalla, 100 = completa
   pickboxPx: number;
   gripSizePx: number;
@@ -77,6 +81,8 @@ export const DEFAULT_PREFERENCES: Preferences = {
   selectionCycling: true,
   rolloverHighlight: true,
   quickProperties: false,
+  constraintBar: true,
+  inferConstraints: false,
   crosshairSize: 5,
   pickboxPx: 6,
   gripSizePx: 7,
@@ -171,6 +177,8 @@ export function loadPreferences(): Preferences {
       selectionCycling: bool(parsed.selectionCycling, DEFAULT_PREFERENCES.selectionCycling),
       rolloverHighlight: bool(parsed.rolloverHighlight, DEFAULT_PREFERENCES.rolloverHighlight),
       quickProperties: bool(parsed.quickProperties, DEFAULT_PREFERENCES.quickProperties),
+      constraintBar: bool(parsed.constraintBar, DEFAULT_PREFERENCES.constraintBar),
+      inferConstraints: bool(parsed.inferConstraints, DEFAULT_PREFERENCES.inferConstraints),
       crosshairSize: finiteIn(parsed.crosshairSize, DEFAULT_PREFERENCES.crosshairSize, 1, 100),
       pickboxPx: finiteIn(parsed.pickboxPx, DEFAULT_PREFERENCES.pickboxPx, 2, 20),
       gripSizePx: finiteIn(parsed.gripSizePx, DEFAULT_PREFERENCES.gripSizePx, 4, 20),

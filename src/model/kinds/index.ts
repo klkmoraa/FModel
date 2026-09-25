@@ -1,5 +1,6 @@
 import { registerAnnotationKinds } from './annotation';
 import { registerBasicKinds } from './basic';
+import { registerCenterMarkKind } from './centermark';
 import { registerHatchKind } from './hatch';
 import { registerInsertKinds } from './insert';
 import { registerMediaKinds } from './media';
@@ -18,4 +19,5 @@ export function registerAllKinds() {
   registerAnnotationKinds();
   registerInsertKinds();
   registerMediaKinds();
+  registerCenterMarkKind();
 }

@@ -10,6 +10,9 @@ import { formatDimValue } from './format';
 import type { EvalContext } from './registry';
 import { styleFont } from './kinds/text';
 
+/** Longitud de corte por defecto de DIMBREAK, en unidades de papel (como AutoCAD, 3.75 mm). */
+export const DEFAULT_BREAK_SIZE = 3.75;
+
 export interface DimGeometry {
   items: DisplayItem[];
   curves: Curve[];
@@ -155,10 +158,37 @@ export function buildDimension(e: DimensionEntity, ctx: EvalContext): DimGeometr
   const txtStyle: StyleOverride = { color: props.textColor };
   const items: DisplayItem[] = [];
   const curves: Curve[] = [];
-  const push = (a: Vec2, b: Vec2, st: StyleOverride) => {
+  const breakGap = (e.breakSize ?? DEFAULT_BREAK_SIZE) * S;
+  const emit = (a: Vec2, b: Vec2, st: StyleOverride) => {
     if (dist(a, b) < 1e-12) return;
     items.push(lineItem(a, b, st));
     curves.push({ kind: 'line', a, b });
+  };
+  // DIMBREAK: se omiten los tramos alrededor de cada corte que cae sobre la línea
+  const push = (a: Vec2, b: Vec2, st: StyleOverride) => {
+    if (!e.breaks?.length) return emit(a, b, st);
+    const d = sub(b, a);
+    const l = len(d);
+    if (l < 1e-12) return;
+    const tol = Math.max(1e-9, l * 1e-9, breakGap * 1e-3);
+    const cuts: [number, number][] = [];
+    for (const br of e.breaks) {
+      const q = sub(br.p, a);
+      if (Math.abs(cross(d, q)) / l > tol) continue;
+      const t = dot(q, d) / (l * l);
+      const h = (br.size ?? breakGap) / 2 / l;
+      if (t + h <= 0 || t - h >= 1) continue;
+      cuts.push([t - h, t + h]);
+    }
+    if (!cuts.length) return emit(a, b, st);
+    cuts.sort((x, y) => x[0] - y[0]);
+    let from = 0;
+    const at = (t: number) => add(a, scale(d, t));
+    for (const [c0, c1] of cuts) {
+      if (c0 > from) emit(at(from), at(Math.min(c0, 1)), st);
+      from = Math.max(from, c1);
+    }
+    if (from < 1) emit(at(from), b, st);
   };
 
   switch (e.dimType) {

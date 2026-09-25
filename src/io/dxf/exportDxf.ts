@@ -164,6 +164,7 @@ export function exportDxf(doc: CadDocument, ctx: ModelContext): { text: string; 
       layerHandles.set(l.id, H.next());
     }
     if (![...data.layers.values()].some((l) => l.name === '0')) report.warnings.push('El dibujo no tenía capa «0»; se añadió.');
+    if (data.constraints.size || data.parameters.size) report.warnings.push(`DXF no conserva el diseño paramétrico de FModel: ${data.constraints.size} restricción(es) y ${data.parameters.size} parámetro(s) se exportan como geometría fija. Guarda en .fmodel para conservarlos. / DXF does not keep FModel parametric design: constraints and parameters are exported as fixed geometry.`);
   }
   const ltNames = new Map<Id, string>();
   const ltHandles = new Map<Id, string>();
@@ -448,6 +449,10 @@ export function exportDxf(doc: CadDocument, ctx: ModelContext): { text: string; 
       }
       case 'dimension':
         return writeDimension(o, e);
+      case 'centermark': {
+        for (const part of kindOf(e).explode?.(e, ctx) ?? []) writeEntity(o, part);
+        return transformed('CENTERMARK', 'Las marcas y ejes de centro se exportan como líneas con su tipo de línea (DXF no conserva la asociatividad).');
+      }
       case 'wipeout': {
         const box = boxFromPoints(e.vertices);
         const w = Math.max(box.maxX - box.minX, 1e-9);

@@ -8,6 +8,7 @@ import { PropertiesPanel } from './panels/PropertiesPanel';
 import { BlocksPanel } from './panels/BlocksPanel';
 import { ToolPalettesPanel } from './panels/ToolPalettesPanel';
 import { BlockAuthoringPanel } from './panels/BlockAuthoringPanel';
+import { ParametersPanel } from './panels/ParametersPanel';
 import { tr } from './controls';
 import { isWorkspacePanelId, normalizeDockWidth, setPanelFloating, type WorkspacePanelId } from '../editor/workspaceChrome';
 
@@ -17,6 +18,7 @@ export const PANELS: Record<string, { icon: string; label: { es: string; en: str
   blocks: { icon: 'block', label: { es: 'Bloques', en: 'Blocks' }, render: (e, onUi) => <BlocksPanel editor={e} onUi={onUi} /> },
   palettes: { icon: 'palettes', label: { es: 'Paletas', en: 'Palettes' }, render: (e) => <ToolPalettesPanel editor={e} /> },
   authoring: { icon: 'dynblock', label: { es: 'Autoría', en: 'Authoring' }, render: (e) => <BlockAuthoringPanel editor={e} /> },
+  parameters: { icon: 'constraint', label: { es: 'Parámetros', en: 'Parameters' }, render: (e) => <ParametersPanel editor={e} /> },
 };
 
 /** Paneles de un lado; «Autoría» solo existe durante una sesión del Editor de bloques. */

@@ -2,6 +2,8 @@ import { strToU8, zipSync } from 'fflate';
 import { describe, expect, it } from 'vitest';
 import { createDocument, entityDefaults } from '../document/defaults';
 import type { ArrayEntity, AssetRecord, DocumentData, LineEntity, ViewportEntity } from '../document/types';
+import { MODEL_SPACE_ID } from '../document/types';
+import { addDrawingConstraint, addParameter, installDrawingConstraints, saveParameterSet } from '../constraints/drawing';
 import { INPUT_LIMITS } from './limits';
 import { FORMAT, FORMAT_VERSION, fromNativeFile, NativeFormatError, readPackage, toNativeFile, writeDebugJson, writePackage } from './native';
 
@@ -565,7 +567,7 @@ describe('formato nativo', () => {
       },
     };
     const res = fromNativeFile(old);
-    expect(res.warnings).toEqual(['Migrado a formato v2.', 'Migrado a formato v3.']);
+    expect(res.warnings).toEqual(['Migrado a formato v2.', 'Migrado a formato v3.', 'Migrado a formato v4.']);
     expect(res.data.layers.get('muros')?.transparency).toBe(0);
     expect([...res.data.layouts.values()][0].page.margins).toBeTruthy();
     expect((res.data.entities.get('l1') as LineEntity).order).toBe(1);
@@ -577,5 +579,86 @@ describe('formato nativo', () => {
     expect(res.data.linetypes.size).toBeGreaterThan(0);
     expect(res.data.layouts.size).toBeGreaterThan(0);
     expect(res.data.layers.has(res.data.settings.currentLayer)).toBe(true);
+  });
+});
+
+describe('formato nativo: diseño paramétrico (v4)', () => {
+  function parametric() {
+    const doc = createDocument();
+    installDrawingConstraints(doc);
+    const a = doc.transact('L', (tx) => tx.addEntity<LineEntity>({ ...entityDefaults(doc), id: 'a', type: 'line', start: { x: 0, y: 0 }, end: { x: 10, y: 0 } }));
+    const b = doc.transact('L', (tx) => tx.addEntity<LineEntity>({ ...entityDefaults(doc), id: 'b', type: 'line', start: { x: 10, y: 0 }, end: { x: 10, y: 4 } }));
+    doc.transact('C', (tx) => {
+      addDrawingConstraint(tx, { id: 'k1', kind: 'geometric', type: 'coincident', refs: [{ entityId: a.id, part: 'end' }, { entityId: b.id, part: 'start' }], enabled: true, owner: MODEL_SPACE_ID });
+      addParameter(tx, 'luz', '12');
+      addDrawingConstraint(tx, { id: 'd1', kind: 'dimensional', type: 'aligned', name: 'largo', refs: [{ entityId: a.id, part: 'edge' }], expression: 'luz', isParameter: false, valueSet: { kind: 'none' }, owner: MODEL_SPACE_ID });
+      saveParameterSet(tx, 'Base');
+    });
+    return doc;
+  }
+
+  it('ida y vuelta conserva restricciones, parámetros y variantes', () => {
+    const doc = parametric();
+    const res = readPackage(writePackage(doc.data, doc.id));
+    expect(res.warnings).toEqual([]);
+    expect(res.data.constraints.get('k1')?.type).toBe('coincident');
+    expect(res.data.constraints.get('d1')).toMatchObject({ kind: 'dimensional', name: 'largo', expression: 'luz' });
+    expect([...res.data.parameters.values()].map((p) => p.name)).toEqual(['luz']);
+    expect([...res.data.parameterSets.values()][0].values).toEqual({ luz: '12', largo: 'luz' });
+    expect((res.data.entities.get('a') as LineEntity).end.x).toBeCloseTo(12, 8);
+  });
+
+  it('un archivo v3 sin colecciones paramétricas se abre vacío de restricciones', () => {
+    const { data, id } = sample();
+    const file = toNativeFile(data, id);
+    const { constraints: _c, parameters: _p, parameterSets: _s, ...collections } = file.collections;
+    const res = fromNativeFile({ ...file, version: 3, collections });
+    expect(res.warnings).toEqual(['Migrado a formato v4.']);
+    expect(res.data.constraints.size).toBe(0);
+    expect(res.data.parameters.size).toBe(0);
+  });
+
+  it('retira con aviso la restricción que apunta a un objeto inexistente', () => {
+    const doc = parametric();
+    const file = toNativeFile(doc.data, doc.id);
+    file.collections.constraints = [...(file.collections.constraints as object[]), { id: 'rota', kind: 'geometric', type: 'horizontal', refs: [{ entityId: 'fantasma', part: 'edge' }], enabled: true, owner: MODEL_SPACE_ID }];
+    const res = fromNativeFile(file);
+    expect(res.data.constraints.has('rota')).toBe(false);
+    expect(res.warnings.some((w) => /restricción/.test(w))).toBe(true);
+  });
+
+  it('rechaza registros paramétricos dañados o nombres repetidos', () => {
+    const doc = parametric();
+    const bad = (patch: (f: ReturnType<typeof toNativeFile>) => void) => {
+      const file = structuredClone(toNativeFile(doc.data, doc.id));
+      patch(file);
+      return () => fromNativeFile(file);
+    };
+    expect(bad((f) => ((f.collections.parameters as { name: string }[])[0].name = '1malo'))).toThrow(NativeFormatError);
+    expect(bad((f) => ((f.collections.parameters as { expression: string }[])[0].expression = 'x'.repeat(600)))).toThrow(NativeFormatError);
+    expect(bad((f) => ((f.collections.constraints as { type: string }[])[0].type = 'teleport'))).toThrow(NativeFormatError);
+    expect(bad((f) => ((f.collections.parameters as { name: string }[])[0].name = 'largo'))).toThrow(/repetido|duplicated/);
+    expect(bad((f) => ((f.collections.parameterSets as { values: unknown }[])[0].values = { luz: 5 }))).toThrow(NativeFormatError);
+  });
+});
+
+describe('formato nativo: marcas de centro y cortes de cota', () => {
+  it('conserva marcas asociativas y cortes en la ida y vuelta, y rechaza marcas dañadas', () => {
+    const doc = createDocument();
+    const d = entityDefaults(doc);
+    doc.transact('seed', (tx) => {
+      tx.addEntity({ ...d, id: 'c1', type: 'circle', center: { x: 0, y: 0 }, radius: 5 } as never);
+      tx.addEntity({ ...d, id: 'm1', type: 'centermark', mode: 'mark', center: { x: 0, y: 0 }, radius: 5, rotation: 0, crossSize: 0.1, crossGap: 0.05, extension: 3.5, sources: [{ entityId: 'c1', part: 'center' }] } as never);
+      tx.addEntity({ ...d, id: 'd1', type: 'dimension', dimType: 'linear', style: doc.settings.currentDimStyle, overrides: {}, p1: { x: 0, y: 0 }, p2: { x: 9, y: 0 }, p3: { x: 4, y: 6 }, rotation: 0, breakAuto: true, breaks: [{ p: { x: 4, y: 6 } }, { p: { x: 2, y: 6 }, size: 1 }] } as never);
+    });
+    const res = readPackage(writePackage(doc.data, doc.id));
+    expect(res.data.entities.get('m1')).toMatchObject({ type: 'centermark', sources: [{ entityId: 'c1', part: 'center' }] });
+    expect(res.data.entities.get('d1')).toMatchObject({ breakAuto: true, breaks: [{ p: { x: 4, y: 6 } }, { p: { x: 2, y: 6 }, size: 1 }] });
+    const bad = structuredClone(toNativeFile(doc.data, doc.id));
+    (bad.collections.entities as { id: string; mode?: string; extension?: number }[]).find((e) => e.id === 'm1')!.extension = -1;
+    expect(() => fromNativeFile(bad)).toThrow(NativeFormatError);
+    const badBreak = structuredClone(toNativeFile(doc.data, doc.id));
+    (badBreak.collections.entities as { id: string; breaks?: unknown }[]).find((e) => e.id === 'd1')!.breaks = [{ p: { x: 1 } }];
+    expect(() => fromNativeFile(badBreak)).toThrow(NativeFormatError);
   });
 });

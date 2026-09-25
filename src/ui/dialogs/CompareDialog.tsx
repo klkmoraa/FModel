@@ -19,6 +19,9 @@ const TABLE_LABEL: Record<string, { es: string; en: string }> = {
   layerStates: { es: 'Estados de capa', en: 'Layer states' },
   layerFilters: { es: 'Filtros de capa', en: 'Layer filters' },
   assets: { es: 'Recursos', en: 'Assets' },
+  constraints: { es: 'Restricciones', en: 'Constraints' },
+  parameters: { es: 'Parámetros', en: 'Parameters' },
+  parameterSets: { es: 'Variantes de parámetros', en: 'Parameter variants' },
 };
 
 /** Resumen de la comparación de revisiones; los cambios se ven resaltados en el lienzo. */

@@ -13,9 +13,9 @@ describe('workspace chrome preferences', () => {
     ).toEqual({
       version: 4,
       left: ['palettes'],
-      right: ['properties', 'layers', 'blocks'],
+      right: ['properties', 'layers', 'blocks', 'parameters'],
       collapsed: [],
-      floating: ['palettes', 'properties', 'layers', 'blocks'],
+      floating: ['palettes', 'properties', 'layers', 'blocks', 'parameters'],
     });
   });
 
@@ -31,9 +31,9 @@ describe('workspace chrome preferences', () => {
     ).toEqual({
       version: 4,
       left: ['palettes'],
-      right: ['properties', 'authoring', 'layers', 'blocks'],
+      right: ['properties', 'authoring', 'layers', 'blocks', 'parameters'],
       collapsed: ['left'],
-      floating: ['layers'],
+      floating: ['layers', 'parameters'],
     });
   });
 
@@ -41,9 +41,9 @@ describe('workspace chrome preferences', () => {
     expect(normalizeWorkspacePanels({ version: 4, left: [], right: [], floating: [] })).toEqual({
       version: 4,
       left: ['palettes'],
-      right: ['properties', 'layers', 'blocks'],
+      right: ['properties', 'layers', 'blocks', 'parameters'],
       collapsed: [],
-      floating: [],
+      floating: ['parameters'],
     });
   });
 

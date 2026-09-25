@@ -4,7 +4,8 @@ import { refPoint, refSegment } from '../constraints/solver';
 import { evaluate } from '../lib/expr';
 import type { Vec2 } from '../geometry/vec';
 import { add, angleOf, dist, len, mid, normalize, perp, scale, sub } from '../geometry/vec';
-import type { BlockRecord, DynParam, GeoConstraintType, Id } from '../document/types';
+import type { BlockConstraint, BlockRecord, DimConstraint, DynParam, Entity, GeoConstraintType, Id } from '../document/types';
+import type { FreedomState } from '../constraints/solver';
 import type { Editor } from '../editor/editor';
 import type { RenderTheme } from './theme';
 
@@ -133,6 +134,20 @@ function conflictsOf(editor: Editor, block: BlockRecord): Set<Id> {
   return ids;
 }
 
+/** Datos para dibujar las marcas de un conjunto de restricciones. */
+export interface ConstraintMarkers {
+  constraints: readonly BlockConstraint[];
+  conflicts: ReadonlySet<Id>;
+  entity: (id: Id) => Entity | undefined;
+  toScreen: (p: Vec2) => Vec2;
+  /** valor evaluado de una cota (grados en las angulares), o null si su fórmula falla */
+  value: (c: DimConstraint) => number | null;
+  /** estado de libertad por entidad: las marcas de objetos aún libres van discontinuas */
+  freedom?: ReadonlyMap<Id, FreedomState> | null;
+  /** tamaño del lienzo para descartar marcas fuera de pantalla */
+  viewport?: { width: number; height: number };
+}
+
 /**
  * Glifos de restricciones geométricas junto a cada objeto referenciado y cotas de las
  * restricciones dimensionales con su nombre y valor; en conflicto, en color de aviso.
@@ -143,19 +158,38 @@ function drawConstraints(g: CanvasRenderingContext2D, editor: Editor, theme: Ren
   const block = editor.doc.data.blocks.get(s.blockId);
   const def = block?.dynamic;
   if (!block || !def?.constraints.length) return;
-  const toS = (p: Vec2) => editor.ownerToScreen(p);
-  const conflicts = conflictsOf(editor, block);
-  const warn = theme.dark ? '#f3c553' : '#d9720a';
-  const ink = theme.dark ? '#63c5ff' : '#0f95d1';
   let scope: Record<string, number> = {};
   try {
     scope = buildScope(def, undefined);
   } catch {
     scope = {};
   }
-  const fmt = (v: number) => String(Math.round(v * 1000) / 1000);
+  drawConstraintMarkers(g, theme, {
+    constraints: def.constraints,
+    conflicts: conflictsOf(editor, block),
+    entity: (id) => editor.doc.entity(id),
+    toScreen: (p) => editor.ownerToScreen(p),
+    value: (c) => {
+      try {
+        return evaluate(c.expression, scope);
+      } catch {
+        return null;
+      }
+    },
+  });
+}
 
-  const badge = (text: string, at: Vec2, color: string, alpha: number) => {
+export function drawConstraintMarkers(g: CanvasRenderingContext2D, theme: RenderTheme, m: ConstraintMarkers) {
+  const toS = m.toScreen;
+  const warn = theme.dark ? '#f3c553' : '#d9720a';
+  const ink = theme.dark ? '#63c5ff' : '#0f95d1';
+  const fmt = (v: number) => String(Math.round(v * 1000) / 1000);
+  const margin = 60;
+  const visible = (p: Vec2) => !m.viewport || (p.x > -margin && p.y > -margin && p.x < m.viewport.width + margin && p.y < m.viewport.height + margin);
+  const loose = (c: BlockConstraint) => !!m.freedom && c.refs.some((r) => m.freedom!.get(r.entityId) === 'partial');
+
+  const badge = (text: string, at: Vec2, color: string, alpha: number, dashed: boolean) => {
+    if (!visible(at)) return;
     g.globalAlpha = alpha;
     g.font = '600 10px "IBM Plex Mono", ui-monospace, monospace';
     const w = Math.max(14, g.measureText(text).width + 8);
@@ -164,13 +198,14 @@ function drawConstraints(g: CanvasRenderingContext2D, editor: Editor, theme: Ren
     g.fillStyle = theme.tooltipBg;
     g.strokeStyle = color;
     g.lineWidth = 1;
-    g.setLineDash([]);
+    g.setLineDash(dashed ? [2, 2] : []);
     g.beginPath();
     const rr = (g as { roundRect?: (x: number, y: number, w: number, h: number, r: number) => void }).roundRect;
     if (typeof rr === 'function') rr.call(g, x, y, w, 16, 4);
     else g.rect(x, y, w, 16);
     g.fill();
     g.stroke();
+    g.setLineDash([]);
     g.fillStyle = color;
     g.textBaseline = 'middle';
     g.textAlign = 'center';
@@ -181,7 +216,7 @@ function drawConstraints(g: CanvasRenderingContext2D, editor: Editor, theme: Ren
 
   /** Anclaje en pantalla de una referencia: punto medio del tramo desplazado, o el punto. */
   const anchorOf = (entityId: Id, part: string, offset: number): Vec2 | null => {
-    const e = editor.doc.entity(entityId);
+    const e = m.entity(entityId);
     if (!e) return null;
     const seg = refSegment(e, part === 'edge' ? 'segment:0' : part);
     if (seg && (part === 'edge' || part.startsWith('segment:'))) {
@@ -190,33 +225,33 @@ function drawConstraints(g: CanvasRenderingContext2D, editor: Editor, theme: Ren
       const n = normalize(perp(sub(b, a)));
       return add(mid(a, b), scale(len(n) ? n : { x: 0, y: -1 }, offset));
     }
-    const p = refPoint(e, part === 'edge' ? 'center' : part);
+    if (part === 'edge' && (e.type === 'circle' || e.type === 'arc')) {
+      const a = e.type === 'arc' ? (e.startAngle + e.endAngle) / 2 + (e.endAngle < e.startAngle ? Math.PI : 0) : Math.PI / 4;
+      return add(toS({ x: e.center.x + e.radius * Math.cos(a), y: e.center.y + e.radius * Math.sin(a) }), { x: offset * 0.7, y: -offset * 0.7 });
+    }
+    const p = refPoint(e, part === 'edge' ? 'center' : part) ?? refPoint(e, 'start') ?? refPoint(e, 'point');
     return p ? add(toS(p), { x: offset * 0.7, y: -offset * 0.7 }) : null;
   };
 
   g.save();
-  def.constraints.forEach((c, index) => {
-    const conflict = conflicts.has(c.id);
+  m.constraints.forEach((c, index) => {
+    const conflict = m.conflicts.has(c.id);
     const color = conflict ? warn : ink;
+    const dashed = loose(c);
     if (c.kind === 'geometric') {
       const alpha = c.enabled ? 1 : 0.4;
       c.refs.forEach((r, i) => {
         const at = anchorOf(r.entityId, r.part, 14 + i * 2);
-        if (at) badge(`${GLYPH[c.type]}${c.refs.length > 1 ? String(index + 1) : ''}`, at, color, alpha);
+        if (at) badge(`${GLYPH[c.type]}${c.refs.length > 1 ? String(index + 1) : ''}`, at, color, alpha, dashed);
       });
       return;
     }
-    let value: number | null = null;
-    try {
-      value = evaluate(c.expression, scope);
-    } catch {
-      value = null;
-    }
+    const value = m.value(c);
     const numeric = /^\s*-?\d+(\.\d+)?\s*$/.test(c.expression);
     const text = `${c.type === 'radius' ? 'R ' : c.type === 'diameter' ? 'Ø ' : ''}${c.name} = ${numeric || value === null ? c.expression : `${c.expression} (${fmt(value)})`}${c.type === 'angular' ? '°' : ''}`;
     const [r0, r1] = c.refs;
-    const e0 = r0 ? editor.doc.entity(r0.entityId) : undefined;
-    const e1 = r1 ? editor.doc.entity(r1.entityId) : undefined;
+    const e0 = r0 ? m.entity(r0.entityId) : undefined;
+    const e1 = r1 ? m.entity(r1.entityId) : undefined;
     if ((c.type === 'radius' || c.type === 'diameter') && e0 && (e0.type === 'circle' || e0.type === 'arc')) {
       const center = toS(e0.center);
       const edge = toS({ x: e0.center.x + e0.radius * Math.SQRT1_2, y: e0.center.y + e0.radius * Math.SQRT1_2 });
@@ -226,19 +261,28 @@ function drawConstraints(g: CanvasRenderingContext2D, editor: Editor, theme: Ren
       g.moveTo(center.x, center.y);
       g.lineTo(edge.x, edge.y);
       g.stroke();
-      badge(text, add(edge, { x: 18, y: -10 }), color, 1);
+      g.setLineDash([]);
+      badge(text, add(edge, { x: 18, y: -10 }), color, 1, dashed);
       return;
     }
     if (c.type === 'angular' && e0) {
       const at = anchorOf(r0.entityId, r0.part, 22);
-      if (at) badge(text, at, color, 1);
+      if (at) badge(text, at, color, 1, dashed);
       return;
     }
-    const p0 = e0 ? refPoint(e0, r0.part) : null;
-    const p1 = e1 ? refPoint(e1, r1.part) : null;
+    let p0: Vec2 | null = null;
+    let p1: Vec2 | null = null;
+    if (e0 && e1) {
+      p0 = refPoint(e0, r0.part);
+      p1 = refPoint(e1, r1.part);
+    } else if (e0) {
+      const seg = refSegment(e0, r0.part === 'edge' ? 'segment:0' : r0.part);
+      if (seg) [p0, p1] = seg;
+    }
     if (!p0 || !p1) return;
-    let a = toS(p0);
+    const a = toS(p0);
     let b = toS(p1);
+    if (!visible(a) && !visible(b)) return;
     if (c.type === 'linear-h') b = { x: b.x, y: a.y };
     if (c.type === 'linear-v') b = { x: a.x, y: b.y };
     const d = sub(b, a);
@@ -248,7 +292,7 @@ function drawConstraints(g: CanvasRenderingContext2D, editor: Editor, theme: Ren
     const b2 = add(b, off);
     g.strokeStyle = color;
     g.lineWidth = 1;
-    g.setLineDash([]);
+    g.setLineDash(dashed ? [4, 3] : []);
     g.beginPath();
     g.moveTo(a.x, a.y);
     g.lineTo(a2.x, a2.y);
@@ -257,7 +301,8 @@ function drawConstraints(g: CanvasRenderingContext2D, editor: Editor, theme: Ren
     g.moveTo(a2.x, a2.y);
     g.lineTo(b2.x, b2.y);
     g.stroke();
-    badge(text, mid(a2, b2), color, 1);
+    g.setLineDash([]);
+    badge(text, mid(a2, b2), color, 1, dashed);
   });
   g.restore();
 }

@@ -21,7 +21,7 @@ La dependencia entre módulos es estrictamente descendente y la verifica `pnpm c
 - **Contrato** (`document/types.ts`): coordenadas siempre en unidades de dibujo; referencias por ID estable (renombrar una capa o un bloque no toca las entidades); cada entidad lleva propietario (`*model`, ID de presentación o de bloque), capa, color, tipo y escala de línea, grosor, transparencia, visibilidad, bloqueo y clave de orden de dibujo.
 - **Transacciones** (`document/document.ts`): los cambios se aplican al instante y se registran como pares antes/después; si la función lanza, se revierten. Las transacciones anidadas se integran en la activa.
 - **Historial** (`history/history.ts`): una transacción confirmada es un paso de deshacer. Los comandos abren un grupo, así que un comando entero se deshace en un paso. Los grupos anidan: la sesión del Editor de bloques es un grupo externo (descartar la revierte entera) y dentro cada comando sigue siendo un paso. El encuadre continuo dentro de un viewport se fusiona en un paso por gesto.
-- **Reactores**: al confirmar, las cotas asociativas recalculan sus puntos dentro de la misma transacción, por lo que deshacer revierte geometría y cota a la vez.
+- **Reactores**: al confirmar, las cotas asociativas recalculan sus puntos y las restricciones del dibujo resuelven la geometría afectada dentro de la misma transacción, por lo que deshacer revierte geometría, cota y restricción a la vez.
 - **Identidad**: el documento conserva su ID al guardar y abrir; lo usan las versiones, la recuperación y la detección de referencias circulares.
 
 ## Entidades
@@ -33,6 +33,14 @@ Las inserciones de bloque no duplican geometría: la lista de visualización con
 ## Bloques dinámicos
 
 `blocks/dynamic.ts` evalúa una definición para el estado de una instancia en este orden: tablas de consulta → valores de parámetros (con conjuntos de valores y fórmulas) → acciones ordenadas para respetar el encadenamiento → resolución de restricciones → filtro del estado de visibilidad. El resultado se cachea por revisión de la definición y estado de la instancia. Los pinzamientos dinámicos se generan desde los parámetros y su arrastre se traduce a valores de parámetro.
+
+## Diseño paramétrico del dibujo
+
+`constraints/drawing.ts` guarda en el documento solo relaciones: `constraints` (geométricas y dimensionales entre entidades del mismo espacio), `parameters` (fórmulas de usuario) y `parameterSets` (variantes). Las cotas de restricción y los parámetros comparten espacio de nombres y se evalúan en orden de dependencias; un ciclo, una variable desconocida o una medida no positiva quedan como error del nombre y nunca llegan al solver.
+
+El reactor del editor, al confirmar cada transacción: retira las restricciones cuyos objetos desaparecen, cambian de espacio o de topología (insertar un vértice en medio de una polilínea); resuelve solo los grupos conectados a lo editado, conservando las coordenadas que el usuario cambió y, en las cotas cuyo valor cambió, el primer punto; y, si la preferencia lo pide, infiere restricciones exactas de lo recién dibujado. Un grupo sin solución conserva su geometría y se marca en conflicto; los cambios de fórmula que dejarían sin solución un grupo que la tenía se rechazan antes de confirmar.
+
+`constraints/solver.ts` usa Levenberg–Marquardt de norma mínima con jacobiano disperso, partición en grupos independientes y LSQR para grupos grandes; el análisis de grados de libertad (núcleo del jacobiano por grupo) alimenta las marcas del lienzo. El formato nativo v4 añade estas colecciones; DXF las exporta como geometría fija con aviso.
 
 ## Comandos
 

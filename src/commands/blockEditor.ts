@@ -680,7 +680,7 @@ function refFromPick(api: CommandApi, id: Id, p: Vec2, wantSegment = false): Geo
 
 const BCONSTRAINT: CommandDef = {
   name: 'BCONSTRAINT',
-  aliases: ['GEOMCONSTRAINT', 'RESTRICCION'],
+  aliases: ['BGEOMCONSTRAINT'],
   category: 'constraint',
   label: L('Restricción geométrica', 'Geometric constraint'),
   description: L('Horizontal, vertical, paralela, perpendicular, coincidente, tangente, concéntrica, igual, simétrica, fija o colineal.', 'Horizontal, vertical, parallel, perpendicular, coincident, tangent, concentric, equal, symmetric, fixed or collinear.'),
@@ -722,7 +722,7 @@ const BCONSTRAINT: CommandDef = {
 
 const BCPARAMETER: CommandDef = {
   name: 'BCPARAMETER',
-  aliases: ['BCPARAM', 'PARAMRESTRICCION', 'DIMCONSTRAINT'],
+  aliases: ['BCPARAM', 'PARAMRESTRICCION'],
   category: 'constraint',
   label: L('Parámetro de restricción', 'Constraint parameter'),
   description: L('Restricción dimensional (lineal H/V, alineada, angular, radio, diámetro) con nombre y fórmula; editable en la instancia.', 'Dimensional constraint (linear H/V, aligned, angular, radius, diameter) with name and formula; editable on the instance.'),
@@ -795,7 +795,7 @@ const BCPARAMETER: CommandDef = {
 
 const BVARIABLE: CommandDef = {
   name: 'BVARIABLE',
-  aliases: ['VARIABLEBLOQUE', 'PARAMETERS'],
+  aliases: ['VARIABLEBLOQUE'],
   category: 'constraint',
   label: L('Variable de usuario', 'User variable'),
   description: L('Define una variable con fórmula usable por restricciones, matrices y otras fórmulas; puede ser propiedad visible.', 'Defines a formula variable usable by constraints, arrays and other formulas; can be a visible property.'),
