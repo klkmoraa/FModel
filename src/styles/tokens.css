@@ -8,7 +8,6 @@
 :root {
   /* tipografía */
   --fs-font-display: 'Space Grotesk Variable', 'Space Grotesk', 'Inter Variable', Inter, ui-sans-serif, system-ui, sans-serif;
-  --fs-font-editorial: 'Plus Jakarta Sans Variable', 'Plus Jakarta Sans', 'Inter Variable', Inter, ui-sans-serif, system-ui, sans-serif;
   --fs-font-ui: 'Inter Variable', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --fs-font-data: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', 'Cascadia Code', monospace;
 
@@ -102,7 +101,6 @@
 
   /* densidad CAD */
   --fm-topbar-h: 42px;
-  --fm-ribbon-h: 92px;
   --fm-status-h: 28px;
   --fm-control-h: 32px;
   --fm-control-compact-h: 28px;

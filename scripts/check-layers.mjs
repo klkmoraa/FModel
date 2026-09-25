@@ -83,7 +83,9 @@ for (const file of files(ROOT)) {
     const spec = m[3] ?? m[4];
     if (typeOnly || !spec) continue;
     const target = moduleOf(resolve(dirname(file), spec));
-    if (target === from || target.endsWith('.css')) continue;
+    // Un .css (también como `?raw`) es dato de estilo, no un módulo con capa: el
+    // lienzo lee sus colores de `styles/tokens.css` para no duplicarlos.
+    if (target === from || target.endsWith('.css') || /\.css(\?[\w-]+)?$/.test(spec)) continue;
     const toLayer = LAYERS[target];
     checked++;
     if (toLayer === undefined) violations.push(`${relative(ROOT, file)} → ${spec}: módulo «${target}» sin capa asignada`);

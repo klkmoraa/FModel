@@ -1,3 +1,5 @@
+import tokensCss from '../styles/tokens.css?raw';
+
 /** Tema del lienzo.
  * Los neutros, señales y color de familia se derivan del brandbook.
  * Ejes, grips, ventanas y tracking son semántica propia del CAD (no definida por el brandbook).
@@ -36,60 +38,93 @@ export interface RenderTheme {
   diffRemoved: string;
 }
 
-const FS = {
-  day: {
-    n000: '#fffefa',
-    n050: '#f7f6f1',
-    n200: '#dde2dc',
-    n900: '#14171a',
-    model: '#7657d5',
-    analysis: '#ed4b46',
-    civil: '#468c09',
-    project: '#d9720a',
-    interop: '#3a72e3',
-  },
-  night: {
-    n000: '#0e1113',
-    n050: '#14171a',
-    n200: '#252a2e',
-    n900: '#f2f4f3',
-    model: '#a990ff',
-    analysis: '#ff8e80',
-    civil: '#55c990',
-    project: '#f3c553',
-    interop: '#72a1ff',
-  },
-} as const;
 
-const FM_DOCUMENT_PAPER = '#ffffff';
+/**
+ * Una sola fuente de color: `src/styles/tokens.css`.
+ *
+ * El lienzo no puede leer variables CSS al dibujar (lo hace en un canvas 2D y
+ * también en pruebas sin DOM), así que lee el mismo archivo como texto y toma de
+ * ahí los neutros y las familias de Día (`:root`) y de Noche
+ * (`:root[data-theme='noche']`). Cambiar un color en `tokens.css` cambia la
+ * interfaz y el dibujo a la vez; aquí sólo viven las opacidades propias del CAD.
+ */
+type Hex = `#${string}`;
+
+const block = (css: string, selector: string): string => {
+  const at = css.indexOf(selector);
+  if (at < 0) throw new Error(`tokens.css: falta el bloque ${selector}`);
+  const open = css.indexOf('{', at);
+  return css.slice(open + 1, css.indexOf('}', open));
+};
+
+const readVars = (body: string): Record<string, string> => {
+  const vars: Record<string, string> = {};
+  for (const match of body.matchAll(/--([\w-]+)\s*:\s*([^;]+);/g)) vars[match[1]!] = match[2]!.trim();
+  return vars;
+};
+
+const DAY_VARS = readVars(block(tokensCss, ':root {'));
+const NIGHT_VARS = { ...DAY_VARS, ...readVars(block(tokensCss, ":root[data-theme='noche'] {")) };
+
+const hex = (vars: Record<string, string>, name: string): Hex => {
+  const value = vars[name]?.toLowerCase();
+  if (!value || !/^#[0-9a-f]{6}$/.test(value)) throw new Error(`tokens.css: --${name} debe ser un hex de 6 dígitos`);
+  return value as Hex;
+};
+
+const palette = (vars: Record<string, string>) => ({
+  n000: hex(vars, 'n-000'),
+  n050: hex(vars, 'n-050'),
+  n100: hex(vars, 'n-100'),
+  n200: hex(vars, 'n-200'),
+  n900: hex(vars, 'n-900'),
+  model: hex(vars, 'fs-family-modelo'),
+  analysis: hex(vars, 'fs-family-analisis'),
+  civil: hex(vars, 'fs-family-civil'),
+  project: hex(vars, 'fs-family-proyecto'),
+  interop: hex(vars, 'fs-family-interop'),
+  interactionText: hex(vars, 'fs-interaction-text'),
+});
+
+const FS = { day: palette(DAY_VARS), night: palette(NIGHT_VARS) } as const;
+
+/** `#rrggbb` + opacidad → `rgba(r,g,b,a)`. */
+const alpha = (color: Hex, a: number): string => {
+  const n = Number.parseInt(color.slice(1), 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+};
+
+const FM_DOCUMENT_PAPER = hex(DAY_VARS, 'fm-document-paper');
+/** Tinta del dibujo sobre la hoja física, que es blanca en ambos temas. */
+const SHEET_INK = FS.day.n900;
 
 /** Estados exclusivos del canvas: no se promueven a tokens globales de FusionStructure. */
 const FM_CANVAS = {
   day: {
-    hover: '#5b3fc0',
-    axisX: 'rgba(237,75,70,0.4)',
-    axisY: 'rgba(70,140,9,0.4)',
-    accentSoft: 'rgba(118,87,213,0.14)',
-    windowFill: 'rgba(58,114,227,0.1)',
-    crossingFill: 'rgba(70,140,9,0.1)',
-    tracking: 'rgba(118,87,213,0.85)',
-    cursor: 'rgba(20,23,26,0.85)',
-    tooltipBg: 'rgba(20,23,26,0.92)',
-    construction: 'rgba(118,87,213,0.5)',
-    marginLine: 'rgba(20,23,26,0.3)',
+    hover: FS.day.interactionText,
+    axisX: alpha(FS.day.analysis, 0.4),
+    axisY: alpha(FS.day.civil, 0.4),
+    accentSoft: alpha(FS.day.model, 0.14),
+    windowFill: alpha(FS.day.interop, 0.1),
+    crossingFill: alpha(FS.day.civil, 0.1),
+    tracking: alpha(FS.day.model, 0.85),
+    cursor: alpha(FS.day.n900, 0.85),
+    tooltipBg: alpha(FS.day.n900, 0.92),
+    construction: alpha(FS.day.model, 0.5),
+    marginLine: alpha(SHEET_INK, 0.3),
   },
   night: {
-    hover: '#c9bbff',
-    axisX: 'rgba(255,142,128,0.45)',
-    axisY: 'rgba(85,201,144,0.45)',
-    accentSoft: 'rgba(169,144,255,0.18)',
-    windowFill: 'rgba(114,161,255,0.12)',
-    crossingFill: 'rgba(85,201,144,0.12)',
-    tracking: 'rgba(169,144,255,0.85)',
-    cursor: 'rgba(242,244,243,0.9)',
-    tooltipBg: 'rgba(27,31,34,0.94)',
-    construction: 'rgba(169,144,255,0.55)',
-    marginLine: 'rgba(20,23,26,0.25)',
+    hover: FS.night.interactionText,
+    axisX: alpha(FS.night.analysis, 0.45),
+    axisY: alpha(FS.night.civil, 0.45),
+    accentSoft: alpha(FS.night.model, 0.18),
+    windowFill: alpha(FS.night.interop, 0.12),
+    crossingFill: alpha(FS.night.civil, 0.12),
+    tracking: alpha(FS.night.model, 0.85),
+    cursor: alpha(FS.night.n900, 0.9),
+    tooltipBg: alpha(FS.night.n100, 0.94),
+    construction: alpha(FS.night.model, 0.55),
+    marginLine: alpha(SHEET_INK, 0.25),
   },
 } as const;
 
@@ -99,8 +134,8 @@ export const THEME_NIGHT: RenderTheme = {
   paperBackground: FS.night.n200,
   sheet: FM_DOCUMENT_PAPER,
   sheetShadow: 'rgba(0,0,0,0.55)',
-  gridMinor: 'rgba(242,244,243,0.05)',
-  gridMajor: 'rgba(242,244,243,0.11)',
+  gridMinor: alpha(FS.night.n900, 0.05),
+  gridMajor: alpha(FS.night.n900, 0.11),
   axisX: FM_CANVAS.night.axisX,
   axisY: FM_CANVAS.night.axisY,
   accent: FS.night.model,
@@ -131,9 +166,9 @@ export const THEME_DAY: RenderTheme = {
   background: FS.day.n050,
   paperBackground: FS.day.n200,
   sheet: FM_DOCUMENT_PAPER,
-  sheetShadow: 'rgba(20,23,26,0.22)',
-  gridMinor: 'rgba(20,23,26,0.05)',
-  gridMajor: 'rgba(20,23,26,0.1)',
+  sheetShadow: alpha(FS.day.n900, 0.22),
+  gridMinor: alpha(FS.day.n900, 0.05),
+  gridMajor: alpha(FS.day.n900, 0.1),
   axisX: FM_CANVAS.day.axisX,
   axisY: FM_CANVAS.day.axisY,
   accent: FS.day.model,

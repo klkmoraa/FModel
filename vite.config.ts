@@ -54,6 +54,8 @@ export default defineConfig({
   test: {
     include: ['src/**/*.test.ts'],
     environment: 'node',
+    // El lienzo lee sus colores de tokens.css como texto (única fuente de color).
+    css: { include: [/styles\/tokens\.css/] },
     // Limita la contención que hace vencer las pruebas de 5 s en equipos con muchos núcleos.
     maxWorkers: 8,
     coverage: {
