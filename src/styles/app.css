@@ -647,58 +647,6 @@ kbd {
   opacity: 0;
 }
 
-/* pista de lienzo vacío: centrada, sobre el papel; deja pasar el puntero fuera de la tarjeta */
-.canvas-hint {
-  position: absolute;
-  top: 38%;
-  left: 50%;
-  z-index: 4;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  width: min(440px, calc(100% - 32px));
-  padding: 18px 20px 16px;
-  border: 1px solid var(--line-soft);
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--surface) 92%, transparent);
-  box-shadow: var(--shadow-float);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  text-align: center;
-  transform: translate(-50%, -50%);
-  animation: fm-fade-in var(--fs-reveal) var(--fs-ease) both;
-}
-@keyframes fm-fade-in {
-  from {
-    opacity: 0;
-  }
-}
-.canvas-hint__title {
-  font: 650 15px/1.2 var(--fs-font-display);
-  letter-spacing: -0.01em;
-}
-.canvas-hint__text,
-.canvas-hint__keys {
-  margin: 0;
-  color: var(--ink-secondary);
-  font-size: 12.5px;
-  line-height: 1.45;
-}
-.canvas-hint__keys {
-  font-size: 11.5px;
-}
-.canvas-hint__actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 6px;
-  margin: 2px 0 4px;
-}
-.canvas-hint__actions kbd {
-  margin-left: 2px;
-}
-
 /* --------------------------------------------------------------- precision deck */
 
 .precision-deck-shell {
@@ -2820,9 +2768,6 @@ table.grid tr.is-active td {
   top: 100%;
   bottom: auto;
   margin: 6px 0 0;
-}
-.app--phone .canvas-hint {
-  top: 36%;
 }
 
 /* zona inferior: tareas · tarjeta de comando o selección · dock */

@@ -454,25 +454,6 @@ test.describe('alineación visual con FusionStructureBrand', () => {
     expect(await dialog.evaluate((element) => element.contains(document.activeElement))).toBe(true);
   });
 
-  test('el lienzo vacío explica cómo empezar y la pista desaparece con el primer objeto', async ({ page }) => {
-    await page.goto('/?surface=workspace');
-    await page.waitForFunction(() => !!(window as any).fmodel?.editor);
-    await page.evaluate(() => {
-      (window as any).fmodel.editor.setPrefs({ onboardingDone: true });
-    });
-    const hint = page.getByRole('region', { name: /Cómo empezar|Getting started/ });
-    await expect(hint).toBeVisible();
-    await expect(hint.getByRole('button', { name: /Línea|Line/ })).toBeVisible();
-
-    const input = page.getByLabel(/Línea de comandos|Command line/);
-    for (const value of ['LINE', '0,0', '100,100']) {
-      await input.fill(value);
-      await input.press('Enter');
-    }
-    await input.press('Enter');
-    await expect(hint).toHaveCount(0);
-  });
-
   test('el idioma de la barra superior muestra el destino del cambio, igual que el Inicio', async ({ page }) => {
     await page.goto('/?surface=workspace');
     await page.waitForFunction(() => !!(window as any).fmodel?.editor);

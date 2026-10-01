@@ -1,7 +1,6 @@
 import { Ellipsis, FolderOpen, Monitor, Moon, Redo2, Save, Search, Sun, TriangleAlert, Undo2 } from 'lucide-react';
 import { QuickProperties } from './QuickProperties';
 import { Onboarding } from './Onboarding';
-import { EmptyCanvasHint } from './EmptyCanvasHint';
 import { comboOf } from './keys';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -346,7 +345,6 @@ export function App({ editor }: { editor: Editor }) {
             <CanvasView editor={editor} theme={theme} />
             <DynamicInput ref={dynRef} editor={editor} />
             <CommandLine ref={cmdRef} editor={editor} compact={isPhone} onDismiss={isPhone ? () => setCmdOpen(false) : undefined} />
-            {editor.prefs.onboardingDone && <EmptyCanvasHint editor={editor} touch={touch} />}
             <CyclingList editor={editor} />
             {!isPhone && <QuickProperties editor={editor} onMore={() => openUi('panel:properties')} />}
             {!isPhone && <PrecisionDeck editor={editor} open={deckOpen} onOpenChange={changeDeckOpen} onUi={openUi} onRun={runCommand} onOpenPalette={openPalette} activePanel={floatingPanel} touch={touch} />}

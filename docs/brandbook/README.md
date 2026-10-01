@@ -5,7 +5,7 @@ Abre `index.html` en el navegador: siete fichas (sistema, logos, Día y Noche,
 componentes reales, interfaces, herramientas y auditoría).
 
 - `logos/`: marca de FModel — la ménsula con la franja en el color de su familia (Día, Noche e icono de app).
-- `assets/`: capturas de la app en Día y Noche (mesa con la pista de lienzo vacío, Inicio ya pintado, teléfono y tableta; se regeneran cuando cambia la interfaz).
+- `assets/`: capturas de la app en Día y Noche (mesa, Inicio ya pintado, teléfono y tableta; se regeneran cuando cambia la interfaz).
 - Lienzo editable (Claude Design): https://claude.ai/artifact/65qLu26K96pfCTxiMG1yu7
 
 El código manda: si `src/` y este documento discrepan, se corrige el documento.

@@ -62,6 +62,7 @@
 | 36 | UI-005 | P2 | Mejorar la experiencia de uso sección por sección | Cerrada | UI-004 | [Interfaz](./04-interfaz-accesibilidad.md#ui-005--mejorar-la-experiencia-de-uso-sección-por-sección) |
 | 37 | UI-006 | P2 | Unificar la mesa en teléfono y tableta con la de escritorio | Cerrada | UI-004, UI-005 | [Interfaz](./04-interfaz-accesibilidad.md#ui-006--unificar-la-mesa-en-teléfono-y-tableta-con-la-de-escritorio) |
 | 38 | UI-007 | P2 | Priorizar el uso vertical del teléfono | Cerrada | UI-006 | [Interfaz](./04-interfaz-accesibilidad.md#ui-007--priorizar-el-uso-vertical-del-teléfono) |
+| 39 | UI-008 | P3 | Retirar la tarjeta «Lienzo vacío» de la mesa | Cerrada | UI-005 | [Interfaz](./04-interfaz-accesibilidad.md#ui-008--retirar-la-tarjeta-lienzo-vacío-de-la-mesa) |
 
 ## Mapa de dependencias
 

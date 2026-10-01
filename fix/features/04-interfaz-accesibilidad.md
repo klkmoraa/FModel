@@ -143,7 +143,7 @@
 5. **Biblioteca de herramientas**: la fila de pestañas ya no se recorta; la hoja móvil abre en «Inicio» en lugar de la primera familia.
 6. **Paleta de comandos**: la opción activa por teclado siempre queda a la vista, atrapa el foco y lo devuelve, oculta comandos internos (`_GRIP`…), muestra ayuda de teclas y favoritos con estrella de 28 px.
 7. **Diálogos**: el foco inicial va al contenido y no a «Cerrar»; las confirmaciones destructivas empiezan en «Cancelar»; etiquetas de campo hasta dos líneas (antes truncadas); tablas de Ayuda e informes sin desbordar; `src/ui/fieldLabels.ts` vincula etiquetas y controles sin nombre (Opciones tenía selects y casillas anónimos).
-8. **Lienzo vacío** (`EmptyCanvasHint.tsx`): tarjeta con atajos de dibujo, «Abrir archivo…» y pistas de teclado; desaparece con el primer objeto o un comando en curso.
+8. **Lienzo vacío** (`EmptyCanvasHint.tsx`): tarjeta con atajos de dibujo, «Abrir archivo…» y pistas de teclado; desaparece con el primer objeto o un comando en curso. *Retirada en UI-008.*
 9. **Menú Archivo**: borrar un dibujo guardado usa un icono con nombre en lugar de «×».
 
 **Criterios de aceptación:**
@@ -224,3 +224,18 @@
 
 **Verificación:** `e2e/touchLayouts.spec.ts` añade «propone girar a vertical sin imponerlo y recuerda la elección en la sesión» y «la tableta apaisada no recibe el aviso». La prueba de horizontal descarta antes el aviso. Puertas: `pnpm verify` y `playwright test` en Chromium.
 
+## UI-008 — Retirar la tarjeta «Lienzo vacío» de la mesa
+
+- [x] **Estado:** Cerrada
+- **Prioridad:** P3 — petición de uso: la tarjeta tapaba el centro del lienzo y estorbaba, sobre todo en el teléfono
+- **Responsable:** Claude · **Inicio:** 2026-10-01 · **Cierre:** 2026-10-01
+- **Depende de:** UI-005
+
+**Evidencia:** se elimina `src/ui/EmptyCanvasHint.tsx`, su montaje en `App.tsx` y los estilos `.canvas-hint`. El lienzo vacío queda despejado en escritorio, tableta y teléfono; el dock, la paleta de comandos y la bienvenida siguen explicando cómo empezar.
+
+**Criterios de aceptación:**
+
+- [x] Ninguna tarjeta aparece sobre el lienzo vacío.
+- [x] Las pruebas e2e dejan de depender de la tarjeta; capturas del brandbook regeneradas.
+
+**Verificación:** `pnpm verify` y `playwright test` en Chromium.

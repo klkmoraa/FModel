@@ -234,8 +234,7 @@ test.describe('Recorridos críticos E2E en navegador real (TST-001)', () => {
 
     for (const theme of ['dia', 'noche'] as const) {
       await page.evaluate((value) => (window as any).fmodel.editor.setPrefs({ theme: value }), theme);
-      // lienzo vacío: pista de inicio, barra superior y barra de estado
-      expect(await serious('.canvas-hint')).toEqual([]);
+      // barra superior y barra de estado
       expect(await serious('.topbar')).toEqual([]);
       expect(await serious('.statusbar')).toEqual([]);
 
