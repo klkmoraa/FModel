@@ -10,6 +10,7 @@ import { ToolPalettesPanel } from './panels/ToolPalettesPanel';
 import { BlockAuthoringPanel } from './panels/BlockAuthoringPanel';
 import { ParametersPanel } from './panels/ParametersPanel';
 import { tr } from './controls';
+import { fieldLabelsRef } from './fieldLabels';
 import { isWorkspacePanelId, normalizeDockWidth, setPanelFloating, type WorkspacePanelId } from '../editor/workspaceChrome';
 
 export const PANELS: Record<string, { icon: string; label: { es: string; en: string }; render: (editor: Editor, onUi: (ui: string, cmd?: string) => void) => React.ReactNode }> = {
@@ -173,7 +174,7 @@ export function Docks({ editor, side, mobileSheet, onCloseSheet, onUi }: { edito
           </>
         )}
       </div>
-      <div className="dock__body" role="tabpanel">
+      <div ref={fieldLabelsRef} className="dock__body" role="tabpanel">
         {PANELS[shown]?.render(editor, onUi)}
       </div>
     </aside>
@@ -207,7 +208,7 @@ export function FloatingPanel({ editor, panelId, onClose, onUi }: { editor: Edit
           <X size={16} />
         </button>
       </div>
-      <div className="floating-panel__body">{panel.render(editor, onUi)}</div>
+      <div ref={fieldLabelsRef} className="floating-panel__body">{panel.render(editor, onUi)}</div>
     </aside>
   );
 }

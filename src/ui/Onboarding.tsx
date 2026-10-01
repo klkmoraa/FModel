@@ -82,7 +82,7 @@ export function Onboarding({ editor }: { editor: Editor }) {
           </div>
         </div>
         <div className="dialog__foot">
-          <button className="btn" onClick={finish} style={{ marginRight: 'auto' }}>
+          <button className="btn btn--ghost" onClick={finish} style={{ marginRight: 'auto' }}>
             {tr(lang, 'Omitir', 'Skip')}
           </button>
           {i > 0 && (

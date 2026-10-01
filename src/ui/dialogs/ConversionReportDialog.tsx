@@ -57,7 +57,7 @@ export function ConversionReportDialog({ editor, payload, onClose }: { editor: E
       onClose={onClose}
       footer={
         <>
-          <span style={{ flex: 1, fontSize: 12, color: 'var(--ink-muted)' }}>
+          <span style={{ flex: 1, fontSize: 12, color: 'var(--ink-secondary)' }}>
             {report.version ? `${report.version} · ` : ''}
             {tr(lang, `${total} objeto(s) nativos`, `${total} native object(s)`)}
             {report.layers !== undefined ? tr(lang, ` · ${report.layers} capa(s)`, ` · ${report.layers} layer(s)`) : ''}
@@ -91,7 +91,7 @@ export function ConversionReportDialog({ editor, payload, onClose }: { editor: E
         <section>
           <h3 className="eyebrow">{tr(lang, 'Transformado', 'Transformed')}</h3>
           {transformedRows.length ? (
-            <table className="grid">
+            <table className="grid grid--wrap">
               <tbody>
                 {transformedRows.map(([t, v]) => (
                   <tr key={t}>
@@ -111,7 +111,7 @@ export function ConversionReportDialog({ editor, payload, onClose }: { editor: E
         <section>
           <h3 className="eyebrow">{tr(lang, 'No admitido', 'Not supported')}</h3>
           {ignoredRows.length ? (
-            <table className="grid">
+            <table className="grid grid--wrap">
               <tbody>
                 {ignoredRows.map(([t, v]) => (
                   <tr key={t}>

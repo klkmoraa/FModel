@@ -5,7 +5,7 @@ import type { Editor } from '../../editor/editor';
 import { blockThumbnail } from '../../render/thumbnail';
 import { LibraryView } from './LibraryView';
 import { useEditorEvents, useMediaQuery } from '../hooks';
-import { tr } from '../controls';
+import { Segmented, tr } from '../controls';
 
 import { DND_MIME } from '../dnd';
 
@@ -29,13 +29,18 @@ export function BlocksPanel({ editor, onUi }: { editor: Editor; onUi: (ui: strin
   return (
     <div className="panel panel--blocks">
       <div className="panel__head">
-        <div className="panel-tabs" role="tablist">
-          {(['current', 'favorites', 'library'] as const).map((t) => (
-            <button key={t} role="tab" aria-selected={tab === t} className={`btn btn--sm${tab === t ? ' btn--accent' : ''}`} onClick={() => setTab(t)}>
-              {t === 'current' ? tr(lang, 'Dibujo', 'Drawing') : t === 'favorites' ? tr(lang, 'Favoritos', 'Favorites') : tr(lang, 'Biblioteca', 'Library')}
-            </button>
-          ))}
-        </div>
+        <Segmented
+          size="sm"
+          kind="tabs"
+          label={tr(lang, 'Origen de los bloques', 'Block source')}
+          value={tab}
+          onChange={setTab}
+          options={[
+            { id: 'current', label: tr(lang, 'Dibujo', 'Drawing') },
+            { id: 'favorites', label: tr(lang, 'Favoritos', 'Favorites') },
+            { id: 'library', label: tr(lang, 'Biblioteca', 'Library') },
+          ]}
+        />
       </div>
       <input className="input" placeholder={tr(lang, 'Buscar bloques…', 'Search blocks…')} value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.stopPropagation()} />
       <div className="panel-actions">
@@ -98,7 +103,23 @@ export function BlocksPanel({ editor, onUi }: { editor: Editor; onUi: (ui: strin
               </div>
             );
           })}
-          {!blocks.length && <div className="empty">{tab === 'favorites' ? tr(lang, 'Marca bloques con ★ para verlos aquí.', 'Star blocks to see them here.') : tr(lang, 'Todavía no hay bloques. Crea uno con BLOCK o inserta los ejemplos dinámicos.', 'No blocks yet. Create one with BLOCK or insert the dynamic samples.')}</div>}
+          {!blocks.length && (
+            <div className="empty empty--grid">
+              <strong>{q ? tr(lang, `Ningún bloque coincide con «${q}»`, `No block matches “${q}”`) : tab === 'favorites' ? tr(lang, 'Aún no hay favoritos', 'No favorites yet') : tr(lang, 'Este dibujo no tiene bloques', 'This drawing has no blocks')}</strong>
+              <span>
+                {q
+                  ? tr(lang, 'Prueba con otra palabra o borra la búsqueda.', 'Try another word or clear the search.')
+                  : tab === 'favorites'
+                    ? tr(lang, 'Marca bloques con ★ para verlos aquí.', 'Star blocks to see them here.')
+                    : tr(lang, 'Crea uno con BLOCK, inserta los ejemplos dinámicos o trae símbolos desde la pestaña Biblioteca.', 'Create one with BLOCK, insert the dynamic samples or bring symbols from the Library tab.')}
+              </span>
+              {!q && tab === 'current' && (
+                <button type="button" className="btn btn--sm" onClick={() => editor.command('DYNBLOCKSAMPLES')}>
+                  {tr(lang, 'Insertar ejemplos dinámicos', 'Insert dynamic samples')}
+                </button>
+              )}
+            </div>
+          )}
         </div>
       ) : (
         <LibraryView editor={editor} query={q} />

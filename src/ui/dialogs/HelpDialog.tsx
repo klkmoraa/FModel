@@ -5,7 +5,7 @@ import type { FeatureStatus } from '../../app/features';
 import { aliasesFor, allCommands, findCommand, searchCommands } from '../../commands/registry';
 import type { Editor } from '../../editor/editor';
 import { Dialog } from '../Dialogs';
-import { tr } from '../controls';
+import { Segmented, tr } from '../controls';
 
 export type HelpTab = 'commands' | 'features' | 'keys' | 'about';
 
@@ -44,30 +44,26 @@ export function HelpDialog({ editor, onClose, initialTab }: { editor: Editor; on
 
   return (
     <Dialog wide lang={lang} title={tr(lang, 'Ayuda de FModel 2D CAD', 'FModel 2D CAD help')} onClose={onClose}>
-      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 12 }} role="tablist">
-        {tabs.map(([id, label]) => (
-          <button key={id} role="tab" aria-selected={tab === id} className={`btn btn--sm${tab === id ? ' btn--accent' : ''}`} onClick={() => setTab(id)}>
-            {label}
-          </button>
-        ))}
+      <div className="dialog__tabs">
+        <Segmented label={tr(lang, 'Secciones de ayuda', 'Help sections')} value={tab} onChange={setTab} options={tabs.map(([id, label]) => ({ id, label }))} />
       </div>
 
       {tab === 'commands' && (
         <div className="report">
           <input className="input" autoFocus value={q} placeholder={tr(lang, 'Busca por nombre, alias o tarea (p. ej. «paralela», «cota», «PDF»)', 'Search by name, alias or task (e.g. "parallel", "dimension", "PDF")')} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.stopPropagation()} aria-label={tr(lang, 'Buscar comandos', 'Search commands')} />
-          <table className="grid">
+          <table className="grid grid--wrap">
             <tbody>
               {commands.map((c) => (
                 <tr key={c.name}>
                   <td style={{ whiteSpace: 'nowrap', verticalAlign: 'top' }}>
                     <code>{c.name}</code>
-                    <div style={{ fontSize: 11, color: 'var(--ink-muted)' }}>{aliasesFor(c.name).slice(0, 4).join(' · ')}</div>
+                    <div style={{ fontSize: 11, color: 'var(--ink-secondary)' }}>{aliasesFor(c.name).slice(0, 4).join(' · ')}</div>
                   </td>
                   <td style={{ verticalAlign: 'top' }}>
                     <strong>{c.label[lang]}</strong>
                     <div style={{ fontSize: 12, color: 'var(--ink-secondary)' }}>{c.description[lang]}</div>
                   </td>
-                  <td style={{ whiteSpace: 'nowrap', verticalAlign: 'top', color: 'var(--ink-muted)' }}>{CATEGORY[c.category]?.[lang] ?? c.category}</td>
+                  <td style={{ whiteSpace: 'nowrap', verticalAlign: 'top', color: 'var(--ink-secondary)' }}>{CATEGORY[c.category]?.[lang] ?? c.category}</td>
                   <td style={{ verticalAlign: 'top', textAlign: 'right' }}>
                     <button className="btn btn--sm" onClick={() => (onClose(), editor.command(c.name))} aria-label={tr(lang, `Ejecutar ${c.name}`, `Run ${c.name}`)}>
                       <Play size={12} />
@@ -83,17 +79,18 @@ export function HelpDialog({ editor, onClose, initialTab }: { editor: Editor; on
 
       {tab === 'features' && (
         <div className="report">
-          <div className="report__chips">
-            <button className={`btn btn--sm${status === 'all' ? ' btn--accent' : ''}`} onClick={() => setStatus('all')}>
-              {tr(lang, 'Todas', 'All')} {FEATURES.length}
-            </button>
-            {(Object.keys(STATUS_LABEL) as FeatureStatus[]).map((s) => (
-              <button key={s} className={`btn btn--sm${status === s ? ' btn--accent' : ''}`} onClick={() => setStatus(s)} disabled={!counts[s]}>
-                {STATUS_LABEL[s][lang]} {counts[s] ?? 0}
-              </button>
-            ))}
-          </div>
-          <table className="grid">
+          <Segmented
+            size="sm"
+            kind="radio"
+            label={tr(lang, 'Filtrar por estado', 'Filter by status')}
+            value={status}
+            onChange={setStatus}
+            options={[
+              { id: 'all' as const, label: tr(lang, 'Todas', 'All'), count: FEATURES.length },
+              ...(Object.keys(STATUS_LABEL) as FeatureStatus[]).map((s) => ({ id: s, label: STATUS_LABEL[s][lang], count: counts[s] ?? 0, disabled: !counts[s] })),
+            ]}
+          />
+          <table className="grid grid--wrap">
             <thead>
               <tr>
                 <th>{tr(lang, 'Área', 'Area')}</th>
@@ -104,10 +101,10 @@ export function HelpDialog({ editor, onClose, initialTab }: { editor: Editor; on
             <tbody>
               {FEATURES.filter((f) => status === 'all' || f.status === status).map((f, i) => (
                 <tr key={i}>
-                  <td style={{ whiteSpace: 'nowrap', color: 'var(--ink-muted)', verticalAlign: 'top' }}>{f.area[lang]}</td>
+                  <td style={{ whiteSpace: 'nowrap', color: 'var(--ink-secondary)', verticalAlign: 'top' }}>{f.area[lang]}</td>
                   <td>
                     {f.name[lang]}
-                    {f.note && <div style={{ fontSize: 11.5, color: 'var(--ink-muted)' }}>{f.note[lang]}</div>}
+                    {f.note && <div style={{ fontSize: 11.5, color: 'var(--ink-secondary)' }}>{f.note[lang]}</div>}
                     {f.commands && (
                       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 3 }}>
                         {f.commands.map((c) => (
@@ -130,7 +127,7 @@ export function HelpDialog({ editor, onClose, initialTab }: { editor: Editor; on
 
       {tab === 'keys' && (
         <div className="report">
-          <table className="grid">
+          <table className="grid grid--wrap">
             <tbody>
               {[
                 [tr(lang, 'Escribir en cualquier momento', 'Type anytime'), tr(lang, 'Nombre o alias de comando (L, C, TR, O…); Intro o Espacio ejecuta; Intro vacío repite el último', 'Command name or alias (L, C, TR, O…); Enter or Space runs; empty Enter repeats the last one')],

@@ -155,7 +155,7 @@ function MobileCoords({ editor }: { editor: Editor }) {
 function ToolSheet({ editor, onClose }: { editor: Editor; onClose: () => void }) {
   useEditorEvents(editor, ['prefs']);
   const lang = editor.lang;
-  const [tab, setTab] = useState(RIBBON[0].id);
+  const [tab, setTab] = useState(RIBBON.find((r) => r.id === 'home')?.id ?? RIBBON[0].id);
   const [q, setQ] = useState('');
   const groups = RIBBON.find((t) => t.id === tab)?.groups ?? [];
   const query = q.trim().toLowerCase();

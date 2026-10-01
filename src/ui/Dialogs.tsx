@@ -18,6 +18,7 @@ import { ReferencesDialog } from './dialogs/ReferencesDialog';
 import { LibraryImportDialog } from './dialogs/LibraryImportDialog';
 import type { LibraryImportSession } from '../blocks/libraryImport';
 import { tr } from './controls';
+import { useFieldLabels } from './fieldLabels';
 import { useModalFocusTrap } from './modalFocus';
 import { NewmarkDialog } from './dialogs/NewmarkDialog';
 
@@ -34,6 +35,7 @@ export function Dialog({ title, onClose, children, footer, wide, lang }: { title
   const dialogRef = useRef<HTMLDivElement>(null);
   const returnFocusRef = useContext(DialogReturnFocusContext);
   useModalFocusTrap(dialogRef, onClose, returnFocusRef ?? undefined);
+  useFieldLabels(dialogRef);
   // se cierra al completar el clic sobre el fondo: cerrar al pulsar dejaba que el clic
   // atravesara hasta el elemento de debajo (p. ej. abría una plantilla sin querer)
   const pressedVeil = useRef(false);

@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { aciToHex, colorLabel, displayColor } from '../document/colors';
 import type { CadDocument } from '../document/document';
 import { LINEWEIGHTS } from '../document/types';
 import type { Lang } from '../commands/types';
 import { evaluate } from '../lib/expr';
+import { nextSegmentIndex } from './segmented';
 
 export const MIXED = '*VARIOS*';
 
@@ -53,7 +54,7 @@ export function NumberField({ value, onCommit, mixed, readOnly, step, suffix, la
           if (e.key === 'Escape') setText(mixed ? '' : fmt(value));
         }}
       />
-      {suffix && <span style={{ position: 'absolute', right: 8, top: 7, fontSize: 11, color: 'var(--ink-muted)', pointerEvents: 'none' }}>{suffix}</span>}
+      {suffix && <span style={{ position: 'absolute', right: 8, top: 7, fontSize: 11, color: 'var(--ink-secondary)', pointerEvents: 'none' }}>{suffix}</span>}
     </div>
   );
 }
@@ -144,7 +145,7 @@ export function ColorPicker({ value, onChange, lang, allowByLayer = true, mixed,
           {allowByLayer && (
             <div style={{ display: 'flex', gap: 4, marginBottom: 6 }}>
               {['ByLayer', 'ByBlock'].map((c) => (
-                <button type="button" key={c} className={`btn btn--sm${value === c ? ' btn--accent' : ''}`} onClick={() => (onChange(c), setOpen(false))}>
+                <button type="button" key={c} className="btn btn--sm" aria-pressed={value === c} onClick={() => (onChange(c), setOpen(false))}>
                   {colorLabel(c, lang)}
                 </button>
               ))}
@@ -210,3 +211,59 @@ export function Toggle({ checked, onChange, label }: { checked: boolean; onChang
     </label>
   );
 }
+
+export interface SegmentedOption<T extends string> {
+  id: T;
+  label: ReactNode;
+  disabled?: boolean;
+  title?: string;
+  /** contador opcional a la derecha de la etiqueta (p. ej. número de resultados) */
+  count?: number;
+}
+
+/**
+ * Control segmentado: pista hundida con la opción activa elevada.
+ * `tabs` (por defecto) expone pestañas que cambian de vista; `radio` expone una elección única.
+ * Teclado: flechas, Inicio y Fin mueven el foco y la selección; sólo la opción activa está en el orden de Tab.
+ */
+export function Segmented<T extends string>({ value, options, onChange, label, kind = 'tabs', size = 'md', controls }: { value: T; options: readonly SegmentedOption<T>[]; onChange: (id: T) => void; label: string; kind?: 'tabs' | 'radio'; size?: 'sm' | 'md'; controls?: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const tabs = kind === 'tabs';
+  const activeIndex = options.findIndex((o) => o.id === value);
+  const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const items = Array.from(ref.current?.querySelectorAll<HTMLButtonElement>('.seg__item') ?? []);
+    const from = items.findIndex((el) => el === document.activeElement);
+    const next = nextSegmentIndex(event.key, from, options.map((o) => !o.disabled));
+    if (next === null) return;
+    event.preventDefault();
+    event.stopPropagation();
+    items[next]?.focus();
+    onChange(options[next].id);
+  };
+  return (
+    <div ref={ref} className={`seg${size === 'sm' ? ' seg--sm' : ''}`} role={tabs ? 'tablist' : 'radiogroup'} aria-label={label} onKeyDown={onKeyDown}>
+      {options.map((o, i) => {
+        const selected = o.id === value;
+        return (
+          <button
+            key={o.id}
+            type="button"
+            role={tabs ? 'tab' : 'radio'}
+            aria-selected={tabs ? selected : undefined}
+            aria-checked={tabs ? undefined : selected}
+            aria-controls={tabs ? controls : undefined}
+            tabIndex={selected || (activeIndex < 0 && i === 0) ? 0 : -1}
+            className={`seg__item${selected ? ' is-active' : ''}`}
+            disabled={o.disabled}
+            title={o.title}
+            onClick={() => onChange(o.id)}
+          >
+            {o.label}
+            {o.count !== undefined && <span className="seg__count">{o.count}</span>}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+

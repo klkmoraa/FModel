@@ -99,7 +99,7 @@ export function VersionsDialog({ editor, onClose, onUi }: { editor: Editor; onCl
       onClose={onClose}
       footer={
         <>
-          <span style={{ flex: 1, fontSize: 12, color: error || loadError ? 'var(--fm-danger)' : 'var(--ink-muted)' }}>
+          <span style={{ flex: 1, fontSize: 12, color: error || loadError ? 'var(--fm-danger)' : 'var(--ink-secondary)' }}>
             {error || loadError || tr(lang, 'Las versiones se guardan solo en este navegador. Se conservan las 40 automáticas más recientes y todas las manuales.', 'Versions are stored only in this browser. The 40 latest automatic versions and all manual ones are kept.')}
           </span>
           <button className="btn btn--primary" onClick={onClose}>

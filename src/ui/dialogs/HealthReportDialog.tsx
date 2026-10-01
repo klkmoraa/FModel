@@ -4,7 +4,7 @@ import type { HealthCategory, HealthIssue, HealthReport } from '../../audit/heal
 import type { Editor } from '../../editor/editor';
 import { downloadBlob } from '../../storage/fileAccess';
 import { Dialog } from '../Dialogs';
-import { tr } from '../controls';
+import { Segmented, tr } from '../controls';
 
 const CATEGORY: Record<HealthCategory, { es: string; en: string }> = {
   geometry: { es: 'Geometría', en: 'Geometry' },
@@ -68,7 +68,7 @@ export function HealthReportDialog({ editor, payload, onClose }: { editor: Edito
       onClose={onClose}
       footer={
         <>
-          <span style={{ flex: 1, fontSize: 12, color: 'var(--ink-muted)' }}>
+          <span style={{ flex: 1, fontSize: 12, color: 'var(--ink-secondary)' }}>
             {fixed ? tr(lang, `${fixed} corrección(es) aplicadas (se pueden deshacer). `, `${fixed} fix(es) applied (undoable). `) : ''}
             {tr(lang, `${report.issues.length} problema(s) · ${fixable} corregible(s)`, `${report.issues.length} issue(s) · ${fixable} fixable`)}
           </span>
@@ -93,25 +93,25 @@ export function HealthReportDialog({ editor, payload, onClose }: { editor: Edito
             </p>
           </div>
         </div>
-        <div className="report__chips" role="tablist" aria-label={tr(lang, 'Categorías', 'Categories')}>
-          <button role="tab" aria-selected={filter === 'all'} className={`btn btn--sm${filter === 'all' ? ' btn--accent' : ''}`} onClick={() => setFilter('all')}>
-            {tr(lang, 'Todo', 'All')} {report.issues.length}
-          </button>
-          {(Object.keys(CATEGORY) as HealthCategory[]).map((c) => (
-            <button key={c} role="tab" aria-selected={filter === c} disabled={!report.counts[c]} className={`btn btn--sm${filter === c ? ' btn--accent' : ''}`} onClick={() => setFilter(c)}>
-              {CATEGORY[c][lang]} {report.counts[c]}
-            </button>
-          ))}
-        </div>
+        <Segmented
+          size="sm"
+          label={tr(lang, 'Categorías', 'Categories')}
+          value={filter}
+          onChange={setFilter}
+          options={[
+            { id: 'all' as const, label: tr(lang, 'Todo', 'All'), count: report.issues.length },
+            ...(Object.keys(CATEGORY) as HealthCategory[]).map((c) => ({ id: c, label: CATEGORY[c][lang], count: report.counts[c], disabled: !report.counts[c] })),
+          ]}
+        />
         {shown.length ? (
-          <table className="grid">
+          <table className="grid grid--wrap">
             <tbody>
               {shown.map((i, n) => (
                 <tr key={n}>
                   <td style={{ width: 22 }}>
                     <SeverityIcon s={i.severity} />
                   </td>
-                  <td style={{ whiteSpace: 'nowrap', color: 'var(--ink-muted)' }}>{CATEGORY[i.category][lang]}</td>
+                  <td style={{ whiteSpace: 'nowrap', color: 'var(--ink-secondary)' }}>{CATEGORY[i.category][lang]}</td>
                   <td>{i.message[lang]}</td>
                   <td style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>{i.fixable ? <span className="status-pill status-pill--disponible">{tr(lang, 'corregible', 'fixable')}</span> : null}</td>
                   <td style={{ width: 80, textAlign: 'right' }}>

@@ -72,10 +72,11 @@ export function ConfirmHost({ lang }: { lang: 'es' | 'en' }) {
       onClose={() => done(false)}
       footer={
         <>
-          <button type="button" className="btn" onClick={() => done(false)}>
+          {/* en una acción destructiva el foco empieza en «Cancelar»: un Intro de más no borra nada */}
+          <button type="button" className="btn" autoFocus={!!req.danger} onClick={() => done(false)}>
             {tr(lang, 'Cancelar', 'Cancel')}
           </button>
-          <button type="button" className={`btn ${req.danger ? 'btn--danger' : 'btn--primary'}`} onClick={() => done(true)} disabled={isInput && !value.trim()}>
+          <button type="button" className={`btn ${req.danger ? 'btn--danger' : 'btn--primary'}`} autoFocus={!req.danger && !isInput} onClick={() => done(true)} disabled={isInput && !value.trim()}>
             {req.confirmLabel}
           </button>
         </>

@@ -1,6 +1,7 @@
-import { Monitor, Moon, Redo2, Search, Sun, Undo2 } from 'lucide-react';
+import { FolderOpen, Monitor, Moon, Redo2, Save, Search, Sun, Undo2 } from 'lucide-react';
 import { QuickProperties } from './QuickProperties';
 import { Onboarding } from './Onboarding';
+import { EmptyCanvasHint } from './EmptyCanvasHint';
 import { comboOf } from './keys';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -251,6 +252,14 @@ export function App({ editor }: { editor: Editor }) {
           <kbd>Ctrl K</kbd>
         </button>
         <nav className="topbar__actions" aria-label={lang === 'es' ? 'Acciones del dibujo' : 'Drawing actions'}>
+          <button
+            className={`icon-btn${editor.doc.dirty ? ' has-dirty' : ''}`}
+            onClick={() => runCommand('QSAVE')}
+            title={editor.doc.dirty ? (lang === 'es' ? 'Guardar cambios (Ctrl+S)' : 'Save changes (Ctrl+S)') : lang === 'es' ? 'Guardar (Ctrl+S) · sin cambios pendientes' : 'Save (Ctrl+S) · no pending changes'}
+            aria-label={editor.doc.dirty ? (lang === 'es' ? 'Guardar: hay cambios sin guardar' : 'Save: there are unsaved changes') : lang === 'es' ? 'Guardar' : 'Save'}
+          >
+            <Save size={17} />
+          </button>
           <button className="icon-btn" onClick={() => runCommand('U')} disabled={!editor.doc.history.canUndo()} title={lang === 'es' ? 'Deshacer (Ctrl+Z)' : 'Undo (Ctrl+Z)'} aria-label={lang === 'es' ? 'Deshacer' : 'Undo'}>
             <Undo2 size={17} />
           </button>
@@ -260,11 +269,13 @@ export function App({ editor }: { editor: Editor }) {
           <button className="icon-btn" onClick={cycleTheme} title={themeTitle} aria-label={themeTitle}>
             {editor.prefs.theme === 'system' ? <Monitor size={17} /> : dark ? <Sun size={17} /> : <Moon size={17} />}
           </button>
+          {/* el botón muestra el idioma al que se cambia, igual que en el Inicio */}
           <button className="icon-btn topbar__lang" onClick={() => editor.setPrefs({ lang: lang === 'es' ? 'en' : 'es' })} title={lang === 'es' ? 'Cambiar a inglés' : 'Switch to Spanish'} aria-label={lang === 'es' ? 'Cambiar a inglés' : 'Switch to Spanish'}>
-            {lang.toUpperCase()}
+            {lang === 'es' ? 'EN' : 'ES'}
           </button>
-          <button className="icon-btn" onClick={() => openUi('file-menu')} title={lang === 'es' ? 'Archivo' : 'File'} aria-label={lang === 'es' ? 'Archivo' : 'File'}>
-            <CadIcon name="properties" size={18} />
+          <button className="btn btn--sm btn--ghost topbar__file" onClick={() => openUi('file-menu')} title={lang === 'es' ? 'Archivo: abrir, guardar, importar y exportar' : 'File: open, save, import and export'} aria-label={lang === 'es' ? 'Archivo' : 'File'}>
+            <FolderOpen size={16} />
+            <span>{lang === 'es' ? 'Archivo' : 'File'}</span>
           </button>
         </nav>
       </header>
@@ -275,6 +286,7 @@ export function App({ editor }: { editor: Editor }) {
             <CanvasView editor={editor} theme={theme} />
             <DynamicInput ref={dynRef} editor={editor} />
             <CommandLine ref={cmdRef} editor={editor} onDismiss={isMobile ? () => setCmdOpen(false) : undefined} />
+            {editor.prefs.onboardingDone && <EmptyCanvasHint editor={editor} touch={isMobile} />}
             <CyclingList editor={editor} />
             <QuickProperties editor={editor} onMore={() => openUi('panel:properties')} />
             {!isMobile && <PrecisionDeck editor={editor} open={deckOpen} onOpenChange={changeDeckOpen} onUi={openUi} onRun={runCommand} onOpenPalette={openPalette} activePanel={floatingPanel} />}
@@ -322,7 +334,7 @@ function CyclingList({ editor }: { editor: Editor }) {
           <button key={id} className={`menu-item${i === c.index ? ' is-active' : ''}`} onMouseEnter={() => { editor.hover.entityId = id; editor.emit('overlay'); }} onClick={() => editor.chooseCycled(id)}>
             <CadIcon name={e?.type === 'lwpolyline' ? 'pline' : e?.type === 'insert' ? 'block' : (e?.type ?? 'line')} size={15} />
             <span>{e?.type}</span>
-            <small style={{ marginLeft: 'auto', color: 'var(--ink-muted)' }}>{layer}</small>
+            <small style={{ marginLeft: 'auto', color: 'var(--ink-secondary)' }}>{layer}</small>
           </button>
         );
       })}

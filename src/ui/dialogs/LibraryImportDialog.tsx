@@ -58,7 +58,7 @@ export function LibraryImportDialog({ editor, session, onClose, onUi }: { editor
               {tr(lang, 'Informe de conversión', 'Conversion report')}
             </button>
           ) : null}
-          <span style={{ flex: 1, fontSize: 12, color: 'var(--ink-muted)' }}>{tr(lang, `${selected.length} de ${items.length} seleccionados`, `${selected.length} of ${items.length} selected`)}</span>
+          <span style={{ flex: 1, fontSize: 12, color: 'var(--ink-secondary)' }}>{tr(lang, `${selected.length} de ${items.length} seleccionados`, `${selected.length} of ${items.length} selected`)}</span>
           {error && <span style={{ color: 'var(--fm-danger)', fontSize: 12 }}>{error}</span>}
           <button className="btn" onClick={onClose}>{tr(lang, 'Cancelar', 'Cancel')}</button>
           <button className="btn btn--primary" disabled={busy || !selected.length} onClick={save}>
@@ -102,7 +102,7 @@ export function LibraryImportDialog({ editor, session, onClose, onUi }: { editor
                     </optgroup>
                   ))}
                 </select>
-                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--ink-muted)' }}>
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--ink-secondary)' }}>
                   {tr(lang, 'Unidades', 'Units')}
                   <select className="select" value={c.units} onChange={(e) => patch(c.key, { units: e.target.value as ImportCandidate['units'] })} aria-label={tr(lang, 'Unidades de origen del bloque', 'Block source units')}>
                     {UNITS.map((unit) => <option key={unit} value={unit}>{unitLabel(lang, unit)}</option>)}

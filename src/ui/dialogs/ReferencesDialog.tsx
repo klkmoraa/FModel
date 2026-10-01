@@ -57,7 +57,7 @@ export function ReferencesDialog({ editor, onClose }: { editor: Editor; onClose:
       onClose={onClose}
       footer={
         <>
-          <span style={{ flex: 1, fontSize: 12, color: 'var(--ink-muted)' }}>
+          <span style={{ flex: 1, fontSize: 12, color: 'var(--ink-secondary)' }}>
             {tr(lang, 'El dibujo guarda una copia del contenido de cada referencia: se comparte sin archivos sueltos y se actualiza al recargar.', 'The drawing keeps a copy of each reference content: it shares without loose files and updates on reload.')}
           </span>
           <button className="btn" onClick={onClose}>
@@ -106,7 +106,7 @@ export function ReferencesDialog({ editor, onClose }: { editor: Editor; onClose:
                     <tr key={b.id}>
                       <td>
                         <strong>{b.name}</strong>
-                        {b.xref.error && <div style={{ color: 'var(--ink-muted)', fontSize: 11 }}>{b.xref.error}</div>}
+                        {b.xref.error && <div style={{ color: 'var(--ink-secondary)', fontSize: 11 }}>{b.xref.error}</div>}
                       </td>
                       <td>
                         <span className={`status-pill status-pill--${st.tone}`}>{st[lang]}</span>
@@ -171,7 +171,7 @@ export function ReferencesDialog({ editor, onClose }: { editor: Editor; onClose:
                     <tr key={a.id}>
                       <td>
                         <strong>{a.name}</strong>
-                        <div style={{ color: 'var(--ink-muted)', fontSize: 11 }}>{a.dataUrl ? tr(lang, 'Incrustado en el dibujo', 'Embedded in drawing') : tr(lang, 'Sin datos: vuelve a enlazarlo', 'No data: attach it again')}</div>
+                        <div style={{ color: 'var(--ink-secondary)', fontSize: 11 }}>{a.dataUrl ? tr(lang, 'Incrustado en el dibujo', 'Embedded in drawing') : tr(lang, 'Sin datos: vuelve a enlazarlo', 'No data: attach it again')}</div>
                       </td>
                       <td>{kb(a.size)}</td>
                       <td>

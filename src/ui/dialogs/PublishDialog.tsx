@@ -30,7 +30,7 @@ export function PublishDialog({ editor, onClose }: { editor: Editor; onClose: ()
       onClose={onClose}
       footer={
         <>
-          <span style={{ flex: 1, fontSize: 12, color: 'var(--ink-muted)' }}>{tr(lang, `${selected.length} hoja(s) · cada una con su configuración de página`, `${selected.length} sheet(s) · each with its own page setup`)}</span>
+          <span style={{ flex: 1, fontSize: 12, color: 'var(--ink-secondary)' }}>{tr(lang, `${selected.length} hoja(s) · cada una con su configuración de página`, `${selected.length} sheet(s) · each with its own page setup`)}</span>
           <button className="btn" onClick={onClose}>
             {tr(lang, 'Cancelar', 'Cancel')}
           </button>

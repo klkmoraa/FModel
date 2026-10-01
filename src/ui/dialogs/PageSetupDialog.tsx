@@ -6,7 +6,7 @@ import type { Editor } from '../../editor/editor';
 import { preparePlotPreview } from '../../output/prepare';
 import { pageFor } from '../../output/plot';
 import { Dialog } from '../Dialogs';
-import { NumberField, Toggle, tr } from '../controls';
+import { NumberField, Segmented, Toggle, tr } from '../controls';
 
 const CUSTOM = 'Custom';
 
@@ -75,7 +75,7 @@ export function PageSetupDialog({ editor, plot, onClose }: { editor: Editor; plo
       onClose={onClose}
       footer={
         <>
-          <span style={{ flex: 1, fontSize: 12, color: 'var(--ink-muted)' }}>{tr(lang, 'PDF y SVG vectoriales; las imágenes y calcos PDF se incrustan rasterizados.', 'Vector PDF and SVG; images and PDF underlays are embedded as rasters.')}</span>
+          <span style={{ flex: 1, fontSize: 12, color: 'var(--ink-secondary)' }}>{tr(lang, 'PDF y SVG vectoriales; las imágenes y calcos PDF se incrustan rasterizados.', 'Vector PDF and SVG; images and PDF underlays are embedded as rasters.')}</span>
           <button className="btn" onClick={onClose}>
             {tr(lang, 'Cancelar', 'Cancel')}
           </button>
@@ -126,13 +126,17 @@ export function PageSetupDialog({ editor, plot, onClose }: { editor: Editor; plo
             )}
             <div className="field">
               <label>{tr(lang, 'Orientación', 'Orientation')}</label>
-              <div style={{ display: 'flex', gap: 4 }}>
-                {(['landscape', 'portrait'] as const).map((o) => (
-                  <button key={o} className={`btn btn--sm${page.orientation === o ? ' btn--accent' : ''}`} aria-pressed={page.orientation === o} onClick={() => set({ orientation: o })}>
-                    {o === 'landscape' ? tr(lang, 'Horizontal', 'Landscape') : tr(lang, 'Vertical', 'Portrait')}
-                  </button>
-                ))}
-              </div>
+              <Segmented
+                size="sm"
+                kind="radio"
+                label={tr(lang, 'Orientación', 'Orientation')}
+                value={page.orientation}
+                onChange={(orientation) => set({ orientation })}
+                options={[
+                  { id: 'landscape' as const, label: tr(lang, 'Horizontal', 'Landscape') },
+                  { id: 'portrait' as const, label: tr(lang, 'Vertical', 'Portrait') },
+                ]}
+              />
             </div>
             <div className="field">
               <label>{tr(lang, 'Márgenes (sup · der · inf · izq)', 'Margins (top · right · bottom · left)')}</label>

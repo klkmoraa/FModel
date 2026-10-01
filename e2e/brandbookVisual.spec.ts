@@ -285,12 +285,13 @@ test.describe('alineación visual con FusionStructureBrand', () => {
     expect(layersBox!.height).toBeLessThanOrEqual(430);
 
     await page.locator('.precision-dock').getByRole('button', { name: /Paletas|Palettes/, exact: true }).click();
-    const tabs = panel.locator('.panel-tabs');
+    const tabs = panel.locator('.seg');
     await expect(tabs).toBeVisible();
     const tabMaterial = await tabs.evaluate((element) => getComputedStyle(element).backgroundColor);
     expect(tabMaterial).not.toBe('rgba(0, 0, 0, 0)');
-    const inactiveTab = tabs.locator('.btn:not(.btn--accent)').first();
-    await expect(inactiveTab).toHaveCSS('border-top-color', 'rgba(0, 0, 0, 0)');
+    const inactiveTab = tabs.locator('.seg__item:not(.is-active)').first();
+    await expect(inactiveTab).toHaveCSS('border-top-width', '0px');
+    await expect(inactiveTab).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
 
     const statusAction = page.locator('button.status-toggle:not(.is-on):not(.is-warn)').first();
     const statusMaterial = await statusAction.evaluate((element) => {
@@ -359,6 +360,131 @@ test.describe('alineación visual con FusionStructureBrand', () => {
 
     await page.keyboard.press('Escape');
     await expect(onboarding).toHaveCount(0);
+  });
+
+  test('el botón primario es morado de Modelo y el secundario es arcilla elevada (Día)', async ({ page }) => {
+    await page.goto('/?surface=workspace');
+    await page.waitForFunction(() => !!(window as any).fmodel?.editor);
+    await page.evaluate(() => {
+      (window as any).fmodel.editor.setPrefs({ onboardingDone: true, theme: 'dia' });
+      window.dispatchEvent(new CustomEvent('fmodel:ui', { detail: { ui: 'options' } }));
+    });
+
+    const dialog = page.getByRole('dialog', { name: /Opciones|Options/ });
+    await expect(dialog).toBeVisible();
+
+    const primary = dialog.locator('.btn--primary').first();
+    const primaryStyle = await primary.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return { background: style.backgroundColor, color: style.color, shadow: style.boxShadow };
+    });
+    expect(primaryStyle.background).toBe('rgb(118, 87, 213)');
+    expect(primaryStyle.color).toBe('rgb(255, 255, 255)');
+    expect(primaryStyle.shadow).not.toBe('none');
+
+    const secondary = dialog.locator('.btn:not(.btn--primary):not(.btn--ghost)').first();
+    const secondaryStyle = await secondary.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return { background: style.backgroundColor, shadow: style.boxShadow, radius: style.borderTopLeftRadius };
+    });
+    expect(secondaryStyle.background).toBe('rgb(255, 254, 250)');
+    expect(secondaryStyle.shadow).not.toBe('none');
+    expect(secondaryStyle.radius).toBe('12px');
+
+    const field = dialog.locator('select.select').first();
+    const fieldStyle = await field.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return { background: style.backgroundColor, shadow: style.boxShadow };
+    });
+    expect(fieldStyle.background).toBe('rgb(237, 239, 233)');
+    expect(fieldStyle.shadow).toContain('inset');
+
+    const checkbox = dialog.locator('input[type="checkbox"]').first();
+    expect(await checkbox.evaluate((element) => getComputedStyle(element).accentColor)).toBe('rgb(118, 87, 213)');
+  });
+
+  test('en Noche el primario usa #A990FF con texto oscuro', async ({ page }) => {
+    await page.goto('/?surface=workspace');
+    await page.waitForFunction(() => !!(window as any).fmodel?.editor);
+    await page.evaluate(() => {
+      (window as any).fmodel.editor.setPrefs({ onboardingDone: true, theme: 'noche' });
+      window.dispatchEvent(new CustomEvent('fmodel:ui', { detail: { ui: 'options' } }));
+    });
+
+    const dialog = page.getByRole('dialog', { name: /Opciones|Options/ });
+    const primary = dialog.locator('.btn--primary').first();
+    await expect(primary).toBeVisible();
+    await expect(primary).toHaveCSS('background-color', 'rgb(169, 144, 255)');
+    await expect(primary).toHaveCSS('color', 'rgb(14, 17, 19)');
+  });
+
+  test('el control segmentado se maneja con flechas, Inicio y Fin', async ({ page }) => {
+    await page.goto('/?surface=workspace');
+    await page.waitForFunction(() => !!(window as any).fmodel?.editor);
+    await page.evaluate(() => {
+      (window as any).fmodel.editor.setPrefs({ onboardingDone: true });
+      window.dispatchEvent(new CustomEvent('fmodel:ui', { detail: { ui: 'options' } }));
+    });
+
+    const dialog = page.getByRole('dialog', { name: /Opciones|Options/ });
+    const tabs = dialog.getByRole('tab');
+    await expect(tabs.first()).toHaveAttribute('aria-selected', 'true');
+    await tabs.first().focus();
+    await page.keyboard.press('ArrowRight');
+    await expect(tabs.nth(1)).toHaveAttribute('aria-selected', 'true');
+    await expect(tabs.nth(1)).toBeFocused();
+    await expect(tabs.nth(1)).toHaveAttribute('tabindex', '0');
+    await expect(tabs.first()).toHaveAttribute('tabindex', '-1');
+    await page.keyboard.press('End');
+    await expect(tabs.last()).toHaveAttribute('aria-selected', 'true');
+    await page.keyboard.press('Home');
+    await expect(tabs.first()).toHaveAttribute('aria-selected', 'true');
+  });
+
+  test('el foco inicial de un diálogo va al contenido y no al botón Cerrar', async ({ page }) => {
+    await page.goto('/?surface=workspace');
+    await page.waitForFunction(() => !!(window as any).fmodel?.editor);
+    await page.evaluate(() => {
+      (window as any).fmodel.editor.setPrefs({ onboardingDone: true });
+      window.dispatchEvent(new CustomEvent('fmodel:ui', { detail: { ui: 'options' } }));
+    });
+    const dialog = page.getByRole('dialog', { name: /Opciones|Options/ });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole('button', { name: /^(Cerrar|Close)$/ })).not.toBeFocused();
+    expect(await dialog.evaluate((element) => element.contains(document.activeElement))).toBe(true);
+  });
+
+  test('el lienzo vacío explica cómo empezar y la pista desaparece con el primer objeto', async ({ page }) => {
+    await page.goto('/?surface=workspace');
+    await page.waitForFunction(() => !!(window as any).fmodel?.editor);
+    await page.evaluate(() => {
+      (window as any).fmodel.editor.setPrefs({ onboardingDone: true });
+    });
+    const hint = page.getByRole('region', { name: /Cómo empezar|Getting started/ });
+    await expect(hint).toBeVisible();
+    await expect(hint.getByRole('button', { name: /Línea|Line/ })).toBeVisible();
+
+    const input = page.getByLabel(/Línea de comandos|Command line/);
+    for (const value of ['LINE', '0,0', '100,100']) {
+      await input.fill(value);
+      await input.press('Enter');
+    }
+    await input.press('Enter');
+    await expect(hint).toHaveCount(0);
+  });
+
+  test('el idioma de la barra superior muestra el destino del cambio, igual que el Inicio', async ({ page }) => {
+    await page.goto('/?surface=workspace');
+    await page.waitForFunction(() => !!(window as any).fmodel?.editor);
+    await page.evaluate(() => {
+      (window as any).fmodel.editor.setPrefs({ onboardingDone: true, lang: 'es' });
+    });
+    const toggle = page.locator('.topbar__lang');
+    await expect(toggle).toHaveText('EN');
+    await expect(toggle).toHaveAttribute('aria-label', /Cambiar a inglés/);
+    await toggle.click();
+    await expect(toggle).toHaveText('ES');
+    await expect(page.getByRole('button', { name: /^(Guardar|Save)/ }).first()).toBeVisible();
   });
 
   for (const viewport of VIEWPORTS) {

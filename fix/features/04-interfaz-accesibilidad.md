@@ -93,3 +93,65 @@
 **Cierre:** 2026-09-19
 
 **Verificación:** `src/app/tasks.test.ts` cubre ciclo, progreso, cancelación, fallo y reintento; las puertas locales completas pasan con 63 archivos y 582 pruebas Vitest.
+
+---
+
+## UI-004 — Sistema de botones y campos arcilla en la mesa
+
+- [x] **Estado:** Cerrada (pendiente de commit: el usuario aún no lo ha pedido)
+- **Prioridad:** P2 — coherencia con el brandbook de la familia Modelo
+- **Responsable:** Claude · **Inicio:** 2026-10-01 · **Cierre:** 2026-10-01
+- **Depende de:** UI-001
+- **Bloquea:** UI-005
+
+**Problema:** el Inicio usa la materia arcilla del brandbook (superficie elevada, pista hundida, píldora activa, primario morado), pero en la mesa `.btn` era plano, `.btn--primary` era negro, los campos eran planos, las pestañas y filtros eran parches sueltos con `btn--accent` y `TaskStatus` pintaba con colores propios fuera de `tokens.css`.
+
+**Evidencia:**
+1. `src/styles/tokens.css`: `--shadow-field` y `--shadow-focus`. `src/styles/app.css`: receta única de botón (secundario elevado → raised al pasar → inset al pulsar; primario morado; peligro con canto y punto rojos, sin punto si lleva icono; fantasma sólo en barras densas; interruptor con `aria-pressed`), `.btn-group`, `.seg`, campos hundidos con anillo de foco, `accent-color` morado en casillas y radios, chips y acciones móviles con relieve, objetivos táctiles de 36–40 px con `pointer: coarse`.
+2. `src/ui/controls.tsx` + `src/ui/segmented.ts`: componente `Segmented` (pestañas o radio) con roving tabindex y flechas/Inicio/Fin; sustituye a los grupos ad hoc de Opciones, Estilos, Parámetros, Ayuda (pestañas y filtro de estado), Informe de salud, Configurar página, Bloques y Paletas. `btn--accent` ya sólo se usa para acciones.
+3. `src/ui/TaskStatus.tsx`: sin estilos en línea ni colores propios; usa tokens, barra de progreso y la animación `fm-spin` (antes `spin` no existía y el indicador no giraba).
+4. Contraste AA: texto secundario de la mesa pasa de `--ink-muted` (3,5:1) a `--ink-secondary` (modos apagados de la barra de estado, cabeceras de tabla, pistas, búsqueda de la barra superior, textos en línea de los diálogos). Los modos apagados quedan «en tinta 2» como pide el brandbook.
+5. Brandbook: capturas `docs/brandbook/assets/*` regeneradas en Día y Noche (el Inicio ya pinta su cuerpo), mocks de barra superior y bienvenida, filas de consistencia y auditoría, y receta de botones en `docs/brandbook/README.md`.
+
+**Archivos principales:** `src/styles/tokens.css`, `src/styles/app.css`, `src/ui/controls.tsx`, `src/ui/segmented.ts`, `src/ui/segmented.test.ts`, `src/ui/TaskStatus.tsx`, `src/ui/dialogs/*`, `src/ui/panels/*`, `docs/brandbook/`.
+
+**Criterios de aceptación:**
+
+- [x] Primario en morado de Modelo con texto `--fs-interaction-ink`; secundario elevado; peligro con canto y punto rojo; fantasma sólo en barras densas.
+- [x] Campos, selects y áreas de texto hundidos; casillas y radios con el acento de Modelo.
+- [x] Un único control segmentado (pista hundida + píldora elevada) para pestañas y filtros, con teclado (flechas, Inicio, Fin).
+- [x] Ningún color propio en `src/ui` fuera de `src/styles/tokens.css`, salvo datos del dibujo, el selector de color verdadero y el `theme-color` del navegador.
+- [x] Día y Noche revisados en panel, diálogo, paleta y barra de estado; contraste AA.
+
+**Verificación:** `pnpm verify` (lint, tipos, capas, features, 933 pruebas Vitest y build) sin errores; `playwright test` en Chromium: 37/37, con pruebas nuevas de primario/secundario/campo en Día y Noche, teclado del segmentado y axe `critical`/`serious` en lienzo vacío, barra superior, barra de estado, paneles Capas y Paletas y diálogos Opciones, Ayuda y Estilos, en Día y Noche. Entorno con Node 22 (el proyecto pide ≥ 24): sólo avisa. Revisión visual por capturas en 1440, 860 y 390 px.
+
+---
+
+## UI-005 — Mejorar la experiencia de uso sección por sección
+
+- [x] **Estado:** Cerrada (pendiente de commit: el usuario aún no lo ha pedido)
+- **Prioridad:** P2 — descubrimiento y claridad en el flujo principal
+- **Responsable:** Claude · **Inicio:** 2026-10-01 · **Cierre:** 2026-10-01
+- **Depende de:** UI-004
+- **Bloquea:** —
+
+**Evidencia por sección:**
+1. **Barra superior** (`App.tsx`): botón Guardar (Ctrl+S) con punto de cambios pendientes; el idioma muestra el destino del cambio, igual que el Inicio; «Archivo» rotulado con icono propio (antes un icono igual al del panel Propiedades).
+2. **Barra de estado** (`StatusBar.tsx`): cada interruptor dice qué hace, su atajo y si está activado; iconos con nombre accesible en lugar de glifos (⚙, ⤢, ⚠️, ◐).
+3. **Capas** (`LayersPanel.tsx`): acciones agrupadas con icono y explicación de por qué están deshabilitadas, filtro y estados sin recortes, tabla con columnas básicas/todas, nombre fijo al desplazar, capas apagadas atenuadas, nombre accesible en cada control y selección completa al renombrar.
+4. **Paletas y Bloques**: estados vacíos que explican la causa y ofrecen la acción; acciones de ficha visibles sin cursor y con nombre; comandos favoritos con su nombre.
+5. **Biblioteca de herramientas**: la fila de pestañas ya no se recorta; la hoja móvil abre en «Inicio» en lugar de la primera familia.
+6. **Paleta de comandos**: la opción activa por teclado siempre queda a la vista, atrapa el foco y lo devuelve, oculta comandos internos (`_GRIP`…), muestra ayuda de teclas y favoritos con estrella de 28 px.
+7. **Diálogos**: el foco inicial va al contenido y no a «Cerrar»; las confirmaciones destructivas empiezan en «Cancelar»; etiquetas de campo hasta dos líneas (antes truncadas); tablas de Ayuda e informes sin desbordar; `src/ui/fieldLabels.ts` vincula etiquetas y controles sin nombre (Opciones tenía selects y casillas anónimos).
+8. **Lienzo vacío** (`EmptyCanvasHint.tsx`): tarjeta con atajos de dibujo, «Abrir archivo…» y pistas de teclado; desaparece con el primer objeto o un comando en curso.
+9. **Menú Archivo**: borrar un dibujo guardado usa un icono con nombre en lugar de «×».
+
+**Criterios de aceptación:**
+
+- [x] Cada control con icono tiene nombre accesible y descripción con atajo cuando existe.
+- [x] Ninguna etiqueta truncada sin título ni alternativa; ninguna tabla desborda su diálogo.
+- [x] El lienzo vacío explica cómo empezar sin tapar el dibujo y desaparece con el primer objeto.
+- [x] En confirmaciones destructivas el foco inicial está en «Cancelar».
+- [x] Textos nuevos en español e inglés.
+
+**Verificación:** las mismas puertas que UI-004; recorrido manual con Playwright (crear capa, renombrar, ocultar, hacer actual, guardar estado, abrir la paleta con 14 flechas, abrir Archivo) sin errores de consola. Pendiente fuera de alcance: validación táctil en dispositivos reales (sigue en UI-002).

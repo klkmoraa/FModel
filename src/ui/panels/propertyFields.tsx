@@ -89,7 +89,7 @@ export function PropertyField({ editor, row, targets }: { editor: Editor; row: P
     case 'transparency':
       control = (
         <div style={{ display: 'flex', gap: 4 }}>
-          <select className="select" style={{ width: 96 }} value={mixed ? 'mixed' : typeof first === 'number' ? 'value' : String(first)} onChange={(e) => apply(row, e.target.value === 'value' ? 0 : e.target.value)} aria-label={label}>
+          <select className="select" style={{ width: typeof first === 'number' && !mixed ? 96 : '100%' }} value={mixed ? 'mixed' : typeof first === 'number' ? 'value' : String(first)} onChange={(e) => apply(row, e.target.value === 'value' ? 0 : e.target.value)} aria-label={label}>
             {mixed && <option value="mixed">{MIXED}</option>}
             <option value="ByLayer">{tr(lang, 'PorCapa', 'ByLayer')}</option>
             <option value="ByBlock">{tr(lang, 'PorBloque', 'ByBlock')}</option>

@@ -1,3 +1,4 @@
+import { Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { getServices } from '../../app/services';
 import type { Editor } from '../../editor/editor';
@@ -87,10 +88,11 @@ export function FileMenu({ editor, onClose, onUi }: { editor: Editor; onClose: (
                 }}
               >
                 <span>{d.name}</span>
-                <small style={{ marginLeft: 'auto', color: 'var(--ink-muted)' }}>{new Date(d.savedAt).toLocaleString()}</small>
+                <small style={{ marginLeft: 'auto', color: 'var(--ink-secondary)' }}>{new Date(d.savedAt).toLocaleString()}</small>
               </button>
               <button
-                className="btn btn--sm btn--danger"
+                className="btn btn--sm btn--icon btn--danger-icon"
+                title={tr(lang, 'Eliminar de este navegador', 'Delete from this browser')}
                 aria-label={tr(lang, `Eliminar «${d.name}»`, `Delete “${d.name}”`)}
                 onClick={async () => {
                   const ok = await askConfirm(lang, tr(lang, 'Eliminar dibujo', 'Delete drawing'), tr(lang, `¿Eliminar «${d.name}» de este navegador? No se puede deshacer.`, `Delete “${d.name}” from this browser? This cannot be undone.`), { confirmLabel: tr(lang, 'Eliminar', 'Delete'), danger: true });
@@ -99,7 +101,7 @@ export function FileMenu({ editor, onClose, onUi }: { editor: Editor; onClose: (
                   setDrawings(await getServices().persistence.drawings());
                 }}
               >
-                ×
+                <Trash2 size={14} />
               </button>
             </div>
           ))}

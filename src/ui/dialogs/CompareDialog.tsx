@@ -77,7 +77,7 @@ export function CompareDialog({ editor, onClose }: { editor: Editor; onClose: ()
         <section>
           <h3 className="eyebrow">{tr(lang, 'Tablas y configuración', 'Tables and settings')}</h3>
           {Object.keys(diff.records).length || diff.settingsChanged ? (
-            <table className="grid">
+            <table className="grid grid--wrap">
               <thead>
                 <tr>
                   <th>{tr(lang, 'Tabla', 'Table')}</th>
@@ -106,7 +106,7 @@ export function CompareDialog({ editor, onClose }: { editor: Editor; onClose: ()
             <p className="empty">{tr(lang, 'Sin cambios en tablas ni configuración.', 'No changes in tables or settings.')}</p>
           )}
         </section>
-        <p style={{ margin: 0, fontSize: 12, color: 'var(--ink-muted)' }}>{tr(lang, 'En el lienzo: verde añadidos, ámbar modificados y rojo lo eliminado (como fantasma). La comparación sigue visible hasta COMPAREEND.', 'On canvas: green added, amber modified and red what was removed (as a ghost). The comparison stays visible until COMPAREEND.')}</p>
+        <p style={{ margin: 0, fontSize: 12, color: 'var(--ink-secondary)' }}>{tr(lang, 'En el lienzo: verde añadidos, ámbar modificados y rojo lo eliminado (como fantasma). La comparación sigue visible hasta COMPAREEND.', 'On canvas: green added, amber modified and red what was removed (as a ghost). The comparison stays visible until COMPAREEND.')}</p>
       </div>
     </Dialog>
   );

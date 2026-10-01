@@ -58,6 +58,8 @@
 | 32 | DAT-007 | P2 | Mantener coherentes los límites del escritor y lector nativos | Cerrada | DAT-003 | [Integridad](./01-integridad-archivos.md#dat-007--mantener-coherentes-los-límites-del-escritor-y-lector-nativos) |
 | 33 | DAT-008 | P2 | Rechazar bibliotecas grandes antes de serializar sus bloques | Cerrada | DAT-003 | [Integridad](./01-integridad-archivos.md#dat-008--rechazar-bibliotecas-grandes-antes-de-serializar-sus-bloques) |
 | 34 | GEO-003 | P2 | Seleccionar líneas infinitas con cualquier magnitud de dirección | Cerrada | GEO-001 | [Geometría](./02-geometria-comandos.md#geo-003--seleccionar-líneas-infinitas-con-cualquier-magnitud-de-dirección) |
+| 35 | UI-004 | P2 | Sistema de botones y campos arcilla en toda la mesa de trabajo | Cerrada | UI-001 | [Interfaz](./04-interfaz-accesibilidad.md#ui-004--sistema-de-botones-y-campos-arcilla-en-la-mesa) |
+| 36 | UI-005 | P2 | Mejorar la experiencia de uso sección por sección | Cerrada | UI-004 | [Interfaz](./04-interfaz-accesibilidad.md#ui-005--mejorar-la-experiencia-de-uso-sección-por-sección) |
 
 ## Mapa de dependencias
 

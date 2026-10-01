@@ -5,7 +5,7 @@ import type { Editor } from '../../editor/editor';
 import type { CanvasBg, ThemePref, WheelMode } from '../../editor/preferences';
 import { DEFAULT_PREFERENCES, DEFAULT_SHORTCUTS } from '../../editor/preferences';
 import { Dialog } from '../Dialogs';
-import { NumberField, Toggle, tr } from '../controls';
+import { NumberField, Segmented, Toggle, tr } from '../controls';
 import { useEditorEvents } from '../hooks';
 import { comboOf } from '../keys';
 
@@ -65,12 +65,8 @@ export function OptionsDialog({ editor, onClose, initialTab }: { editor: Editor;
         </>
       }
     >
-      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 12 }} role="tablist">
-        {tabs.map(([id, label]) => (
-          <button key={id} role="tab" aria-selected={tab === id} className={`btn btn--sm${tab === id ? ' btn--accent' : ''}`} onClick={() => (setTab(id), setError(''))}>
-            {label}
-          </button>
-        ))}
+      <div className="dialog__tabs">
+        <Segmented label={tr(lang, 'Secciones de opciones', 'Options sections')} value={tab} onChange={(id) => (setTab(id), setError(''))} options={tabs.map(([id, label]) => ({ id, label }))} />
       </div>
 
       {tab === 'general' && (
@@ -198,7 +194,7 @@ export function OptionsDialog({ editor, onClose, initialTab }: { editor: Editor;
                         <code>{k}</code>
                       </td>
                       <td>
-                        <code>{v}</code> <span style={{ color: 'var(--ink-muted)' }}>{findCommand(v)?.label[lang]}</span>
+                        <code>{v}</code> <span style={{ color: 'var(--ink-secondary)' }}>{findCommand(v)?.label[lang]}</span>
                       </td>
                       <td style={{ textAlign: 'right' }}>
                         <button
@@ -304,7 +300,7 @@ export function OptionsDialog({ editor, onClose, initialTab }: { editor: Editor;
                       <kbd>{k}</kbd>
                     </td>
                     <td>
-                      <code>{v}</code> <span style={{ color: 'var(--ink-muted)' }}>{findCommand(v)?.label[lang] ?? tr(lang, '(comando no disponible)', '(command not available)')}</span>
+                      <code>{v}</code> <span style={{ color: 'var(--ink-secondary)' }}>{findCommand(v)?.label[lang] ?? tr(lang, '(comando no disponible)', '(command not available)')}</span>
                     </td>
                     <td style={{ textAlign: 'right' }}>
                       <button

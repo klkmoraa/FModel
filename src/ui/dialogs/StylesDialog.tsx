@@ -7,7 +7,7 @@ import { newId } from '../../document/ids';
 import type { ArrowType, DimStyleRecord, Id, MLeaderStyleRecord, MLineStyleRecord, MTextAttachment, TableStyleRecord, TextStyleRecord } from '../../document/types';
 import type { Editor } from '../../editor/editor';
 import { Dialog } from '../Dialogs';
-import { ColorPicker, LinetypeSelect, LineweightSelect, NumberField, TextField, Toggle, tr } from '../controls';
+import { ColorPicker, LinetypeSelect, LineweightSelect, NumberField, Segmented, TextField, Toggle, tr } from '../controls';
 import { useEditorEvents } from '../hooks';
 import { askConfirm } from '../ConfirmHost';
 
@@ -136,7 +136,7 @@ export function StylesDialog({ editor, onClose, initialTab }: { editor: Editor; 
       onClose={onClose}
       footer={
         <>
-          <span role={error ? 'alert' : undefined} style={{ flex: 1, fontSize: 12, color: error ? 'var(--fm-danger)' : 'var(--ink-muted)' }}>
+          <span role={error ? 'alert' : undefined} style={{ flex: 1, fontSize: 12, color: error ? 'var(--fm-danger)' : 'var(--ink-secondary)' }}>
             {error || tr(lang, 'Los cambios se aplican al momento a todos los objetos que usan el estilo y se pueden deshacer.', 'Changes apply at once to every object using the style and can be undone.')}
           </span>
           <button className="btn btn--primary" onClick={onClose}>
@@ -145,12 +145,8 @@ export function StylesDialog({ editor, onClose, initialTab }: { editor: Editor; 
         </>
       }
     >
-      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 12 }} role="tablist">
-        {TABS.map(([id, l]) => (
-          <button key={id} role="tab" aria-selected={tab === id} className={`btn btn--sm${tab === id ? ' btn--accent' : ''}`} onClick={() => (setTab(id), setError(''))}>
-            {l[lang]}
-          </button>
-        ))}
+      <div className="dialog__tabs">
+        <Segmented label={tr(lang, 'Tipos de estilo', 'Style types')} value={tab} onChange={(id) => (setTab(id), setError(''))} options={TABS.map(([id, l]) => ({ id, label: l[lang] }))} />
       </div>
 
       {coll ? (

@@ -4,7 +4,7 @@ import type { SnapType } from '../../model/registry';
 import { ALL_SNAP_TYPES } from '../../model/registry';
 import { SNAP_LABELS } from '../../render/overlayRenderer';
 import { Dialog } from '../Dialogs';
-import { NumberField, tr } from '../controls';
+import { NumberField, Segmented, tr } from '../controls';
 
 export function DraftingSettings({ editor, onClose }: { editor: Editor; onClose: () => void }) {
   const lang = editor.lang;
@@ -22,12 +22,8 @@ export function DraftingSettings({ editor, onClose }: { editor: Editor; onClose:
   ];
   return (
     <Dialog title={tr(lang, 'Parámetros de dibujo', 'Drafting settings')} onClose={onClose} lang={lang} footer={<button className="btn btn--primary" onClick={onClose}>{tr(lang, 'Listo', 'Done')}</button>}>
-      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 12 }} role="tablist">
-        {tabs.map(([id, label]) => (
-          <button key={id} role="tab" aria-selected={tab === id} className={`btn btn--sm${tab === id ? ' btn--accent' : ''}`} onClick={() => setTab(id)}>
-            {label}
-          </button>
-        ))}
+      <div className="dialog__tabs">
+        <Segmented label={tr(lang, 'Secciones de parámetros', 'Settings sections')} value={tab} onChange={setTab} options={tabs.map(([id, label]) => ({ id, label }))} />
       </div>
       {tab === 'osnap' && (
         <div style={{ display: 'grid', gap: 10 }}>
@@ -61,7 +57,7 @@ export function DraftingSettings({ editor, onClose }: { editor: Editor; onClose:
             <label>{tr(lang, 'Apertura (px)', 'Aperture (px)')}</label>
             <NumberField lang={lang} value={snap.aperturePx} onCommit={(v) => setSnap({ aperturePx: Math.max(2, Math.min(50, v)) })} />
           </div>
-          <p className="eyebrow">{tr(lang, 'Tab alterna candidatos · referencias temporales: escribe END, MID, CEN, INT, PER, TAN, NEA… durante un comando', 'Tab cycles candidates · temporary overrides: type END, MID, CEN, INT, PER, TAN, NEA… inside a command')}</p>
+          <p className="panel__hint">{tr(lang, 'Tab alterna candidatos · referencias temporales: escribe END, MID, CEN, INT, PER, TAN, NEA… durante un comando', 'Tab cycles candidates · temporary overrides: type END, MID, CEN, INT, PER, TAN, NEA… inside a command')}</p>
         </div>
       )}
       {tab === 'polar' && (

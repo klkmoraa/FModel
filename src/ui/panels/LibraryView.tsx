@@ -83,7 +83,7 @@ export function LibraryView({ editor, query }: { editor: Editor; query: string }
         <button className="btn btn--sm" onClick={() => editor.command('LIBRARYSTARTER')} title={tr(lang, '100 bloques de LibreCAD y 12 muebles paramétricos', '100 LibreCAD blocks and 12 parametric furniture pieces')}>
           <Library size={13} /> {tr(lang, 'Biblioteca inicial', 'Starter library')}
         </button>
-        <button className={`btn btn--sm${manage ? ' btn--accent' : ''}`} onClick={() => setManage((m) => !m)}>
+        <button className="btn btn--sm" aria-pressed={manage} onClick={() => setManage((m) => !m)}>
           <FolderPlus size={13} /> {tr(lang, 'Categorías', 'Categories')}
         </button>
         <label className="libview__toggle">

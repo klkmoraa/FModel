@@ -2,12 +2,13 @@ import { Plus, Star, Trash2 } from 'lucide-react';
 import { isInsertableBlock } from '../../blocks/blockOps';
 import { useMemo, useState } from 'react';
 import { hatchDefaults } from '../../commands/draw';
+import { findCommand } from '../../commands/registry';
 import type { Editor } from '../../editor/editor';
 import { HATCH_PATTERNS } from '../../model/hatchPatterns';
 import { blockThumbnail } from '../../render/thumbnail';
 import { useEditorEvents } from '../hooks';
 import { CadIcon } from '../icons';
-import { tr } from '../controls';
+import { Segmented, tr } from '../controls';
 import { DND_MIME } from '../dnd';
 import { parseStoredPalettes, type PaletteItem, type StoredPalette } from '../paletteData';
 
@@ -168,13 +169,14 @@ export function ToolPalettesPanel({ editor }: { editor: Editor }) {
 
   return (
     <div className="panel panel--palette">
-      <div className="panel-tabs" role="tablist">
-        {palettes.map((p) => (
-          <button key={p.id} role="tab" aria-selected={p.id === current.id} className={`btn btn--sm${p.id === current.id ? ' btn--accent' : ''}`} onClick={() => setActive(p.id)}>
-            {p.name[lang]}
-          </button>
-        ))}
-      </div>
+      <Segmented
+        size="sm"
+        kind="tabs"
+        label={tr(lang, 'Paletas de herramientas', 'Tool palettes')}
+        value={current.id}
+        onChange={setActive}
+        options={palettes.map((p) => ({ id: p.id, label: p.name[lang] }))}
+      />
       <input className="input" placeholder={tr(lang, 'Buscar en la paleta…', 'Search palette…')} value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.stopPropagation()} />
       <p className="panel__hint">
         {tr(lang, 'Clic para usar · arrastra al lienzo para colocar con referencia a objetos', 'Click to use · drag onto the canvas to place with object snaps')}
@@ -189,7 +191,11 @@ export function ToolPalettesPanel({ editor }: { editor: Editor }) {
             onClick={() => void runPaletteItem(editor, it)}
             role="button"
             tabIndex={0}
-            onKeyDown={(e) => e.key === 'Enter' && void runPaletteItem(editor, it)}
+            onKeyDown={(e) => {
+              if (e.key !== 'Enter' && e.key !== ' ') return;
+              e.preventDefault();
+              void runPaletteItem(editor, it);
+            }}
             title={labelOf(it)}
           >
             {it.kind === 'block' ? (
@@ -205,7 +211,7 @@ export function ToolPalettesPanel({ editor }: { editor: Editor }) {
             )}
             <span className="palette-tile__label">{labelOf(it)}</span>
             {!current.custom ? (
-              <button className="icon-btn palette-tile__action" onClick={(e) => (e.stopPropagation(), addToCustom(it))} title={tr(lang, 'Añadir a Mis herramientas', 'Add to My tools')}>
+              <button className="icon-btn palette-tile__action" onClick={(e) => (e.stopPropagation(), addToCustom(it))} title={tr(lang, 'Añadir a Mis herramientas', 'Add to My tools')} aria-label={tr(lang, `Añadir ${labelOf(it)} a Mis herramientas`, `Add ${labelOf(it)} to My tools`)}>
                 <Plus size={11} />
               </button>
             ) : (
@@ -218,24 +224,47 @@ export function ToolPalettesPanel({ editor }: { editor: Editor }) {
                   setCustom(next);
                 }}
                 title={tr(lang, 'Quitar', 'Remove')}
+                aria-label={tr(lang, `Quitar ${labelOf(it)} de la paleta`, `Remove ${labelOf(it)} from the palette`)}
               >
                 <Trash2 size={11} />
               </button>
             )}
           </div>
         ))}
-        {!items.length && <div className="empty">{tr(lang, 'Sin elementos.', 'No items.')}</div>}
+        {!items.length && (
+          <div className="empty empty--grid">
+            <strong>{q ? tr(lang, `Nada coincide con «${q}»`, `Nothing matches “${q}”`) : tr(lang, 'Esta paleta está vacía', 'This palette is empty')}</strong>
+            <span>
+              {q
+                ? tr(lang, 'Prueba con otra palabra o borra la búsqueda.', 'Try another word or clear the search.')
+                : current.custom
+                  ? tr(lang, 'Añade herramientas con el «+» de cualquier otra paleta.', 'Add tools with the “+” on any other palette.')
+                  : current.id === 'symbols' || current.id.startsWith('cat:')
+                    ? tr(lang, 'Crea un bloque o trae símbolos desde Bloques › Biblioteca.', 'Create a block or bring symbols from Blocks › Library.')
+                    : tr(lang, 'No hay elementos disponibles en este dibujo.', 'There are no items available in this drawing.')}
+            </span>
+            {!q && (current.id === 'symbols' || current.id.startsWith('cat:')) && (
+              <button type="button" className="btn btn--sm" onClick={() => editor.command('BLOCK')}>
+                {tr(lang, 'Crear bloque', 'Create block')}
+              </button>
+            )}
+          </div>
+        )}
       </div>
       <div className="section" style={{ padding: 8 }}>
         <div className="eyebrow" style={{ marginBottom: 6 }}>
           <Star size={10} /> {tr(lang, 'Comandos favoritos', 'Favorite commands')}
         </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-          {[...favs].map((f) => (
-            <button key={f} className="btn btn--sm" onClick={() => editor.command(f)}>
-              {f}
-            </button>
-          ))}
+        <div className="panel-actions">
+          {[...favs].map((f) => {
+            const command = findCommand(f);
+            return (
+              <button key={f} type="button" className="btn btn--sm" onClick={() => editor.command(f)} title={`${command?.label[lang] ?? f} · ${f}`}>
+                {command?.label[lang] ?? f}
+              </button>
+            );
+          })}
+          {!favs.size && <span className="panel__hint">{tr(lang, 'Marca una estrella en la biblioteca de herramientas para fijar comandos aquí.', 'Star a command in the tool library to pin it here.')}</span>}
         </div>
       </div>
     </div>

@@ -27,7 +27,9 @@ export function useModalFocusTrap(dialogRef: RefObject<HTMLElement | null>, onCl
 
     if (!(activeOnMount && dialog.contains(activeOnMount))) {
       const preferred = dialog.querySelector<HTMLElement>('[autofocus]');
-      const first = focusableElements()[0];
+      const focusable = focusableElements();
+      // el foco inicial va al contenido (primer campo, opción o botón de acción), no al «Cerrar» de la cabecera
+      const first = focusable.find((element) => !element.closest('.dialog__head')) ?? focusable[0];
       (preferred ?? first ?? dialog).focus({ preventScroll: true });
     }
 

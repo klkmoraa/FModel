@@ -89,7 +89,7 @@ function Authoring({ editor, block, dark, lang }: { editor: Editor; block: Block
           {thumb ? <img src={thumb} width={104} height={104} alt="" /> : null}
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <button className={`btn btn--sm${testing ? ' btn--accent' : ''}`} onClick={() => editor.command('BTESTBLOCK')}>
+          <button className="btn btn--sm" aria-pressed={testing} onClick={() => editor.command('BTESTBLOCK')}>
             <FlaskConical size={13} /> {testing ? tr(lang, 'Cerrar prueba', 'Close test') : tr(lang, 'Probar bloque', 'Test block')}
           </button>
           {testing && (
@@ -178,7 +178,7 @@ function Authoring({ editor, block, dark, lang }: { editor: Editor; block: Block
               <span style={{ flex: 1 }}>
                 <strong>{t.name}</strong>
                 <br />
-                <small style={{ color: 'var(--ink-muted)' }}>
+                <small style={{ color: 'var(--ink-secondary)' }}>
                   {tr(lang, `${t.inputs.length} entrada(s) · ${t.rows.length} fila(s)`, `${t.inputs.length} input(s) · ${t.rows.length} row(s)`)}
                 </small>
               </span>
@@ -198,7 +198,7 @@ function Authoring({ editor, block, dark, lang }: { editor: Editor; block: Block
               {c.kind === 'geometric' ? (
                 <>
                   <span style={{ flex: 1 }}>
-                    {GEO_CONSTRAINT_LABEL[c.type][lang]} <small style={{ color: 'var(--ink-muted)' }}>· {c.refs.length} ref.</small>
+                    {GEO_CONSTRAINT_LABEL[c.type][lang]} <small style={{ color: 'var(--ink-secondary)' }}>· {c.refs.length} ref.</small>
                   </span>
                   <Toggle checked={c.enabled} onChange={(v) => mutate('BCONSTRAINT', (d) => ({ ...d, constraints: d.constraints.map((x) => (x.id === c.id ? { ...x, enabled: v } : x)) }))} label={tr(lang, 'Activa', 'On')} />
                 </>
@@ -425,7 +425,7 @@ function ValueSetEditor({ value, onChange, lang }: { value: ValueSet; onChange: 
           />
         </Field>
       )}
-      <small style={{ color: 'var(--ink-muted)' }}>{tr(lang, 'Incremento: mínimo · máximo (vacío = sin límite)', 'Increment · minimum · maximum (blank = no limit)')}</small>
+      <small style={{ color: 'var(--ink-secondary)' }}>{tr(lang, 'Incremento: mínimo · máximo (vacío = sin límite)', 'Increment · minimum · maximum (blank = no limit)')}</small>
     </>
   );
 }
@@ -657,7 +657,7 @@ function VisibilitySection({ def, lang, mutate, editor, block, blockSel }: { def
           {tr(lang, 'Ocultar', 'Hide')}
         </button>
       </div>
-      <small style={{ color: 'var(--ink-muted)' }}>{tr(lang, 'Los objetos ocultos en el estado mostrado se dibujan atenuados y siguen siendo designables.', 'Objects hidden in the displayed state are drawn faded and remain selectable.')}</small>
+      <small style={{ color: 'var(--ink-secondary)' }}>{tr(lang, 'Los objetos ocultos en el estado mostrado se dibujan atenuados y siguen siendo designables.', 'Objects hidden in the displayed state are drawn faded and remain selectable.')}</small>
     </Section>
   );
 }

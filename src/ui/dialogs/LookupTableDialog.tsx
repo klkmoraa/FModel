@@ -103,7 +103,7 @@ export function LookupTableDialog({ editor, tableId, onClose }: { editor: Editor
         {candidates.map((p) => (
           <Toggle key={p.id} checked={table.inputs.includes(p.id)} onChange={(on) => toggleInput(p.id, on)} label={`${p.name} (${PARAM_TYPE_LABEL[p.type][lang]}${p.type === 'rotation' ? ', °' : ''})`} />
         ))}
-        {!candidates.length && <span style={{ color: 'var(--ink-muted)', fontSize: 12 }}>{tr(lang, 'Añade parámetros lineales, de rotación o de visibilidad para usarlos como entradas.', 'Add linear, rotation or visibility parameters to use them as inputs.')}</span>}
+        {!candidates.length && <span style={{ color: 'var(--ink-secondary)', fontSize: 12 }}>{tr(lang, 'Añade parámetros lineales, de rotación o de visibilidad para usarlos como entradas.', 'Add linear, rotation or visibility parameters to use them as inputs.')}</span>}
       </div>
       <div style={{ overflowX: 'auto' }}>
         <table className="grid">

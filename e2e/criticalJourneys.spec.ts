@@ -222,6 +222,44 @@ test.describe('Recorridos críticos E2E en navegador real (TST-001)', () => {
     await expect(page.locator('.precision-dock__context')).toContainText(/Línea|Line/);
   });
 
+  test('las superficies renovadas (UI-004/UI-005) no tienen violaciones axe critical/serious', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await openWorkspace(page);
+    const serious = async (selector: string) => {
+      const result = await new AxeBuilder({ page }).include(selector).analyze();
+      return result.violations
+        .filter((violation) => violation.impact === 'critical' || violation.impact === 'serious')
+        .map((violation) => ({ id: violation.id, selector, targets: violation.nodes.slice(0, 3).map((node) => node.target) }));
+    };
+
+    for (const theme of ['dia', 'noche'] as const) {
+      await page.evaluate((value) => (window as any).fmodel.editor.setPrefs({ theme: value }), theme);
+      // lienzo vacío: pista de inicio, barra superior y barra de estado
+      expect(await serious('.canvas-hint')).toEqual([]);
+      expect(await serious('.topbar')).toEqual([]);
+      expect(await serious('.statusbar')).toEqual([]);
+
+      // paneles con el sistema arcilla: capas (tabla, filtros, estados) y paletas (segmentado, estado vacío)
+      const dock = page.locator('.precision-dock');
+      await dock.getByRole('button', { name: /Capas|Layers/, exact: true }).click();
+      await expect(page.locator('.floating-panel')).toContainText(/Capas|Layers/);
+      expect(await serious('.floating-panel')).toEqual([]);
+      await dock.getByRole('button', { name: /Paletas|Palettes/, exact: true }).click();
+      await expect(page.locator('.floating-panel .seg')).toBeVisible();
+      expect(await serious('.floating-panel')).toEqual([]);
+      await page.getByRole('button', { name: /Cerrar panel|Close panel/ }).click();
+
+      // diálogos con pestañas segmentadas y campos hundidos
+      for (const ui of ['options', 'help', 'styles']) {
+        await page.evaluate((id) => window.dispatchEvent(new CustomEvent('fmodel:ui', { detail: { ui: id } })), ui);
+        await expect(page.locator('.dialog')).toBeVisible();
+        expect(await serious('.dialog')).toEqual([]);
+        await page.keyboard.press('Escape');
+        await expect(page.locator('.dialog')).toHaveCount(0);
+      }
+    }
+  });
+
   test('los journeys principales no tienen violaciones axe critical/serious', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await openWorkspace(page);

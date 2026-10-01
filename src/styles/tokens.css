@@ -125,6 +125,8 @@
   --shadow-sheet: 0 -6px 12px -2px var(--clay-dark-strong), inset 1px 1px 2px var(--clay-light);
   --shadow-veil: 0 0 0 2000px var(--clay-veil);
   --shadow-chip: 1px 2px 4px -1px var(--clay-dark), inset 1px 1px 1.5px var(--clay-light), inset -1px -1px 2px var(--clay-dark-soft);
+  --shadow-field: inset 1.5px 2px 3.5px var(--clay-dark), inset -1px -1px 2px var(--clay-light);
+  --shadow-focus: 0 0 0 3px var(--fs-interaction-soft);
 }
 
 @media (prefers-color-scheme: dark) {
