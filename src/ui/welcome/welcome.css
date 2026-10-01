@@ -1812,15 +1812,16 @@
     min-height: 0;
     padding: calc(10px + env(safe-area-inset-top)) 14px 12px;
   }
-  .welcome-nav--console,
-  .welcome-workspace-btn {
+  .welcome-nav--console {
     display: none;
   }
   .welcome-topline-actions {
     margin-left: auto;
   }
+  /* «Abrir lienzo» sigue a mano en el teléfono: es la única vuelta al dibujo abierto */
   .welcome-theme-toggle,
-  .welcome-lang-toggle {
+  .welcome-lang-toggle,
+  .welcome-workspace-btn {
     width: 40px;
     height: 40px;
   }

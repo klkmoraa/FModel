@@ -155,3 +155,46 @@
 - [x] Textos nuevos en español e inglés.
 
 **Verificación:** las mismas puertas que UI-004; recorrido manual con Playwright (crear capa, renombrar, ocultar, hacer actual, guardar estado, abrir la paleta con 14 flechas, abrir Archivo) sin errores de consola. Pendiente fuera de alcance: validación táctil en dispositivos reales (sigue en UI-002).
+
+---
+
+## UI-006 — Unificar la mesa en teléfono y tableta con la de escritorio
+
+- [x] **Estado:** Cerrada
+- **Prioridad:** P2 — el móvil parecía otra aplicación y el teléfono en horizontal heredaba la mesa de escritorio rota
+- **Responsable:** Claude · **Inicio:** 2026-10-01 · **Cierre:** 2026-10-01
+- **Depende de:** UI-004, UI-005
+- **Relación:** UI-002 sigue abierta para la validación en dispositivos físicos.
+
+**Problema:** en ≤ 820 px la mesa cambiaba a tres filas de barras inferiores (contexto, chips, herramientas) que no existen en escritorio; con un comando activo mostraba además una línea de comando vacía. En un teléfono en horizontal (844 × 390) se aplicaba la mesa de escritorio completa: pista, línea de comando y dock superpuestos y barra de estado sin espacio. La tableta en vertical recibía la barra del teléfono y en horizontal no tenía zoom táctil ni forma de aceptar sin teclado.
+
+**Evidencia:**
+1. `src/ui/layoutMode.ts`: `PHONE_QUERY` (≤ 640 px, o táctil con ≤ 500 px de alto) y `TOUCH_QUERY`; `App.tsx` marca `.app--phone` / `.app--touch`. La tableta (768 px en vertical incluida) usa la mesa de escritorio.
+2. `src/ui/phone/PhoneChrome.tsx`: `PhoneDock` (dock flotante con la clase y el material del de escritorio, favoritos deslizables, precisión con número de modos activos, paneles), `PhoneContext` (tarjeta de comando con orden, solicitud, opciones, coordenadas, Escribir, Cancelar y Aceptar; tarjeta de selección con Mover, Copiar, Girar, Escala, Simetría, Desfase, Propiedades y Borrar), `PrecisionSheet`, `PanelSheet` (un selector segmentado para todos los paneles) y `AppMenuSheet` (Archivo, buscar, escribir comando, opciones, ayuda, Inicio, tema e idioma).
+3. `src/ui/phone/BottomSheet.tsx`: hoja inferior con asidero que se arrastra para cerrar, nombre accesible, Cerrar y Escape; modal con foco atrapado para el menú.
+4. `src/ui/PrecisionDeck.tsx`: `ToolDeck` exportado como bandeja (escritorio/tableta) u hoja (teléfono), con estrella de favorito en táctil; en táctil el dock añade Aceptar junto a Cancelar.
+5. `src/ui/precisionModes.ts`: una lista de modos para la barra de estado y la hoja táctil.
+6. `src/ui/TouchHud.tsx`: zoom táctil como una sola pieza de arcilla (arriba a la derecha en el teléfono, a media altura a la izquierda en la tableta).
+7. La línea de comando del teléfono aparece arriba (el teclado del sistema tapa la mitad inferior) y usa la solicitud como texto de ayuda. El Inicio del teléfono vuelve a mostrar «Abrir lienzo».
+8. Se retiran `MobileBar`, la hoja de herramientas propia, los chips y las hojas de paneles acoplados del móvil.
+9. Brandbook: sección «Teléfono y tableta» con `assets/movil-dia.png`, `assets/movil-noche.png` y `assets/tableta-dia.png`; `docs/FEATURES.md` regenerado con la descripción táctil nueva.
+
+**Criterios de aceptación:**
+
+- [x] El teléfono usa las mismas piezas que el escritorio: dock flotante de arcilla, tarjeta de comando sobre el dock, paneles y biblioteca de herramientas como hojas inferiores.
+- [x] Con un comando activo, el teléfono muestra orden, solicitud, opciones, coordenadas y Aceptar/Cancelar; con selección, acciones rápidas de edición.
+- [x] Los modos de precisión, los paneles y el menú de la app son hojas táctiles con nombre accesible y cierre por botón, gesto y Escape.
+- [x] Teléfono en horizontal y tableta en vertical sin desbordes ni superposiciones; la tableta conserva la mesa de escritorio con objetivos táctiles, zoom y Aceptar.
+- [x] Día y Noche revisados en 390 × 844, 844 × 390, 768 × 1024 y 1180 × 820; textos en español e inglés.
+
+**Verificación:** `pnpm verify` (lint, tipos, capas, features, 933 pruebas Vitest y build) sin errores. `playwright test` en Chromium: 46/46. `e2e/touchLayouts.spec.ts` (9 pruebas nuevas, con táctil emulado) cubre:
+- dock del teléfono;
+- herramienta desde la hoja y tarjeta con Aceptar/Cancelar;
+- dibujar con toques y borrar desde la tarjeta de selección;
+- hojas de paneles, precisión y menú;
+- teclado arriba con la solicitud como ayuda;
+- axe sin `critical`/`serious` en Día y Noche;
+- teléfono en horizontal con tarjeta y dock lado a lado;
+- tableta con zoom y Aceptar.
+
+`brandbookVisual` actualiza el contrato de 390 px y 768 px. Entorno con Node 22 (el proyecto pide ≥ 24): sólo avisa. Falta la prueba en dispositivos físicos (UI-002).

@@ -526,15 +526,17 @@ test.describe('alineación visual con FusionStructureBrand', () => {
       expect(stageBox!.x).toBeGreaterThanOrEqual(-1);
       expect(stageBox!.x + stageBox!.width).toBeLessThanOrEqual(viewport.width + 1);
 
-      if (viewport.width <= 820) {
-        await expect(page.locator('.precision-dock')).toHaveCount(0);
-        await expect(page.locator('.statusbar')).toBeHidden();
-        await expect(page.locator('.mbar')).toBeVisible();
+      // teléfono (≤ 640 px): misma mesa en pequeño, con dock flotante y sin barra de estado;
+      // tableta y escritorio: dock de precisión y barra de estado
+      if (viewport.width <= 640) {
+        await expect(page.locator('.precision-dock--phone')).toBeVisible();
+        await expect(page.getByRole('navigation', { name: /Herramientas de precisión|Precision tools/ })).toHaveCount(0);
+        await expect(page.locator('.statusbar')).toHaveCount(0);
       } else {
         await expect(page.locator('.ribbon')).toHaveCount(0);
         await expect(page.getByRole('navigation', { name: /Herramientas de precisión|Precision tools/ })).toBeVisible();
         await expect(page.locator('.statusbar')).toBeVisible();
-        await expect(page.locator('.mbar')).toHaveCount(0);
+        await expect(page.locator('.precision-dock--phone')).toHaveCount(0);
       }
     });
   }

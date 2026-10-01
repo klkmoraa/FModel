@@ -1,4 +1,4 @@
-import { FolderOpen, Monitor, Moon, Redo2, Save, Search, Sun, Undo2 } from 'lucide-react';
+import { Ellipsis, FolderOpen, Monitor, Moon, Redo2, Save, Search, Sun, TriangleAlert, Undo2 } from 'lucide-react';
 import { QuickProperties } from './QuickProperties';
 import { Onboarding } from './Onboarding';
 import { EmptyCanvasHint } from './EmptyCanvasHint';
@@ -19,11 +19,16 @@ import { SpaceTabs } from './SpaceTabs';
 import { StatusBar } from './StatusBar';
 import { Docks, FloatingPanel } from './Docks';
 import { Dialogs, type DialogState } from './Dialogs';
-import { MobileBar, TouchHud } from './MobileBar';
+import { TouchHud } from './TouchHud';
+import { AppMenuSheet, PanelSheet, PhoneContext, PhoneDock, PrecisionSheet, type PhoneSheet } from './phone/PhoneChrome';
+import { PHONE_QUERY, TOUCH_QUERY } from './layoutMode';
+import { TaskStatus } from './TaskStatus';
+import { getServices, hasServices } from '../app/services';
+import type { PersistenceHealth } from '../storage/persistence';
 import { WelcomeScreen } from './welcome/WelcomeScreen';
 import { ConfirmHost } from './ConfirmHost';
-import { PrecisionDeck } from './PrecisionDeck';
-import { isWorkspacePanelId } from '../editor/workspaceChrome';
+import { PrecisionDeck, ToolDeck } from './PrecisionDeck';
+import { isWorkspacePanelId, type WorkspacePanelId } from '../editor/workspaceChrome';
 
 export function App({ editor }: { editor: Editor }) {
   useEditorEvents(editor, ['prefs', 'command', 'space']);
@@ -35,7 +40,9 @@ export function App({ editor }: { editor: Editor }) {
   const [clean, setClean] = useState(false);
   const [dialog, setDialog] = useState<DialogState | null>(null);
   const dialogReturnFocusRef = useRef<HTMLElement | null>(null);
-  const [mobileSheet, setMobileSheet] = useState<string | null>(null);
+  // teléfono: una hoja inferior a la vez (precisión, paneles o menú) y el panel elegido en la hoja de paneles
+  const [phoneSheet, setPhoneSheet] = useState<PhoneSheet | null>(null);
+  const [phonePanel, setPhonePanel] = useState<WorkspacePanelId>('properties');
   const [floatingPanel, setFloatingPanel] = useState<string | null>(null);
   const [deckOpen, setDeckOpen] = useState(false);
   const floatingPanelReturnFocusRef = useRef<HTMLElement | null>(null);
@@ -43,7 +50,14 @@ export function App({ editor }: { editor: Editor }) {
   const [cmdOpen, setCmdOpen] = useState(false);
   const cmdRef = useRef<CommandLineHandle>(null);
   const dynRef = useRef<DynamicInputHandle>(null);
-  const isMobile = useMediaQuery('(max-width: 820px)');
+  const isPhone = useMediaQuery(PHONE_QUERY);
+  const touch = useMediaQuery(TOUCH_QUERY);
+  const persistence = hasServices() ? getServices().persistence : null;
+  const [health, setHealth] = useState<PersistenceHealth | null>(() => persistence?.health ?? null);
+  useEffect(() => {
+    if (!persistence) return;
+    return persistence.onHealthChange(setHealth);
+  }, [persistence]);
   const [surface, setSurface] = useState<'welcome' | 'workspace'>(() => {
     if (typeof window === 'undefined') return 'workspace';
     const param = new URLSearchParams(window.location.search).get('surface');
@@ -85,8 +99,10 @@ export function App({ editor }: { editor: Editor }) {
     }
     if (ui.startsWith('panel:')) {
       const id = ui.slice(6);
-      if (isMobile) {
-        setMobileSheet(id);
+      if (isPhone) {
+        setDeckOpen(false);
+        if (isWorkspacePanelId(id)) setPhonePanel(id);
+        setPhoneSheet('panels');
         return;
       }
       setDeckOpen(false);
@@ -103,8 +119,9 @@ export function App({ editor }: { editor: Editor }) {
     if (!active?.closest('[role="dialog"][aria-modal="true"]')) dialogReturnFocusRef.current = active;
     setDeckOpen(false);
     setFloatingPanel(null);
+    setPhoneSheet(null);
     setDialog({ id: ui, cmd, payload });
-  }, [editor, isMobile]);
+  }, [editor, isPhone]);
 
   // Los comandos con UI abren su panel o diálogo
   useEffect(() => {
@@ -128,11 +145,22 @@ export function App({ editor }: { editor: Editor }) {
     if (next) {
       setFloatingPanel(null);
       setPalette(false);
+      setPhoneSheet(null);
     }
+  }, []);
+  const changePhoneSheet = useCallback((next: PhoneSheet | null) => {
+    setPhoneSheet(next);
+    if (next) setDeckOpen(false);
+  }, []);
+  const openKeyboard = useCallback(() => {
+    setPhoneSheet(null);
+    setCmdOpen(true);
+    requestAnimationFrame(() => cmdRef.current?.focus());
   }, []);
   const openPalette = useCallback(() => {
     setDeckOpen(false);
     setFloatingPanel(null);
+    setPhoneSheet(null);
     setPalette(true);
   }, []);
   const cycleTheme = useCallback(() => {
@@ -165,6 +193,10 @@ export function App({ editor }: { editor: Editor }) {
       }
       if (e.key === 'Escape' && floatingPanel) {
         closeFloatingPanel();
+        return;
+      }
+      if (e.key === 'Escape' && phoneSheet) {
+        setPhoneSheet(null);
         return;
       }
       if (inField && !target.classList.contains('cmdline__input')) return;
@@ -203,7 +235,7 @@ export function App({ editor }: { editor: Editor }) {
       window.removeEventListener('keydown', onKey);
       window.removeEventListener('keyup', onUp);
     };
-  }, [editor, palette, dialog, runCommand, openUi, floatingPanel, closeFloatingPanel, openPalette]);
+  }, [editor, palette, dialog, runCommand, openUi, floatingPanel, closeFloatingPanel, openPalette, phoneSheet]);
 
   const toggleFullscreen = () => {
     setClean((c) => !c);
@@ -224,8 +256,19 @@ export function App({ editor }: { editor: Editor }) {
     );
   }
 
+  const healthWarning = health && health.status !== 'protected' ? health : null;
+  const healthTitle = healthWarning
+    ? healthWarning.status === 'unavailable'
+      ? lang === 'es'
+        ? 'IndexedDB no disponible: los cambios no se guardan automáticamente.'
+        : 'IndexedDB unavailable: changes are not autosaved.'
+      : lang === 'es'
+        ? `Almacenamiento degradado (${healthWarning.lastError?.message ?? 'error'}). Toca para ver versiones o liberar espacio.`
+        : `Storage degraded (${healthWarning.lastError?.message ?? 'error'}). Tap to view versions or free space.`
+    : '';
+
   return (
-    <div className={`app${clean ? ' app--clean' : ''}`} data-busy={editor.runner.busy || undefined}>
+    <div className={`app${clean ? ' app--clean' : ''}${isPhone ? ' app--phone' : ''}${touch ? ' app--touch' : ''}`} data-busy={editor.runner.busy || undefined}>
       <header className="topbar">
         <button
           type="button"
@@ -242,16 +285,23 @@ export function App({ editor }: { editor: Editor }) {
         <div className="doc-tabs">
           <span className="doc-tab is-active" title={editor.doc.settings.title}>
             {editor.doc.dirty && <span className="doc-tab__dirty" aria-label={lang === 'es' ? 'Cambios sin guardar' : 'Unsaved changes'} />}
-            {editor.fileName || editor.doc.settings.title}
+            <span className="doc-tab__name">{editor.fileName || editor.doc.settings.title}</span>
           </span>
         </div>
         <span className="topbar__spacer" />
-        <button className="search-trigger" onClick={openPalette} aria-label={lang === 'es' ? 'Buscar comandos' : 'Search commands'}>
-          <Search size={15} />
-          <span>{lang === 'es' ? 'Buscar comando o acción' : 'Search command or action'}</span>
-          <kbd>Ctrl K</kbd>
-        </button>
+        {!isPhone && (
+          <button className="search-trigger" onClick={openPalette} aria-label={lang === 'es' ? 'Buscar comandos' : 'Search commands'}>
+            <Search size={15} />
+            <span>{lang === 'es' ? 'Buscar comando o acción' : 'Search command or action'}</span>
+            <kbd>Ctrl K</kbd>
+          </button>
+        )}
         <nav className="topbar__actions" aria-label={lang === 'es' ? 'Acciones del dibujo' : 'Drawing actions'}>
+          {isPhone && healthWarning && (
+            <button className="icon-btn topbar__warn" onClick={() => openUi('versions')} title={healthTitle} aria-label={healthTitle}>
+              <TriangleAlert size={17} />
+            </button>
+          )}
           <button
             className={`icon-btn${editor.doc.dirty ? ' has-dirty' : ''}`}
             onClick={() => runCommand('QSAVE')}
@@ -266,49 +316,70 @@ export function App({ editor }: { editor: Editor }) {
           <button className="icon-btn" onClick={() => runCommand('REDO')} disabled={!editor.doc.history.canRedo()} title={lang === 'es' ? 'Rehacer (Ctrl+Y)' : 'Redo (Ctrl+Y)'} aria-label={lang === 'es' ? 'Rehacer' : 'Redo'}>
             <Redo2 size={17} />
           </button>
-          <button className="icon-btn" onClick={cycleTheme} title={themeTitle} aria-label={themeTitle}>
-            {editor.prefs.theme === 'system' ? <Monitor size={17} /> : dark ? <Sun size={17} /> : <Moon size={17} />}
-          </button>
-          {/* el botón muestra el idioma al que se cambia, igual que en el Inicio */}
-          <button className="icon-btn topbar__lang" onClick={() => editor.setPrefs({ lang: lang === 'es' ? 'en' : 'es' })} title={lang === 'es' ? 'Cambiar a inglés' : 'Switch to Spanish'} aria-label={lang === 'es' ? 'Cambiar a inglés' : 'Switch to Spanish'}>
-            {lang === 'es' ? 'EN' : 'ES'}
-          </button>
-          <button className="btn btn--sm btn--ghost topbar__file" onClick={() => openUi('file-menu')} title={lang === 'es' ? 'Archivo: abrir, guardar, importar y exportar' : 'File: open, save, import and export'} aria-label={lang === 'es' ? 'Archivo' : 'File'}>
-            <FolderOpen size={16} />
-            <span>{lang === 'es' ? 'Archivo' : 'File'}</span>
-          </button>
+          {isPhone ? (
+            <button className={`icon-btn${phoneSheet === 'menu' ? ' is-active' : ''}`} onClick={() => changePhoneSheet(phoneSheet === 'menu' ? null : 'menu')} aria-expanded={phoneSheet === 'menu'} aria-label={lang === 'es' ? 'Menú: archivo, buscar, tema, idioma y ayuda' : 'Menu: file, search, theme, language and help'} title={lang === 'es' ? 'Menú' : 'Menu'}>
+              <Ellipsis size={18} />
+            </button>
+          ) : (
+            <>
+              <button className="icon-btn" onClick={cycleTheme} title={themeTitle} aria-label={themeTitle}>
+                {editor.prefs.theme === 'system' ? <Monitor size={17} /> : dark ? <Sun size={17} /> : <Moon size={17} />}
+              </button>
+              {/* el botón muestra el idioma al que se cambia, igual que en el Inicio */}
+              <button className="icon-btn topbar__lang" onClick={() => editor.setPrefs({ lang: lang === 'es' ? 'en' : 'es' })} title={lang === 'es' ? 'Cambiar a inglés' : 'Switch to Spanish'} aria-label={lang === 'es' ? 'Cambiar a inglés' : 'Switch to Spanish'}>
+                {lang === 'es' ? 'EN' : 'ES'}
+              </button>
+              <button className="btn btn--sm btn--ghost topbar__file" onClick={() => openUi('file-menu')} title={lang === 'es' ? 'Archivo: abrir, guardar, importar y exportar' : 'File: open, save, import and export'} aria-label={lang === 'es' ? 'Archivo' : 'File'}>
+                <FolderOpen size={16} />
+                <span>{lang === 'es' ? 'Archivo' : 'File'}</span>
+              </button>
+            </>
+          )}
         </nav>
       </header>
       <main className="workspace">
-        <Docks editor={editor} side="left" mobileSheet={mobileSheet} onCloseSheet={() => setMobileSheet(null)} onUi={openUi} />
+        {!isPhone && <Docks editor={editor} side="left" onUi={openUi} />}
         <section className="stage">
-          <div className={`stage__canvas${isMobile && !cmdOpen && !editor.runner.busy ? ' stage__canvas--nocmd' : ''}${deckOpen && !editor.runner.pending ? ' stage__canvas--deck-open' : ''}`}>
+          <div className={`stage__canvas${isPhone && !cmdOpen ? ' stage__canvas--nocmd' : ''}${deckOpen && !editor.runner.pending ? ' stage__canvas--deck-open' : ''}`}>
             <CanvasView editor={editor} theme={theme} />
             <DynamicInput ref={dynRef} editor={editor} />
-            <CommandLine ref={cmdRef} editor={editor} onDismiss={isMobile ? () => setCmdOpen(false) : undefined} />
-            {editor.prefs.onboardingDone && <EmptyCanvasHint editor={editor} touch={isMobile} />}
+            <CommandLine ref={cmdRef} editor={editor} compact={isPhone} onDismiss={isPhone ? () => setCmdOpen(false) : undefined} />
+            {editor.prefs.onboardingDone && <EmptyCanvasHint editor={editor} touch={touch} />}
             <CyclingList editor={editor} />
-            <QuickProperties editor={editor} onMore={() => openUi('panel:properties')} />
-            {!isMobile && <PrecisionDeck editor={editor} open={deckOpen} onOpenChange={changeDeckOpen} onUi={openUi} onRun={runCommand} onOpenPalette={openPalette} activePanel={floatingPanel} />}
-            {isMobile && <TouchHud editor={editor} />}
+            {!isPhone && <QuickProperties editor={editor} onMore={() => openUi('panel:properties')} />}
+            {!isPhone && <PrecisionDeck editor={editor} open={deckOpen} onOpenChange={changeDeckOpen} onUi={openUi} onRun={runCommand} onOpenPalette={openPalette} activePanel={floatingPanel} touch={touch} />}
+            {isPhone && (
+              <div className="phone-bottom">
+                <div className="phone-tasks">
+                  <TaskStatus lang={lang} />
+                </div>
+                <PhoneContext editor={editor} onKeyboard={openKeyboard} onUi={openUi} />
+                <PhoneDock editor={editor} deckOpen={deckOpen} onToggleDeck={() => changeDeckOpen(!deckOpen)} sheet={phoneSheet} onSheet={changePhoneSheet} />
+              </div>
+            )}
+            {touch && <TouchHud editor={editor} />}
           </div>
           <SpaceTabs editor={editor} onUi={openUi} />
-          {!isMobile && <FloatingPanel editor={editor} panelId={floatingPanel} onClose={closeFloatingPanel} onUi={openUi} />}
+          {!isPhone && <FloatingPanel editor={editor} panelId={floatingPanel} onClose={closeFloatingPanel} onUi={openUi} />}
         </section>
-        <Docks editor={editor} side="right" mobileSheet={mobileSheet} onCloseSheet={() => setMobileSheet(null)} onUi={openUi} />
+        {!isPhone && <Docks editor={editor} side="right" onUi={openUi} />}
       </main>
-      {isMobile ? (
-        <MobileBar
+      {!isPhone && <StatusBar editor={editor} onOpenSettings={() => openUi('drafting-settings')} fullscreen={clean} onFullscreen={toggleFullscreen} />}
+      {isPhone && deckOpen && (
+        <ToolDeck
           editor={editor}
-          onUi={openUi}
-          onKeyboard={() => {
-            setCmdOpen(true);
-            requestAnimationFrame(() => cmdRef.current?.focus());
+          variant="sheet"
+          touch
+          onClose={() => setDeckOpen(false)}
+          onRun={(name, args) => {
+            setDeckOpen(false);
+            runCommand(name, args);
           }}
         />
-      ) : (
-        <StatusBar editor={editor} onOpenSettings={() => openUi('drafting-settings')} fullscreen={clean} onFullscreen={toggleFullscreen} />
       )}
+      {isPhone && phoneSheet === 'precision' && <PrecisionSheet editor={editor} onClose={() => setPhoneSheet(null)} onUi={openUi} />}
+      {isPhone && phoneSheet === 'panels' && <PanelSheet editor={editor} panel={phonePanel} onPanel={setPhonePanel} onClose={() => setPhoneSheet(null)} onUi={openUi} />}
+      {isPhone && phoneSheet === 'menu' && <AppMenuSheet editor={editor} onClose={() => setPhoneSheet(null)} onUi={openUi} onPalette={openPalette} onHome={() => setSurface('welcome')} onKeyboard={openKeyboard} />}
       {palette && <CommandPalette editor={editor} onClose={() => setPalette(false)} onRun={(n) => runCommand(n)} />}
       <Dialogs editor={editor} state={dialog} returnFocusRef={dialogReturnFocusRef} onClose={() => setDialog(null)} onUi={openUi} />
       {!editor.prefs.onboardingDone && !dialog && <Onboarding editor={editor} />}

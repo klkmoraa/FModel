@@ -1,4 +1,4 @@
-import { Command, LayoutGrid, MousePointer2, Search, Star, X } from 'lucide-react';
+import { Check, Command, LayoutGrid, MousePointer2, Search, Star, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { findCommand, searchCommands } from '../commands/registry';
 import type { Editor } from '../editor/editor';
@@ -32,7 +32,7 @@ const PANEL_ACTIONS = [
   { id: 'blocks', icon: 'block', es: 'Bloques', en: 'Blocks' },
 ] as const;
 
-function ribbonTool(commandName: string): RibbonTool | undefined {
+export function ribbonTool(commandName: string): RibbonTool | undefined {
   const normalized = commandName.toUpperCase();
   for (const tab of RIBBON) {
     for (const group of tab.groups) {
@@ -50,6 +50,7 @@ export function PrecisionDeck({
   onRun,
   onOpenPalette,
   activePanel,
+  touch = false,
 }: {
   editor: Editor;
   open: boolean;
@@ -58,6 +59,8 @@ export function PrecisionDeck({
   onRun: (name: string, args?: string[]) => void;
   onOpenPalette: () => void;
   activePanel?: string | null;
+  /** pantalla táctil: añade Aceptar (Intro) junto a Cancelar, porque no hay teclado a mano */
+  touch?: boolean;
 }) {
   useEditorEvents(editor, ['command', 'prefs', 'selection']);
   const launcherRef = useRef<HTMLButtonElement>(null);
@@ -80,7 +83,7 @@ export function PrecisionDeck({
 
   return (
     <div className="precision-deck-shell">
-      {open && <ToolDeck editor={editor} onClose={closeDeck} onRun={run} />}
+      {open && <ToolDeck editor={editor} onClose={closeDeck} onRun={run} touch={touch} />}
       <nav className="precision-dock" aria-label={lang === 'es' ? 'Herramientas de precisión' : 'Precision tools'}>
         <div className={`precision-dock__context${activeCommand ? ' is-command-active' : ' is-selection-active'}`}>
           {activeCommand ? <Command size={16} /> : <MousePointer2 size={16} />}
@@ -98,6 +101,11 @@ export function PrecisionDeck({
                     : 'Ready'}
             </small>
           </span>
+          {activeCommand && touch && (
+            <button type="button" onClick={() => editor.key('Enter')} aria-label={lang === 'es' ? 'Aceptar (Intro)' : 'Accept (Enter)'} title={lang === 'es' ? 'Aceptar (Intro)' : 'Accept (Enter)'}>
+              <Check size={15} />
+            </button>
+          )}
           {activeCommand && (
             <button type="button" onClick={() => editor.key('Escape')} aria-label={lang === 'es' ? 'Cancelar comando' : 'Cancel command'} title="Esc">
               <X size={15} />
@@ -109,6 +117,7 @@ export function PrecisionDeck({
         <button
           type="button"
           ref={launcherRef}
+          data-deck-launcher=""
           className={`precision-dock__launcher${open ? ' is-active' : ''}`}
           onClick={() => onOpenChange(!open)}
           aria-expanded={open}
@@ -163,7 +172,12 @@ export function PrecisionDeck({
   );
 }
 
-function ToolDeck({ editor, onClose, onRun }: { editor: Editor; onClose: (restoreFocus?: boolean) => void; onRun: (name: string, args?: string[]) => void }) {
+/**
+ * Biblioteca de herramientas: bandeja sobre el dock en escritorio y tableta (`tray`) u hoja inferior
+ * en el teléfono (`sheet`). Con `touch` cada herramienta lleva su estrella de favorito visible.
+ */
+export function ToolDeck({ editor, onClose, onRun, variant = 'tray', touch = false }: { editor: Editor; onClose: (restoreFocus?: boolean) => void; onRun: (name: string, args?: string[]) => void; variant?: 'tray' | 'sheet'; touch?: boolean }) {
+  useEditorEvents(editor, ['prefs']);
   const [tab, setTab] = useState('home');
   const [query, setQuery] = useState('');
   const rootRef = useRef<HTMLDivElement>(null);
@@ -179,10 +193,15 @@ function ToolDeck({ editor, onClose, onRun }: { editor: Editor; onClose: (restor
     [editor.runner.history],
   );
 
-  useEffect(() => inputRef.current?.focus(), []);
+  // en el teléfono no se enfoca la búsqueda: abriría el teclado y taparía media hoja
+  useEffect(() => {
+    if (variant === 'tray') inputRef.current?.focus();
+  }, [variant]);
   useEffect(() => {
     const closeOnOutside = (event: PointerEvent) => {
-      if (!(event.target as Element).closest('.precision-deck-shell')) onClose(false);
+      const target = event.target as Element;
+      if (rootRef.current?.contains(target) || target.closest('.precision-deck-shell, [data-deck-launcher]')) return;
+      onClose(false);
     };
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -204,7 +223,12 @@ function ToolDeck({ editor, onClose, onRun }: { editor: Editor; onClose: (restor
   };
 
   return (
-    <div ref={rootRef} id="precision-tool-deck" className="tool-deck" role="dialog" aria-modal="false" aria-label={lang === 'es' ? 'Biblioteca de herramientas' : 'Tool library'}>
+    <div ref={rootRef} id="precision-tool-deck" className={`tool-deck${variant === 'sheet' ? ' tool-deck--sheet' : ''}`} role="dialog" aria-modal="false" aria-label={lang === 'es' ? 'Biblioteca de herramientas' : 'Tool library'}>
+      {variant === 'sheet' && (
+        <div className="sheet__grip" aria-hidden="true">
+          <span />
+        </div>
+      )}
       <div className="tool-deck__head">
         <div className="tool-deck__search">
           <Search size={16} aria-hidden="true" />
@@ -217,7 +241,7 @@ function ToolDeck({ editor, onClose, onRun }: { editor: Editor; onClose: (restor
             autoComplete="off"
             spellCheck={false}
           />
-          <kbd>Ctrl K</kbd>
+          {variant === 'tray' && <kbd>Ctrl K</kbd>}
         </div>
         <button type="button" className="icon-btn" onClick={() => onClose()} aria-label={lang === 'es' ? 'Cerrar herramientas' : 'Close tools'}>
           <X size={17} />
@@ -280,13 +304,32 @@ function ToolDeck({ editor, onClose, onRun }: { editor: Editor; onClose: (restor
               <section className="tool-deck__group" key={`${tab}-${group.label.en}`}>
                 <h3>{group.label[lang]}</h3>
                 <div className="tool-deck__grid">
-                  {group.tools.map((tool) => (
-                    <button type="button" key={`${tool.cmd}:${tool.args?.join(',') ?? ''}`} className="tool-deck__item" onClick={() => onRun(tool.cmd, tool.args)}>
-                      <CadIcon name={tool.icon} size={19} />
-                      <span>{tool.label[lang]}</span>
-                      <code>{tool.cmd}</code>
-                    </button>
-                  ))}
+                  {group.tools.map((tool) => {
+                    const key = `${tool.cmd}:${tool.args?.join(',') ?? ''}`;
+                    const item = (
+                      <button type="button" key={key} className="tool-deck__item" onClick={() => onRun(tool.cmd, tool.args)}>
+                        <CadIcon name={tool.icon} size={19} />
+                        <span>{tool.label[lang]}</span>
+                        <code>{tool.cmd}</code>
+                      </button>
+                    );
+                    if (!touch || tool.args?.length) return item;
+                    const favorite = editor.prefs.favorites.includes(tool.cmd);
+                    return (
+                      <div key={key} className="tool-deck__cell">
+                        {item}
+                        <button
+                          type="button"
+                          className={`tool-deck__star${favorite ? ' is-active' : ''}`}
+                          onClick={() => toggleFavorite(tool.cmd)}
+                          aria-pressed={favorite}
+                          aria-label={lang === 'es' ? `Favorito: ${tool.label.es}` : `Favorite: ${tool.label.en}`}
+                        >
+                          <Star size={13} />
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
               </section>
             ))}

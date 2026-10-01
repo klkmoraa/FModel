@@ -8,7 +8,8 @@ export interface CommandLineHandle {
   hasFocus(): boolean;
 }
 
-export const CommandLine = forwardRef<CommandLineHandle, { editor: Editor; onDismiss?: () => void }>(function CommandLine({ editor, onDismiss }, ref) {
+/** `compact`: en el teléfono la solicitud no cabe en la barra, así que pasa al texto de ayuda del campo. */
+export const CommandLine = forwardRef<CommandLineHandle, { editor: Editor; onDismiss?: () => void; compact?: boolean }>(function CommandLine({ editor, onDismiss, compact = false }, ref) {
   useEditorEvents(editor, ['command', 'prefs']);
   const [text, setText] = useState('');
   const [active, setActive] = useState(0);
@@ -172,7 +173,7 @@ export const CommandLine = forwardRef<CommandLineHandle, { editor: Editor; onDis
               onChange={(e) => setText(e.target.value)}
               onKeyDown={onKey}
               onBlur={() => onDismiss?.()}
-              placeholder={pending ? '' : lang === 'es' ? 'Escribe un comando (L, C, TR…) o pulsa Ctrl+K' : 'Type a command (L, C, TR…) or press Ctrl+K'}
+              placeholder={pending ? (compact ? prompt.replace(/\s*\[[^\]]*\]/, '') : '') : compact ? (lang === 'es' ? 'Escribe un comando (L, C, TR…)' : 'Type a command (L, C, TR…)') : lang === 'es' ? 'Escribe un comando (L, C, TR…) o pulsa Ctrl+K' : 'Type a command (L, C, TR…) or press Ctrl+K'}
               aria-label={lang === 'es' ? 'Línea de comandos' : 'Command line'}
               autoComplete="off"
               autoCapitalize="off"

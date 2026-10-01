@@ -60,6 +60,7 @@
 | 34 | GEO-003 | P2 | Seleccionar líneas infinitas con cualquier magnitud de dirección | Cerrada | GEO-001 | [Geometría](./02-geometria-comandos.md#geo-003--seleccionar-líneas-infinitas-con-cualquier-magnitud-de-dirección) |
 | 35 | UI-004 | P2 | Sistema de botones y campos arcilla en toda la mesa de trabajo | Cerrada | UI-001 | [Interfaz](./04-interfaz-accesibilidad.md#ui-004--sistema-de-botones-y-campos-arcilla-en-la-mesa) |
 | 36 | UI-005 | P2 | Mejorar la experiencia de uso sección por sección | Cerrada | UI-004 | [Interfaz](./04-interfaz-accesibilidad.md#ui-005--mejorar-la-experiencia-de-uso-sección-por-sección) |
+| 37 | UI-006 | P2 | Unificar la mesa en teléfono y tableta con la de escritorio | Cerrada | UI-004, UI-005 | [Interfaz](./04-interfaz-accesibilidad.md#ui-006--unificar-la-mesa-en-teléfono-y-tableta-con-la-de-escritorio) |
 
 ## Mapa de dependencias
 
