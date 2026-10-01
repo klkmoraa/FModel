@@ -3177,7 +3177,59 @@ table.grid tr.is-active td {
   margin-top: 6vh;
 }
 
-/* teléfono en horizontal: barra superior más baja y tarjeta a la izquierda del dock */
+/* aviso de girar el teléfono: el teléfono se usa en vertical (UI-007) */
+.rotate-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: var(--clay-veil);
+}
+.rotate-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: min(420px, 100%);
+  padding: 22px 22px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-lifted);
+  color: var(--ink);
+  text-align: center;
+  animation: fm-card-rise var(--fs-bridge) var(--fs-ease) both;
+}
+.rotate-card__icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-md);
+  background: var(--fs-interaction-soft);
+  color: var(--fs-interaction-text);
+}
+.rotate-card__icon svg:last-child {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+}
+.rotate-card h2 {
+  margin: 4px 0 0;
+  font: 650 18px/1.25 var(--fs-font-display);
+  letter-spacing: -0.01em;
+}
+.rotate-card p {
+  margin: 0;
+  color: var(--ink-secondary);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+/* teléfono en horizontal (si se elige seguir así): barra superior más baja y tarjeta junto al dock */
 @media (max-height: 500px) {
   .app--phone {
     --fm-topbar-h: calc(44px + env(safe-area-inset-top));

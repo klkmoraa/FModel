@@ -29,4 +29,5 @@ Fuente: `src/styles/tokens.css` (sombras `--shadow-*`) y `src/styles/app.css`.
 - **Teléfono** (`PHONE_QUERY` en `src/ui/layoutMode.ts`: ≤ 640 px, o táctil con ≤ 500 px de alto): `.app--phone`. Dock flotante (`.precision-dock--phone`), tarjeta de comando o selección (`.phone-card`) y hojas inferiores (`.sheet`) para paneles, precisión, menú y herramientas.
 - **Tableta** (`TOUCH_QUERY`, puntero grueso con más espacio): la mesa de escritorio con objetivos táctiles, zoom flotante y Aceptar en el dock.
 - La materia es la misma que en escritorio: nada de barras propias del móvil.
+- **Orientación**: el teléfono se usa en vertical. Girado, `RotatePrompt` propone volver a vertical sin bloquear (WCAG 1.3.4); «Seguir en horizontal» se recuerda en la sesión.
 

@@ -61,6 +61,7 @@
 | 35 | UI-004 | P2 | Sistema de botones y campos arcilla en toda la mesa de trabajo | Cerrada | UI-001 | [Interfaz](./04-interfaz-accesibilidad.md#ui-004--sistema-de-botones-y-campos-arcilla-en-la-mesa) |
 | 36 | UI-005 | P2 | Mejorar la experiencia de uso sección por sección | Cerrada | UI-004 | [Interfaz](./04-interfaz-accesibilidad.md#ui-005--mejorar-la-experiencia-de-uso-sección-por-sección) |
 | 37 | UI-006 | P2 | Unificar la mesa en teléfono y tableta con la de escritorio | Cerrada | UI-004, UI-005 | [Interfaz](./04-interfaz-accesibilidad.md#ui-006--unificar-la-mesa-en-teléfono-y-tableta-con-la-de-escritorio) |
+| 38 | UI-007 | P2 | Priorizar el uso vertical del teléfono | Cerrada | UI-006 | [Interfaz](./04-interfaz-accesibilidad.md#ui-007--priorizar-el-uso-vertical-del-teléfono) |
 
 ## Mapa de dependencias
 

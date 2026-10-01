@@ -198,3 +198,29 @@
 - tableta con zoom y Aceptar.
 
 `brandbookVisual` actualiza el contrato de 390 px y 768 px. Entorno con Node 22 (el proyecto pide ≥ 24): sólo avisa. Falta la prueba en dispositivos físicos (UI-002).
+
+---
+
+## UI-007 — Priorizar el uso vertical del teléfono
+
+- [x] **Estado:** Cerrada
+- **Prioridad:** P2 — decisión de producto: en el teléfono FModel se usa en vertical
+- **Responsable:** Claude · **Inicio:** 2026-10-01 · **Cierre:** 2026-10-01
+- **Depende de:** UI-006
+
+**Decisión:** el teléfono se diseña y se usa en vertical. Con el teléfono girado se propone volver a vertical, pero no se bloquea la orientación: WCAG 1.3.4 (AA) no permite restringirla salvo que sea esencial, y el bloqueo del manifiesto afectaría también a las tabletas.
+
+**Evidencia:**
+1. `src/ui/layoutMode.ts`: `PHONE_LANDSCAPE_QUERY` (táctil, ≤ 500 px de alto y apaisado). Una tableta apaisada no la cumple.
+2. `src/ui/RotatePrompt.tsx`: aviso modal «Gira el teléfono a vertical» en el Inicio y en la mesa, con foco atrapado y teclas aisladas de la mesa. «Seguir en horizontal» lo descarta y se recuerda en la sesión (`sessionStorage`); sin almacenamiento vale para la vista actual. Al volver a vertical desaparece solo.
+3. Quien siga en horizontal conserva la mesa adaptada de UI-006 (tarjeta y dock lado a lado).
+
+**Criterios de aceptación:**
+
+- [x] En el teléfono girado se pide girar a vertical, con el foco en la alternativa y nombre accesible.
+- [x] El aviso no impide seguir en horizontal y no reaparece en la misma sesión.
+- [x] El vertical y las tabletas (en vertical y en horizontal) no reciben el aviso.
+- [x] Día y Noche revisados; textos en español e inglés; sin violaciones axe `critical`/`serious`.
+
+**Verificación:** `e2e/touchLayouts.spec.ts` añade «propone girar a vertical sin imponerlo y recuerda la elección en la sesión» y «la tableta apaisada no recibe el aviso». La prueba de horizontal descarta antes el aviso. Puertas: `pnpm verify` y `playwright test` en Chromium.
+

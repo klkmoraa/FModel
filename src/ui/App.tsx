@@ -20,6 +20,7 @@ import { StatusBar } from './StatusBar';
 import { Docks, FloatingPanel } from './Docks';
 import { Dialogs, type DialogState } from './Dialogs';
 import { TouchHud } from './TouchHud';
+import { RotatePrompt } from './RotatePrompt';
 import { AppMenuSheet, PanelSheet, PhoneContext, PhoneDock, PrecisionSheet, type PhoneSheet } from './phone/PhoneChrome';
 import { PHONE_QUERY, TOUCH_QUERY } from './layoutMode';
 import { TaskStatus } from './TaskStatus';
@@ -252,6 +253,7 @@ export function App({ editor }: { editor: Editor }) {
       <>
         <WelcomeScreen editor={editor} dark={dark} onOpenWorkspace={() => setSurface('workspace')} />
         <ConfirmHost lang={lang} />
+        <RotatePrompt lang={lang} />
       </>
     );
   }
@@ -384,6 +386,7 @@ export function App({ editor }: { editor: Editor }) {
       <Dialogs editor={editor} state={dialog} returnFocusRef={dialogReturnFocusRef} onClose={() => setDialog(null)} onUi={openUi} />
       {!editor.prefs.onboardingDone && !dialog && <Onboarding editor={editor} />}
       <ConfirmHost lang={lang} />
+      <RotatePrompt lang={lang} />
     </div>
   );
 }

@@ -27,6 +27,8 @@ test.describe('teléfono en vertical (UI-006)', () => {
   test('la mesa del teléfono usa el dock flotante, sin barra de estado ni barras propias', async ({ page }) => {
     await openWorkspace(page);
     await noHorizontalOverflow(page);
+    // en vertical no se pide girar nada
+    await expect(page.locator('.rotate-card')).toHaveCount(0);
     const dock = page.locator('.precision-dock--phone');
     await expect(dock).toBeVisible();
     await expect(page.locator('.statusbar')).toHaveCount(0);
@@ -154,11 +156,35 @@ test.describe('teléfono en vertical (UI-006)', () => {
   }
 });
 
-test.describe('teléfono en horizontal (UI-006)', () => {
+test.describe('teléfono en horizontal (UI-006, UI-007)', () => {
   test.use({ viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true });
 
-  test('usa la mesa del teléfono y coloca tarjeta y dock lado a lado', async ({ page }) => {
+  test('propone girar a vertical sin imponerlo y recuerda la elección en la sesión', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
     await openWorkspace(page);
+    const prompt = page.getByRole('dialog', { name: /Gira el teléfono a vertical|Turn your phone upright/ });
+    await expect(prompt).toBeVisible();
+    const keep = prompt.getByRole('button', { name: /Seguir en horizontal|Continue in landscape/ });
+    await expect(keep).toBeFocused();
+    expect(await seriousViolations(page, '.rotate-card')).toEqual([]);
+
+    // las teclas no llegan a la mesa de debajo mientras el aviso está abierto
+    await page.keyboard.press('l');
+    await page.keyboard.press('c');
+    await expect(keep).toBeFocused();
+    expect(await page.evaluate(() => (window as any).fmodel.editor.runner.busy)).toBe(false);
+
+    await keep.tap();
+    await expect(prompt).toHaveCount(0);
+    await page.reload();
+    await page.waitForFunction(() => !!(window as any).fmodel?.editor);
+    await expect(page.locator('.precision-dock--phone')).toBeVisible();
+    await expect(prompt).toHaveCount(0);
+  });
+
+  test('si se sigue en horizontal, usa la mesa del teléfono con tarjeta y dock lado a lado', async ({ page }) => {
+    await openWorkspace(page);
+    await page.getByRole('button', { name: /Seguir en horizontal|Continue in landscape/ }).tap();
     await noHorizontalOverflow(page);
     await expect(page.locator('.precision-dock--phone')).toBeVisible();
     await expect(page.locator('.statusbar')).toHaveCount(0);
@@ -202,3 +228,15 @@ test.describe('tableta táctil (UI-006)', () => {
     await expect(page.getByRole('application', { name: /Lienzo de dibujo|Drawing canvas/ })).toHaveAttribute('aria-description', /Objetos: 1|Objects: 1/);
   });
 });
+
+test.describe('tableta táctil en horizontal (UI-007)', () => {
+  test.use({ viewport: { width: 1180, height: 820 }, hasTouch: true, isMobile: true });
+
+  test('la tableta apaisada no recibe el aviso de girar ni la mesa del teléfono', async ({ page }) => {
+    await openWorkspace(page);
+    await expect(page.locator('.rotate-card')).toHaveCount(0);
+    await expect(page.getByRole('navigation', { name: /Herramientas de precisión|Precision tools/ })).toBeVisible();
+    await expect(page.locator('.precision-dock--phone')).toHaveCount(0);
+  });
+});
+

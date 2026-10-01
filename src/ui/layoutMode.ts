@@ -5,3 +5,5 @@
  */
 export const PHONE_QUERY = '(max-width: 640px), (max-height: 500px) and (pointer: coarse)';
 export const TOUCH_QUERY = '(pointer: coarse)';
+/** Teléfono girado: táctil, poca altura y apaisado. El teléfono se usa en vertical; aquí se propone girarlo. */
+export const PHONE_LANDSCAPE_QUERY = '(max-height: 500px) and (pointer: coarse) and (orientation: landscape)';
