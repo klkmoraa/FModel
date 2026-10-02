@@ -62,6 +62,16 @@ export function wallPrompt(api: CommandApi, state: { scale: number; justificatio
   const numeric = units === 'unitless';
   return L(`Punto inicial · espesor ${state.scale} ${numeric ? 'unidades sin unidad' : units} · referencia ${state.justification === 'zero' ? 'centro' : state.justification === 'top' ? 'izquierda' : 'derecha'}`, `Start point · thickness ${state.scale} ${numeric ? 'unitless drawing units' : units} · reference ${state.justification === 'zero' ? 'center' : state.justification === 'top' ? 'left' : 'right'}`);
 }
+/** Shared initial options; no style/entity mutation before the first point. */
+export async function requestWallStart(api: CommandApi, args?: string[]) {
+  const state = { scale: wallThickness(api, args), justification: 'zero' as MLineEntity['justification'] };
+  for (;;) {
+    const r = await api.getPoint({ prompt: wallPrompt(api, state), allowNone: true, keywords: [THICKNESS_KW, JUSTIFY_KW] });
+    if (r.kind === 'none') return null;
+    if (r.kind === 'point') return { state, first: r.p };
+    await changeWallOption(api, r.key, state);
+  }
+}
 export function rectangleVertices(a: Vec2, b: Vec2): Vec2[] {
   return [a, { x: b.x, y: a.y }, b, { x: a.x, y: b.y }];
 }

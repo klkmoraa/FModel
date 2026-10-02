@@ -57,6 +57,21 @@ describe('Comportamiento de Comandos — Arquitectura (ARC-002)', () => {
     expect(res.ok).toBe(false); expect(walls(h)).toHaveLength(0); expect(h.doc.data.mlineStyles.size).toBe(1);
     expect(h.doc.activeTransaction).toBeNull(); expect(h.doc.history.inGroup).toBe(false);
   });
+  it.each(['WALL', 'WALLRECT'])('%s shares initial thickness/reference options and cancels initial input cleanly', async name => {
+    await h.run(name, ['T', '200', 'J', 'R', p(0), name === 'WALL' ? p(5000) : p(5000, 4000), ...(name === 'WALL' ? [''] : [])]);
+    expect(walls(h)[0]).toMatchObject({ scale: 200, justification: 'bottom' });
+    h.undo();
+    await h.run(name, ['T', '100', 'J', 'L', '']);
+    expect(walls(h)).toHaveLength(0); expect(h.doc.data.mlineStyles.size).toBe(1);
+  });
+  it('room help describes the two-corner flow without continuous-wall options', () => {
+    const help = findCommand('WALLRECT')!.help!;
+    expect(help.es).toContain('esquina opuesta'); expect(help.en).toContain('opposite corner');
+    for (const text of [help.es, help.en]) {
+      expect(text).toContain('150 mm'); expect(text).toContain('WALLRECT 100mm/150mm/200mm');
+      expect(text).not.toMatch(/desHacer|Cerrar|Undo|Close|Enter to finish|Intro para terminar/);
+    }
+  });
   it('room accepts thickness/reference options and dimensions follow the reference', async () => {
     await h.run('HABITACION', ['T', '200', 'J', 'L', p(0), p(5000, 4000)]);
     expect(walls(h)[0]).toMatchObject({ closed: true, scale: 200, justification: 'top', vertices: [p(0), p(5000), p(5000, 4000), p(0, 4000)] });

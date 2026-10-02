@@ -1,8 +1,7 @@
 import type { Entity, Id, MLineEntity } from '../document/types';
-import type { Vec2 } from '../geometry/vec';
 import { CLOSE_KW, UNDO_KW, K, L, fail, make } from './helpers';
 import type { CommandDef } from './types';
-import { changeWallOption, ensureWallStyle, insertEntity, JUSTIFY_KW, rectangleVertices, THICKNESS_KW, validWall, wallPreview, wallPrompt, wallProperties, wallThickness } from './architectureHelpers';
+import { changeWallOption, ensureWallStyle, insertEntity, JUSTIFY_KW, rectangleVertices, requestWallStart, THICKNESS_KW, validWall, wallPreview, wallProperties, wallThickness } from './architectureHelpers';
 import { WALLDOOR, WALLWINDOW } from './architectureOpenings';
 
 const HELP = L('Punto inicial; Espesor en unidades del dibujo y Justificación Centro/Izquierda/Derecha. Puntos siguientes, desHacer, Cerrar o Intro para terminar. 150 mm por defecto (0.15 m); presets WALL 100mm/150mm/200mm. Sin unidad: 150 unidades numéricas. Sólo tramos rectos; une esquinas del mismo recorrido, no objetos independientes.', 'Start point; Thickness in drawing units and Center/Left/Right Justification. Next points, Undo, Close or Enter to finish. Default 150 mm (0.15 m); presets WALL 100mm/150mm/200mm. Unitless: 150 numeric units. Straight segments only; joins corners of the same path, not independent objects.');
@@ -10,14 +9,9 @@ export const WALL: CommandDef = {
   name: 'WALL', aliases: ['MURO'], category: 'draw', label: L('Muro', 'Wall'), icon: 'wall',
   description: L('Traza un muro continuo de dos caras con esquinas unidas.', 'Draw a continuous two-face wall with joined corners.'), help: HELP,
   async run(api, args) {
-    const state = { scale: wallThickness(api, args), justification: 'zero' as MLineEntity['justification'] };
-    let first: Vec2 | undefined;
-    while (!first) {
-      const r = await api.getPoint({ prompt: wallPrompt(api, state), allowNone: true, keywords: [THICKNESS_KW, JUSTIFY_KW] });
-      if (r.kind === 'none') return;
-      if (r.kind === 'point') first = r.p;
-      else await changeWallOption(api, r.key, state);
-    }
+    const start = await requestWallStart(api, args);
+    if (!start) return;
+    const { state, first } = start;
     const vertices = [first];
     let id: Id | undefined, createdStyle: Id | undefined;
     const commit = (closed = false) => {
@@ -52,16 +46,11 @@ export const WALL: CommandDef = {
 export const WALLRECT: CommandDef = {
   name: 'WALLRECT', aliases: ['HABITACION'], category: 'draw', label: L('Habitación', 'Room'), icon: 'room',
   description: L('Dos esquinas crean un muro rectangular cerrado.', 'Two corners create a closed rectangular wall.'),
-  help: L(`${HELP.es} Dos esquinas opuestas: las medidas corresponden al eje central o a la cara de referencia elegida, siguiendo el orden horizontal, vertical y vuelta.`, `${HELP.en} Two opposite corners: dimensions refer to the center axis or chosen reference face, following horizontal, vertical and return order.`),
+  help: L('Primera esquina; antes de indicarla puedes elegir Espesor en unidades del dibujo y Justificación Centro/Izquierda/Derecha. Indica la esquina opuesta para crear un único muro rectangular cerrado con vista previa. Espesor inicial 150 mm (0.15 m); presets WALLRECT 100mm/150mm/200mm, convertidos a las unidades vigentes. Sin unidad: 150 unidades numéricas por defecto. Las medidas corresponden al eje central o a la cara de referencia elegida, siguiendo el orden horizontal, vertical y vuelta. Esc cancela antes de confirmar sin modificar el dibujo.', 'First corner; before specifying it, choose Thickness in drawing units and Center/Left/Right Justification. Specify the opposite corner to create one closed rectangular wall with preview. Initial thickness 150 mm (0.15 m); WALLRECT 100mm/150mm/200mm presets convert to current drawing units. Unitless: default 150 numeric units. Dimensions refer to the center axis or chosen reference face, following horizontal, vertical and return order. Esc cancels before confirmation without modifying the drawing.'),
   async run(api, args) {
-    const state = { scale: wallThickness(api, args), justification: 'zero' as MLineEntity['justification'] };
-    let first: Vec2 | undefined;
-    while (!first) {
-      const r = await api.getPoint({ prompt: wallPrompt(api, state), allowNone: true, keywords: [THICKNESS_KW, JUSTIFY_KW] });
-      if (r.kind === 'none') return;
-      if (r.kind === 'point') first = r.p;
-      else await changeWallOption(api, r.key, state);
-    }
+    const start = await requestWallStart(api, args);
+    if (!start) return;
+    const { state, first } = start;
     const a = first;
     const r = await api.getPoint({ prompt: L('Esquina opuesta sobre la referencia elegida', 'Opposite corner on chosen reference'), base: a, rubber: 'none', preview: p => wallPreview(api, { ...state, vertices: rectangleVertices(a, p), closed: true }) });
     if (r.kind !== 'point') return;

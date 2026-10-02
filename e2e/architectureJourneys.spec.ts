@@ -77,7 +77,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
 test('Arquitectura: la hoja táctil permite iniciar el preset de 100 mm', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await openWorkspace(page);
-  await page.getByRole('button', { name: /Abrir todas las herramientas|Open all tools/ }).click();
+  await page.getByRole('button', { name: /^(Todas las herramientas|All tools)$/ }).click();
   const tools = page.getByRole('dialog', { name: /Biblioteca de herramientas|Tool library/ });
   await tools.getByRole('tab', { name: /^(Arquitectura|Architecture)$/ }).click();
   await expect(tools.locator('.tool-deck__item').filter({ hasText: 'WALLDOOR' })).toBeVisible();
@@ -85,7 +85,7 @@ test('Arquitectura: la hoja táctil permite iniciar el preset de 100 mm', async 
   await tools.locator('.tool-deck__item').filter({ hasText: '100 mm' }).click();
   await expect(tools).toHaveCount(0);
   await page.waitForFunction(() => (window as any).fmodel.editor.runner.active?.def.name === 'WALL');
-  await page.getByRole('button', { name: /Cancelar comando|Cancel command/ }).click();
+  await page.getByRole('region', { name: /^(Comando activo|Active command)$/ }).getByRole('button', { name: /^(Cancelar|Cancel)$/ }).click();
   await page.waitForFunction(() => !(window as any).fmodel.editor.runner.busy);
   expect(await entities(page)).toEqual([]);
 });
