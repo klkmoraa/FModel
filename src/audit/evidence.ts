@@ -12,6 +12,19 @@ export interface EvidenceRecord {
 }
 
 export const EVIDENCE_CATALOG: Record<string, EvidenceRecord> = {
+  'BEH-COMPONENTS': {
+    kind: 'unit', testFile: 'src/commands/behavior/components.test.ts', testName: 'construction command behavior',
+    testCommand: 'pnpm vitest run src/commands/behavior/components.test.ts',
+    commands: ['COLUMN', 'AXISGRID', 'STAIRPLAN', 'STAIRSECTION', 'ESCALATOR', 'LIFTPLAN', 'DOORELEVATION', 'DOORSECTION', 'WINDOWELEVATION', 'WINDOWSECTION', 'BAYWINDOWSECTION', 'CURTAINWALL', 'GLASSPARTITION', 'BANISTER', 'COMPONENTEDIT'],
+  },
+  'GEO-COMPONENTS': {
+    kind: 'unit', testFile: 'src/geometry/architecture/components.test.ts', testName: 'construction geometry',
+    testCommand: 'pnpm vitest run src/geometry/architecture/components.test.ts',
+  },
+  'IO-COMPONENTS': {
+    kind: 'integration', testFile: 'src/io/components.test.ts', testName: 'component native and DXF round trip',
+    testCommand: 'pnpm vitest run src/io/components.test.ts',
+  },
   'BEH-ARCHITECTURE': {
     kind: 'unit', testFile: 'src/commands/behavior/architecture.test.ts',
     testName: 'Comportamiento de Comandos — Arquitectura (ARC-002)',

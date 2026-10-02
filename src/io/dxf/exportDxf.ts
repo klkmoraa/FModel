@@ -142,6 +142,9 @@ export function exportDxf(doc: CadDocument, ctx: ModelContext): { text: string; 
   const ok = (t: string) => (report.exported[t] = (report.exported[t] ?? 0) + 1);
   const transformed = (t: string, reason: string) => ((report.transformed[t] ??= { count: 0, reason }).count++);
   const ignored = (t: string, reason: string) => ((report.ignored[t] ??= { count: 0, reason }).count++);
+  for (const entity of data.entities.values()) if (entity.meta?.fmodelComponent !== undefined) {
+    transformed('FMODELCOMPONENT', 'La geometría y los textos se conservan; se pierde la edición paramétrica nativa. / Geometry and text survive; native parametric editing is lost.');
+  }
 
   // ------------------------------------------------------------------ handles fijos
   const T = { VPORT: H.next(), LTYPE: H.next(), LAYER: H.next(), STYLE: H.next(), VIEW: H.next(), UCS: H.next(), APPID: H.next(), DIMSTYLE: H.next(), BLOCK_RECORD: H.next() };

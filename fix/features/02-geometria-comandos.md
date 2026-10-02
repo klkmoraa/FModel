@@ -138,3 +138,12 @@
 - **Evidencia automática:** `src/geometry/walls.test.ts`, `src/commands/behavior/architecture.test.ts`, `src/io/architecture.test.ts`, catálogo BEH-ARCHITECTURE/GEO-WALLS/IO-ARCHITECTURE.
 - **Guía:** [Muros y huecos](../../docs/arquitectura-muros.md). [Plan](../../docs/plans/2026-10-02-architecture-tools.md).
 - **Cierre:** sólo tras verify, revisión final y navegador del controlador; no afirmar evidencia visual pendiente como completada.
+
+## ARC-003 — Componentes de construcción 2D y edición paramétrica
+
+- [>] **Estado: En curso** — inicio 2026-10-02; responsable: Codex. Pendientes panel Arquitectura y QA real Día/Noche/teléfono.
+- **Prioridad:** P2. Alcance: las 14 familias de la especificación de construcción, comandos canónicos y `COMPONENTEDIT`; sin cambiar el formato nativo ni ampliar DWG.
+- **Contrato:** constructores puros con curvas nativas, roles estables y máximo 2000 primitivas; argumentos dimensionales nativos/físicos, radianes internos y grados en comandos; grupos seleccionables y validación de pertenencia/metadatos antes de editar. Una confirmación corresponde a un paso de undo/redo.
+- **Evidencia:** BEH-COMPONENTS, GEO-COMPONENTS e IO-COMPONENTS; suites de catálogo/modelo adicionales. Retícula, escalera curva y ventana editada sobreviven a formato nativo/DXF; DXF pierde parámetros y lo indica en el informe.
+- **Guía:** [Componentes](../../docs/arquitectura-componentes.md). [Especificación](../../docs/superpowers/specs/2026-10-02-construction-components-design.md).
+- **Cierre:** pendiente del panel y revisión final del controlador; permanece experimental.

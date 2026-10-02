@@ -2,7 +2,7 @@
 
 > Archivo generado con `node scripts/features-md.mjs` desde `src/app/features.ts`, la misma fuente que la pestaña «Estado de funciones» de la ayuda (F1). No lo edites a mano.
 
-**Disponible**: 3 · **Experimental**: 55 · **Planeado**: 0 · **No comprometido**: 1
+**Disponible**: 3 · **Experimental**: 56 · **Planeado**: 0 · **No comprometido**: 1
 
 - **Disponible**: funciona de extremo a extremo y tiene pruebas con evidencia vinculada.
 - **Experimental**: funciona con limitaciones documentadas y evidencia parcial.
@@ -13,6 +13,7 @@
 
 | Función | Estado | Comandos | Evidencia | Notas |
 |---|---|---|---|---|
+| Catorce familias de construcción 2D con parámetros, grupos nativos y edición por roles | Experimental | `COLUMN` `AXISGRID` `STAIRPLAN` `STAIRSECTION` `ESCALATOR` `LIFTPLAN` `DOORELEVATION` `DOORSECTION` `WINDOWELEVATION` `WINDOWSECTION` `BAYWINDOWSECTION` `CURTAINWALL` `GLASSPARTITION` `BANISTER` `COMPONENTEDIT` | `BEH-COMPONENTS` `GEO-COMPONENTS` `IO-COMPONENTS` | Medidas físicas adaptadas al documento, vista previa y undo/redo atómico. DXF conserva curvas/texto y pierde parámetros; el informe avisa. Panel de parámetros y revisión visual final pendientes. |
 | Muros continuos, habitaciones, conversión de trazos rectos y huecos reales de puertas/ventanas | Experimental | `WALL` `WALLRECT` `WALLCONVERT` `WALLDOOR` `WALLWINDOW` | `BEH-ARCHITECTURE` `GEO-WALLS` `IO-ARCHITECTURE` | Muros 2D con multilíneas nativas y tapas rectas; presets físicos 100/150/200 mm. Une esquinas del mismo recorrido. Huecos y símbolos no asociativos. DXF descompone los muros en líneas y conserva tapas y símbolos; revisión visual final pendiente. |
 
 ## Geotecnia
