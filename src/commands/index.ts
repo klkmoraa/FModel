@@ -1,3 +1,4 @@
+import { ARCHITECTURE_COMMANDS } from './architecture';
 import { ANNOTATE_COMMANDS } from './annotate';
 import { AUDIT_COMMANDS } from './audit';
 import { BLOCK_COMMANDS } from './blocks';
@@ -23,6 +24,7 @@ export function registerAllCommands() {
   if (done) return;
   done = true;
   registerCommands(DRAW_COMMANDS);
+  registerCommands(ARCHITECTURE_COMMANDS);
   registerCommands(VIEW_COMMANDS);
   registerCommands(FILE_COMMANDS);
   registerCommands(BLOCK_COMMANDS);

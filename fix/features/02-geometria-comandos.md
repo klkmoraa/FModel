@@ -127,3 +127,14 @@
 - [x] Los comandos interactivos prueban Esc/cancelación sin cambios residuales.
 
 **Verificación:** `pnpm vitest run src/commands src/app/features.test.ts`, `pnpm check:features` y la suite completa (63 archivos/582 pruebas) pasan.
+
+
+## ARC-002 — Muros y huecos arquitectónicos 2D
+
+- [>] **Estado: En curso** — inicio 2026-10-02; responsable: Codex. Pendiente de revisión final del controlador y evidencia visual Día/Noche.
+- **Prioridad:** P2. ID ARC-002 para conservar ARC-001 histórico (división de módulos, categoría calidad).
+- **Alcance:** WALL/MURO, WALLRECT/HABITACION, WALLCONVERT/CONVERTIRMURO, WALLDOOR/PUERTA y WALLWINDOW/VENTANA; pestaña y paleta Arquitectura, presets físicos y ayuda bilingüe.
+- **Contrato:** entidades MLINE nativas de dos caras y tapas rectas; hueco geométrico con símbolos estándar; CommandApi y undo/redo atómico; sin nueva versión de archivo ni red.
+- **Evidencia automática:** `src/geometry/walls.test.ts`, `src/commands/behavior/architecture.test.ts`, `src/io/architecture.test.ts`, catálogo BEH-ARCHITECTURE/GEO-WALLS/IO-ARCHITECTURE.
+- **Guía:** [Muros y huecos](../../docs/arquitectura-muros.md). [Plan](../../docs/plans/2026-10-02-architecture-tools.md).
+- **Cierre:** sólo tras verify, revisión final y navegador del controlador; no afirmar evidencia visual pendiente como completada.

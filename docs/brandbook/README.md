@@ -31,3 +31,14 @@ Fuente: `src/styles/tokens.css` (sombras `--shadow-*`) y `src/styles/app.css`.
 - La materia es la misma que en escritorio: nada de barras propias del móvil.
 - **Orientación**: el teléfono se usa en vertical. Girado, `RotatePrompt` propone volver a vertical sin bloquear (WCAG 1.3.4); «Seguir en horizontal» se recuerda en la sesión.
 
+
+
+## Arquitectura / Architecture (ARC-002)
+
+La familia Arquitectura está en el mismo `ToolDeck` de escritorio/tableta y en la hoja de herramientas del teléfono, generada por `RIBBON`. Muro también aparece en Inicio. Grupos: Muros (Muro/Habitación/Convertir), Huecos (Puerta/Ventana) y Espesores (100/150/200 mm). La paleta Arquitectura comparte comandos y argumentos con estos accesos.
+
+Architecture uses the same desktop/tablet ToolDeck and phone tools sheet generated from RIBBON. Wall is also in Home. Groups: Walls, Openings and Thicknesses. The Architecture palette shares these commands and arguments.
+
+Iconos `wall`, `room`, `door`, `window`: caja 24×24, trazo nativo, `currentColor`; sin nuevos colores ni material. Botones, foco, objetivos táctiles y tema Día/Noche heredan los componentes existentes. / Icons use the existing 24×24 box, stroke and currentColor; buttons, focus, touch targets and Day/Night themes inherit existing components.
+
+Capturas y revisión visual: pendientes del controlador; no se atribuyen a esta implementación hasta que haya evidencia real. / Screenshots and visual review are pending controller evidence.

@@ -12,6 +12,20 @@ export interface EvidenceRecord {
 }
 
 export const EVIDENCE_CATALOG: Record<string, EvidenceRecord> = {
+  'BEH-ARCHITECTURE': {
+    kind: 'unit', testFile: 'src/commands/behavior/architecture.test.ts',
+    testName: 'Comportamiento de Comandos — Arquitectura (ARC-002)',
+    testCommand: 'pnpm vitest run src/commands/behavior/architecture.test.ts',
+    commands: ['WALL', 'WALLRECT', 'WALLCONVERT', 'WALLDOOR', 'WALLWINDOW'],
+  },
+  'GEO-WALLS': {
+    kind: 'unit', testFile: 'src/geometry/walls.test.ts', testName: 'wall geometry',
+    testCommand: 'pnpm vitest run src/geometry/walls.test.ts',
+  },
+  'IO-ARCHITECTURE': {
+    kind: 'integration', testFile: 'src/io/architecture.test.ts', testName: 'architecture native and DXF round trip',
+    testCommand: 'pnpm vitest run src/io/architecture.test.ts',
+  },
   'E2E-CRITICAL-JOURNEYS': {
     kind: 'e2e',
     testFile: 'e2e/criticalJourneys.spec.ts',

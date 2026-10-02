@@ -2,12 +2,18 @@
 
 > Archivo generado con `node scripts/features-md.mjs` desde `src/app/features.ts`, la misma fuente que la pestaña «Estado de funciones» de la ayuda (F1). No lo edites a mano.
 
-**Disponible**: 3 · **Experimental**: 54 · **Planeado**: 0 · **No comprometido**: 1
+**Disponible**: 3 · **Experimental**: 55 · **Planeado**: 0 · **No comprometido**: 1
 
 - **Disponible**: funciona de extremo a extremo y tiene pruebas con evidencia vinculada.
 - **Experimental**: funciona con limitaciones documentadas y evidencia parcial.
 - **Planeado**: no implementado todavía; no hay botones que lo simulen.
 - **No comprometido**: fuera de alcance por motivos legales o técnicos.
+
+## Arquitectura
+
+| Función | Estado | Comandos | Evidencia | Notas |
+|---|---|---|---|---|
+| Muros continuos, habitaciones, conversión de trazos rectos y huecos reales de puertas/ventanas | Experimental | `WALL` `WALLRECT` `WALLCONVERT` `WALLDOOR` `WALLWINDOW` | `BEH-ARCHITECTURE` `GEO-WALLS` `IO-ARCHITECTURE` | Muros 2D con multilíneas nativas y tapas rectas; presets físicos 100/150/200 mm. Une esquinas del mismo recorrido. Huecos y símbolos no asociativos. DXF descompone los muros en líneas y conserva tapas y símbolos; revisión visual final pendiente. |
 
 ## Geotecnia
 

@@ -34,6 +34,7 @@ export const RIBBON: RibbonTab[] = [
       {
         label: { es: 'Dibujo', en: 'Draw' },
         tools: [
+          t('WALL', 'wall', 'Muro', 'Wall', 'lg'),
           t('LINE', 'line', 'Línea', 'Line', 'lg'),
           t('PLINE', 'pline', 'Polilínea', 'Polyline', 'lg'),
           t('CIRCLE', 'circle', 'Círculo', 'Circle', 'lg'),
@@ -82,6 +83,15 @@ export const RIBBON: RibbonTab[] = [
         label: { es: 'Utilidades', en: 'Utilities' },
         tools: [t('DIST', 'measure', 'Medir', 'Measure'), t('MASSPROP', 'massprop', 'Propiedades de masa', 'Mass properties'), t('QSELECT', 'qselect', 'Selección rápida', 'Quick select'), t('ZOOM', 'zoomextents', 'Extensión', 'Extents', 'sm', ['E'])],
       },
+    ],
+  },
+  {
+    id: 'architecture',
+    label: { es: 'Arquitectura', en: 'Architecture' },
+    groups: [
+      { label: { es: 'Muros', en: 'Walls' }, tools: [t('WALL', 'wall', 'Muro', 'Wall', 'lg'), t('WALLRECT', 'room', 'Habitación', 'Room', 'lg'), t('WALLCONVERT', 'wall', 'Convertir a muro', 'Convert to wall')] },
+      { label: { es: 'Huecos', en: 'Openings' }, tools: [t('WALLDOOR', 'door', 'Puerta', 'Door', 'lg'), t('WALLWINDOW', 'window', 'Ventana', 'Window', 'lg')] },
+      { label: { es: 'Espesores', en: 'Thicknesses' }, tools: [t('WALL', 'wall', '100 mm', '100 mm', 'sm', ['100mm']), t('WALL', 'wall', '150 mm', '150 mm', 'sm', ['150mm']), t('WALL', 'wall', '200 mm', '200 mm', 'sm', ['200mm'])] },
     ],
   },
   {

@@ -108,6 +108,18 @@ export function ToolPalettesPanel({ editor }: { editor: Editor }) {
     }
     return [
       {
+        id: 'architecture',
+        name: { es: 'Arquitectura', en: 'Architecture' },
+        items: [
+          { kind: 'command', cmd: 'WALL', label: { es: 'Muro', en: 'Wall' }, icon: 'wall' },
+          { kind: 'command', cmd: 'WALLRECT', label: { es: 'Habitación', en: 'Room' }, icon: 'room' },
+          { kind: 'command', cmd: 'WALLCONVERT', label: { es: 'Convertir a muro', en: 'Convert to wall' }, icon: 'wall' },
+          { kind: 'command', cmd: 'WALLDOOR', label: { es: 'Puerta', en: 'Door' }, icon: 'door' },
+          { kind: 'command', cmd: 'WALLWINDOW', label: { es: 'Ventana', en: 'Window' }, icon: 'window' },
+          ...['100mm', '150mm', '200mm'].map(value => ({ kind: 'command' as const, cmd: 'WALL', args: [value], label: { es: `Muro ${value}`, en: `Wall ${value}` }, icon: 'wall' })),
+        ],
+      },
+      {
         id: 'symbols',
         name: { es: 'Símbolos', en: 'Symbols' },
         items: blocks.map((b) => ({ kind: 'block' as const, name: b.name })),
