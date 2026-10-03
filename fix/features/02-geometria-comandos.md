@@ -141,9 +141,9 @@
 
 ## ARC-003 — Componentes de construcción 2D y edición paramétrica
 
-- [>] **Estado: En curso** — inicio 2026-10-02; responsable: Codex. Panel Arquitectura implementado con prueba DOM/runner real; pendientes QA real de componentes Día/Noche/teléfono y revisión final del controlador.
+- [x] **Estado: Cerrado (14 familias 2D)** — inicio 2026-10-02; cierre 2026-10-03; responsable: Codex. Núcleo nativo y panel Arquitectura verificados; [CI 37097760918](https://github.com/klkmoraa/FModel/actions/runs/37097760918), 1100/1100 pruebas y 56/56 recorridos Chromium, incluidas seis rutas de componentes y 14 capturas Día/Noche/escritorio/teléfono revisadas por el controlador. [Ficha QA](../../docs/brandbook/components-qa.md). No implica paridad general con YQARCH ni el ciclo de vida de huecos asociados.
 - **Prioridad:** P2. Alcance: las 14 familias de la especificación de construcción, comandos canónicos y `COMPONENTEDIT`; sin cambiar el formato nativo ni ampliar DWG.
 - **Contrato:** constructores puros con curvas nativas, roles estables y máximo 2000 primitivas; argumentos dimensionales nativos/físicos, radianes internos y grados en comandos; grupos seleccionables y validación de pertenencia/metadatos antes de editar. Una confirmación corresponde a un paso de undo/redo.
-- **Evidencia:** BEH-COMPONENTS, GEO-COMPONENTS, IO-COMPONENTS y UI-COMPONENTS; suites de catálogo/modelo adicionales. E2E-COMPONENTS define seis recorridos para CI (mm/m × Día/Noche; teléfono × Día/Noche); ejecución y capturas pendientes. Retícula, escalera curva y ventana editada sobreviven a formato nativo/DXF; DXF pierde parámetros y lo indica en el informe.
+- **Evidencia:** BEH-COMPONENTS, GEO-COMPONENTS, IO-COMPONENTS, UI-COMPONENTS y E2E-COMPONENTS; suites de catálogo/modelo adicionales. Seis recorridos reales (mm/m × Día/Noche; teléfono × Día/Noche) y 14 capturas originales aprobadas. Retícula, escalera curva y ventana editada sobreviven a formato nativo/DXF; DXF pierde parámetros y lo indica en el informe.
 - **Guía:** [Componentes](../../docs/arquitectura-componentes.md). [Especificación](../../docs/superpowers/specs/2026-10-02-construction-components-design.md).
-- **Cierre:** pendiente de navegador/capturas finales y revisión del controlador; permanece experimental.
+- **Cierre:** completado para las catorce familias 2D y su edición/panel nativos; no se amplía DWG ni se afirma paridad de otros módulos.

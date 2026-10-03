@@ -2,7 +2,7 @@
 
 ## Español
 
-Los comandos crean piezas agrupadas de geometría nativa. Abre `ARCHITECTURE` / `ARQUITECTURA` desde la línea de comandos, Arquitectura › Catálogo de piezas o la paleta Arquitectura. En teléfono aparece la hoja de paneles; en escritorio, el panel flotante que puedes fijar. La revisión visual final de componentes sigue pendiente y el estado es experimental. Los muros y sus huecos existentes conservan sus propios comandos.
+Los comandos crean piezas agrupadas de geometría nativa. Abre `ARCHITECTURE` / `ARQUITECTURA` desde la línea de comandos, Arquitectura › Catálogo de piezas o la paleta Arquitectura. En teléfono aparece la hoja de paneles; en escritorio, el panel flotante que puedes fijar. El núcleo de las catorce familias y su panel está disponible y tiene [QA visual Día/Noche/teléfono](brandbook/components-qa.md). Los muros y sus huecos existentes conservan sus propios comandos.
 
 Busca por nombre o comando y filtra la categoría; elige una de las catorce familias. Cada campo muestra las unidades del dibujo, grados o cantidades. La miniatura utiliza el constructor y giro nativos sin escribir en el dibujo. Colocar valida todos los campos, incluidos los ocultos, y abre el punto de inserción del comando canónico. Una pieza filtrada no puede colocarse. Las medidas elegidas sobreviven a la colocación y al cierre/reapertura de la hoja; un dibujo nuevo/cargado con otro ID o un cambio de unidades restaura los defaults.
 
@@ -39,7 +39,7 @@ El formato `.fmodel` conserva parámetros, grupos, roles y geometría sin nueva 
 
 ## English
 
-The command/field table above is shared in both languages; canonical argument keys and enum values remain unchanged. These fourteen commands create selectable native groups. Open `ARCHITECTURE` / `ARQUITECTURA` from the command line, Architecture › Component catalogue, the Architecture palette or the phone panel sheet. The desktop panel can float or be pinned. Final component visual QA remains pending, so the feature stays experimental.
+The command/field table above is shared in both languages; canonical argument keys and enum values remain unchanged. These fourteen commands create selectable native groups. Open `ARCHITECTURE` / `ARQUITECTURA` from the command line, Architecture › Component catalogue, the Architecture palette or the phone panel sheet. The desktop panel can float or be pinned. The fourteen-family core and panel are available with [Day/Night/phone visual QA](brandbook/components-qa.md).
 
 Search by name/command, filter a category and select a family. Fields show drawing units, degrees or counts. The miniature uses the native builder and rigid rotation without document writes. Place validates every field, including inactive values, and starts the canonical insertion command. Filtered-out components cannot be placed. Chosen dimensions persist after placement and sheet close/reopen; a different document ID or unit change refreshes defaults.
 

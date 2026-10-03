@@ -2,7 +2,7 @@
 
 > Archivo generado con `node scripts/features-md.mjs` desde `src/app/features.ts`, la misma fuente que la pestaña «Estado de funciones» de la ayuda (F1). No lo edites a mano.
 
-**Disponible**: 3 · **Experimental**: 56 · **Planeado**: 0 · **No comprometido**: 1
+**Disponible**: 4 · **Experimental**: 55 · **Planeado**: 0 · **No comprometido**: 1
 
 - **Disponible**: funciona de extremo a extremo y tiene pruebas con evidencia vinculada.
 - **Experimental**: funciona con limitaciones documentadas y evidencia parcial.
@@ -13,7 +13,7 @@
 
 | Función | Estado | Comandos | Evidencia | Notas |
 |---|---|---|---|---|
-| Catorce familias de construcción 2D con parámetros, grupos nativos y edición por roles | Experimental | `ARCHITECTURE` `COLUMN` `AXISGRID` `STAIRPLAN` `STAIRSECTION` `ESCALATOR` `LIFTPLAN` `DOORELEVATION` `DOORSECTION` `WINDOWELEVATION` `WINDOWSECTION` `BAYWINDOWSECTION` `CURTAINWALL` `GLASSPARTITION` `BANISTER` `COMPONENTEDIT` | `BEH-COMPONENTS` `GEO-COMPONENTS` `IO-COMPONENTS` `UI-COMPONENTS` `E2E-COMPONENTS` | Medidas físicas adaptadas al documento, vista previa y undo/redo atómico. DXF conserva curvas/texto y pierde parámetros; el informe avisa. Catálogo visual con medidas/variantes y miniatura nativa; revisión de navegador final pendiente. |
+| Catorce familias de construcción 2D con parámetros, grupos nativos y edición por roles | Disponible | `ARCHITECTURE` `COLUMN` `AXISGRID` `STAIRPLAN` `STAIRSECTION` `ESCALATOR` `LIFTPLAN` `DOORELEVATION` `DOORSECTION` `WINDOWELEVATION` `WINDOWSECTION` `BAYWINDOWSECTION` `CURTAINWALL` `GLASSPARTITION` `BANISTER` `COMPONENTEDIT` | `BEH-COMPONENTS` `GEO-COMPONENTS` `IO-COMPONENTS` `UI-COMPONENTS` `E2E-COMPONENTS` | Medidas físicas adaptadas al documento, vista previa y undo/redo atómico. DXF conserva curvas/texto y pierde parámetros; el informe avisa. Catálogo visual con medidas/variantes y miniatura nativa. CI 37097760918: 1100 pruebas, 56 recorridos Chromium y 14 capturas Día/Noche/teléfono aprobadas para las catorce familias 2D. |
 | Muros continuos, habitaciones, conversión de trazos rectos y huecos reales de puertas/ventanas | Experimental | `WALL` `WALLRECT` `WALLCONVERT` `WALLDOOR` `WALLWINDOW` | `BEH-ARCHITECTURE` `GEO-WALLS` `IO-ARCHITECTURE` | Muros 2D con multilíneas nativas y tapas rectas; presets físicos 100/150/200 mm. Une esquinas del mismo recorrido. Huecos y símbolos no asociativos. DXF descompone los muros en líneas y conserva tapas y símbolos. Núcleo 2D y capturas Día/Noche/teléfono aprobados en CI 37022156512. |
 
 ## Geotecnia

@@ -1,6 +1,6 @@
 # Task 2 recovery report
 
-Status: SOURCE IMPLEMENTED AND LOCALLY VERIFIED; controller browser/review pending. Branch `codex/architecture-tools`; review base `82de57888cb5ffb772ecc3d3b8c2d569d965ead3`. Controller-only future-opening documentation commit `ee5c14f` is outside Task 2 source. Preserved all 13 restored Task 2 files; no Task 1 reimplementation, push, merge, subagents, local browser or Playwright execution.
+Status: COMPLETE for the fourteen native 2D families and architecture panel; final controller browser and visual QA approved in CI 37097760918. Branch `codex/architecture-tools`; review base `82de57888cb5ffb772ecc3d3b8c2d569d965ead3`. Controller-only future-opening documentation commit `ee5c14f` is outside Task 2 source. No Task 1 reimplementation, push, merge, subagents, local browser or Playwright execution.
 
 ## Fresh evidence (2026-10-03)
 
@@ -51,9 +51,9 @@ Desktop enters through actual ToolDeck Architecture tab, uses named fields/Tab, 
 - workspaceChrome defaults/migration and existing/new preference tests; styles use existing tokens/classes, phone controls minimum 44 px.
 - Bilingual guide, src/app/features and src/audit/evidence + generated FEATURES.md, backlog and brandbook ficha updated. ARC-002 closes only its core using already-reviewed CI 37022156512/walls-qa.md; wall feature still explicitly experimental, no broad parity claim. ARC-003 remains open/experimental. Controller-owned architecture-touch.png unchanged and incorporated by reference in brandbook.
 
-## Pending
+## Scope and residual
 
-Controller must rerun genuine remote browser CI and inspect the corrected captures; ARC-003 stays open/experimental until usable visual evidence is approved. No new dependency/network/native format/DWG changes. All drawing writes remain existing native atomic commands.
+ARC-003 closure covers the fourteen native 2D families, panel and role-preserving editing. No new dependency/network/native format/DWG changes. All drawing writes remain existing native atomic commands. Other YQARCH modules and associated opening lifecycle ARC-004 remain separate; the focused phone field-Escape minor is deferred to the next UI task/final review.
 
 ## Final local gate (2026-10-03)
 
@@ -81,3 +81,11 @@ Controller must rerun genuine remote browser CI and inspect the corrected captur
 - Boundary diagnosis: the phone BottomSheet is mounted and field values can be asserted while its `fm-sheet-from-bottom` animation (`src/styles/app.css`, finite `--fs-reveal: 280ms`) is still running from opacity 0 and `translateY(18px)`; `.sheet` also transitions transform. `toBeVisible` and the width assertion do not establish a settled visual frame. Playwright screenshot `animations: 'disabled'` did **not** settle either reopened frame in the actual CI artifact, so that option alone is not evidence of final appearance. The exact screenshot-time interaction with compositor/animation is not established, and no product CSS change is inferred from it.
 - E2E-only correction: `expectSheetSettled` polls computed opacity `1`, identity transform (`none` or identity `DOMMatrixReadOnly`), and the sheet element's own `getAnimations()` all `finished`/`idle`, with an explicit equality assertion. Initial, action and reopened phone captures wait on that state. Phone screenshots no longer request screenshot-time animation overrides; existing desktop captures retain them. The test still asserts retained `650mm`, no overflow, visible actions, native place/edit/cancel and unchanged entities. No arbitrary sleep, source/CSS behavior change, or local browser run.
 - Standalone E2E TypeScript, targeted E2E oxlint and `git diff --check` exited 0. Controller must rerun browser CI and inspect both reopened captures before closing ARC-003. The source-approved field-Escape minor remains deferred.
+
+## Final controller approval and evidence publication (2026-10-03)
+
+- [CI 37097760918](https://github.com/klkmoraa/FModel/actions/runs/37097760918), job `111131080861`, remote `da9f564185098ab3fce565c622a1c308b85c59a7` matched local `1487650` tree `a6e5a391e6d453ff7d06ee513c6a99964e48693b`. Types, lint, layers, feature check, coverage and build passed; **111 files / 1100 tests** and **56 Chromium journeys**, including all six new component journeys, passed. No drawing/editor/command/render behavior or E2E changes followed that run; only feature-catalogue status/description metadata, documentation and copied evidence assets changed.
+- Controller inspected all 14 unedited PNGs from artifact `11265685074` (ZIP SHA-256 `d913d1ec3a577eb091e675aa07b1be5dceb86561fdb65679afd002ea148aad8a`) and approved all eight desktop and six phone frames. Edited columns fit, phone actions are legible without horizontal overflow, and both reopened sheets are fully opaque/settled with `650mm` retained. `docs/brandbook/components-qa.md` records all 14 per-PNG SHA-256 hashes, tested interactions and scope. Eight original mm desktop Día/Noche initial/edited and phone Día/Noche actions/reopened PNGs were copied byte-for-byte into `docs/brandbook/assets/`; their hashes were checked against the QA record.
+- Documentation/evidence-only closure: brandbook README/index and component guide show approved captures; ARC-003 backlog is closed within fourteen-family scope; `src/app/features.ts` sets only this feature row to `available`, with a final-CI note; `pnpm docs:features` regenerated `docs/FEATURES.md`. YQARCH deliveries note the verified native panel while the static historical matrix and unrelated opening lifecycle remain unchanged.
+- Local final checks after documentation changes: `pnpm check:features` passed 60 generated features/evidence; `pnpm vitest run src/app/features.test.ts` **1 file / 12 tests passed**; `pnpm typecheck`, `pnpm lint`, `git diff --check` passed. A link/hash check verified brandbook image links and the eight copied PNG hashes. Full source/browser/coverage/build gate is the genuine controller CI above; no local browser was run.
+- Residual: phone input Escape propagation remains a minor separate UI follow-up. Existing build warnings about libredwg-web `node:module` externalization and `polygon-clipping` ineffective dynamic import remain disclosed; no pristine-build claim.
