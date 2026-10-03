@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 
 async function openWorkspace(page: Page, theme: 'dia' | 'noche', units: 'mm' | 'm') {
   await page.emulateMedia({ colorScheme: theme === 'dia' ? 'light' : 'dark' });
@@ -24,6 +24,17 @@ async function command(page: Page, text: string) {
   await line.fill(text); await line.press('Enter');
 }
 const entities = (page: Page) => page.evaluate(() => [...(window as any).fmodel.editor.doc.data.entities.values()] as any[]);
+async function expectSheetSettled(sheet: Locator) {
+  await expect.poll(() => sheet.evaluate(element => {
+    const style = getComputedStyle(element);
+    const matrix = style.transform === 'none' ? null : new DOMMatrixReadOnly(style.transform);
+    return {
+      opacity: Number(style.opacity) === 1,
+      transform: matrix === null || matrix.isIdentity,
+      animations: element.getAnimations().every(animation => animation.playState === 'finished' || animation.playState === 'idle'),
+    };
+  })).toEqual({ opacity: true, transform: true, animations: true });
+}
 async function assertRefused(page: Page, units: 'mm' | 'm') {
   const panel = page.locator('.panel--architecture');
   await panel.getByLabel(`Width · ${units}`, { exact: true }).fill('Infinity');
@@ -108,12 +119,14 @@ test.describe('Construction components: native panel journeys', () => {
       await panel.getByLabel('Width · mm', { exact: true }).fill('650mm');
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       expect(await panel.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
-      await page.screenshot({ path: testInfo.outputPath(`components-phone-${theme}.png`), animations: 'disabled' });
+      await expectSheetSettled(sheet);
+      await page.screenshot({ path: testInfo.outputPath(`components-phone-${theme}.png`) });
       const place = panel.getByRole('button', { name: 'Place', exact: true });
       await place.scrollIntoViewIfNeeded();
       await expect(place).toBeInViewport({ ratio: 1 });
       await expect(panel.getByRole('button', { name: 'Edit component', exact: true })).toBeInViewport({ ratio: 1 });
-      await page.screenshot({ path: testInfo.outputPath(`components-phone-${theme}-actions.png`), animations: 'disabled' });
+      await expectSheetSettled(sheet);
+      await page.screenshot({ path: testInfo.outputPath(`components-phone-${theme}-actions.png`) });
       await place.click(); await expect(sheet).toHaveCount(0);
       const canvas = page.getByRole('application', { name: 'Drawing canvas' }); await expect(canvas).toBeFocused();
       const bounds = await canvas.boundingBox(); expect(bounds).not.toBeNull();
@@ -129,7 +142,8 @@ test.describe('Construction components: native panel journeys', () => {
       await page.getByRole('region', { name: 'Active command', exact: true }).getByRole('button', { name: 'Cancel', exact: true }).click();
       await page.waitForFunction(() => !(window as any).fmodel.editor.runner.busy); expect(await entities(page)).toEqual(placed);
       await openCatalogue(page); await expect(panel.getByLabel('Width · mm', { exact: true })).toHaveValue('650mm');
-      await page.screenshot({ path: testInfo.outputPath(`components-phone-${theme}-reopened.png`), animations: 'disabled' });
+      await expectSheetSettled(sheet);
+      await page.screenshot({ path: testInfo.outputPath(`components-phone-${theme}-reopened.png`) });
     });
   }
 });
