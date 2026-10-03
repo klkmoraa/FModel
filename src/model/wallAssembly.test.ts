@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createDocument, entityDefaults } from '../document/defaults';
 import type { Entity, LineEntity, MLineEntity } from '../document/types';
 import { wallStyle } from './wallStyle';
-import { createWallAssembly, readWallAssembly, readWallOpening, readWallSource, updateWallAssembly } from './wallAssembly';
+import { WallAssemblyError, createWallAssembly, readWallAssembly, readWallOpening, readWallSource, updateWallAssembly } from './wallAssembly';
 import type { WallOpeningSpec } from '../geometry/wallOpenings';
 const a: WallOpeningSpec = { id: 'a', segment: 0, offset: 2000, width: 900, type: 'single', side: 1, hingeEnd: false };
 const b: WallOpeningSpec = { ...a, id: 'b', offset: 4500 };
@@ -55,6 +55,33 @@ describe('validated native wall assemblies', () => {
     expect(doc.data.groups.get('empty')).toEqual({ ...empty, members: [] });
     doc.undo(); expect(doc.data.groups.get('mixed')).toEqual(mixed); expect(doc.data.groups.get('empty')).toEqual(empty);
     doc.redo(); expect(doc.data.groups.get('mixed')?.members).toEqual([survivor, 'wall']); expect(doc.data.groups.get('empty')?.members).toEqual([]);
+  });
+  it.each(['anchor', 'non-anchor'] as const)('rejects stripped wall tags on a grouped %s without new writes or changed source/group', position => {
+    const { doc, assembly } = fixture();
+    const fragmentId = position === 'anchor' ? assembly.anchorId : assembly.members.find(id => id !== assembly.anchorId && doc.entity(id)?.type === 'mline')!;
+    const fragment = doc.entity(fragmentId) as MLineEntity;
+    const falseSource = { vertices: fragment.vertices.map(p => ({ ...p })), closed: fragment.closed, scale: fragment.scale, justification: fragment.justification, style: fragment.style, owner: fragment.owner };
+    doc.transact('strip tags', tx => tx.updateEntity(fragmentId, { meta: { userNote: 'stripped' } }));
+    const before = structuredClone(doc.data);
+    expect(() => readWallSource(doc, fragmentId)).toThrow(WallAssemblyError);
+    doc.transact('reject duplicate association', tx => {
+      expect(() => createWallAssembly(tx, fragmentId, falseSource, [{ ...a, id: 'new', offset: 600, width: 200, type: 'empty' }])).toThrow(WallAssemblyError);
+      expect(tx.list()).toHaveLength(0);
+    });
+    expect(doc.data).toEqual(before);
+    expect(doc.data.groups.get(assembly.groupId)?.members).toEqual(assembly.members);
+    expect((doc.entity('wall') as MLineEntity).vertices).toEqual((before.entities.get('wall') as MLineEntity).vertices);
+  });
+  it('accepts an independent wall in an ordinary unrelated native group', () => {
+    const doc = createDocument();
+    doc.transact('wall in user group', tx => {
+      tx.add('mlineStyles', wallStyle('wall-style', 'Walls'));
+      tx.addEntity<MLineEntity>({ ...entityDefaults(doc), id: 'wall', type: 'mline', vertices: [{ x: 0, y: 0 }, { x: 10000, y: 0 }], closed: false, style: 'wall-style', scale: 150, justification: 'zero' });
+      tx.add('groups', { id: 'user', name: 'User group', description: '', selectable: true, members: ['wall'] });
+    });
+    const source = readWallSource(doc, 'wall').source;
+    expect(doc.transact('cut', tx => createWallAssembly(tx, 'wall', source, [a]))?.openings).toEqual([a]);
+    expect(doc.data.groups.get('user')?.members).toEqual(['wall']);
   });
   it.each(['missing-member', 'foreign-member', 'duplicate-member', 'reordered', 'unselectable', 'wrong-group', 'role', 'opening-id', 'source', 'version', 'count', 'geometry', 'owner', 'style', 'clone', 'extra-assembly'] as const)('rejects %s corruption before writes', corruption => {
     const { doc, assembly } = fixture();

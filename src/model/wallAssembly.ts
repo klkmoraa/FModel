@@ -15,6 +15,7 @@ export class WallAssemblyError extends Error {
 interface MemberTag { version: 1; groupId: Id; anchorId: Id; role: string; openingId?: string }
 interface AssemblyTag { version: 1; groupId: Id; source: WallAssemblySource; openings: WallOpeningSpec[] }
 interface RoleGeometry { key: string; openingId?: string; shape: Record<string, unknown> }
+const WALL_GROUP_DESCRIPTION = 'FModel wall assembly v1';
 function requireAssembly(condition: unknown): asserts condition { if (!condition) throw new WallAssemblyError(); }
 function record(value: unknown): value is Record<string, unknown> { return !!value && typeof value === 'object' && !Array.isArray(value); }
 function keys(value: Record<string, unknown>, required: string[], optional: string[] = []): boolean {
@@ -96,6 +97,16 @@ export function readWallSource(doc: CadDocument, memberId: Id): { source: WallAs
     return { source: cloneSource(assembly.source), anchorId: assembly.anchorId, assembly };
   }
   requireAssembly(entity.type === 'mline');
+  for (const group of doc.data.groups.values()) {
+    if (!Array.isArray(group.members) || !group.members.includes(memberId)) continue;
+    const taggedMember = group.members.some(id => {
+      const meta = doc.entity(id)?.meta;
+      const member = meta?.fmodelWallMember;
+      const assembly = meta?.fmodelWallAssembly;
+      return (record(member) && member.groupId === group.id) || (record(assembly) && assembly.groupId === group.id);
+    });
+    requireAssembly(group.description !== WALL_GROUP_DESCRIPTION && !taggedMember);
+  }
   const source = sourceOf(entity);
   validateSource(doc, source); validateProperties(doc, entity);
   return { source, anchorId: entity.id, assembly: null };
@@ -150,7 +161,7 @@ function reconcile(tx: Transaction, anchor: Entity, source: WallAssemblySource, 
     const survivors = new Set(ids);
     removeRoles(tx, new Set(before.members.filter(id => !survivors.has(id))), groupId);
     tx.update('groups', groupId, { members: ids });
-  } else tx.add('groups', { id: groupId, name: `FModel wall ${groupId}`, description: 'FModel wall assembly v1', members: ids, selectable: true });
+  } else tx.add('groups', { id: groupId, name: `FModel wall ${groupId}`, description: WALL_GROUP_DESCRIPTION, members: ids, selectable: true });
   return readWallAssembly(tx.doc, anchor.id);
 }
 /** Revalidates the independent wall and source snapshot; builds everything before any write. */
