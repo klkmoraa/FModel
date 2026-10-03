@@ -1,4 +1,5 @@
 import { Plus, Star, Trash2 } from 'lucide-react';
+import { COMPONENT_CATALOG } from '../../app/componentCatalog';
 import { isInsertableBlock } from '../../blocks/blockOps';
 import { useMemo, useState } from 'react';
 import { hatchDefaults } from '../../commands/draw';
@@ -111,6 +112,9 @@ export function ToolPalettesPanel({ editor }: { editor: Editor }) {
         id: 'architecture',
         name: { es: 'Arquitectura', en: 'Architecture' },
         items: [
+          { kind: 'command', cmd: 'ARCHITECTURE', label: { es: 'Catálogo de piezas', en: 'Component catalogue' }, icon: 'room' },
+          ...COMPONENT_CATALOG.map(c => ({ kind: 'command' as const, cmd: c.command, label: c.label, icon: 'room' })),
+          { kind: 'command', cmd: 'COMPONENTEDIT', label: { es: 'Editar pieza', en: 'Edit component' }, icon: 'room' },
           { kind: 'command', cmd: 'WALL', label: { es: 'Muro', en: 'Wall' }, icon: 'wall' },
           { kind: 'command', cmd: 'WALLRECT', label: { es: 'Habitación', en: 'Room' }, icon: 'room' },
           { kind: 'command', cmd: 'WALLCONVERT', label: { es: 'Convertir a muro', en: 'Convert to wall' }, icon: 'wall' },

@@ -1,4 +1,4 @@
-import { COMPONENT_CATALOG, parseComponentField } from '../app/componentCatalog';
+import { COMPONENT_CATALOG, parseComponentField, visibleComponentFields } from '../app/componentCatalog';
 import { buildComponent } from '../geometry/architecture/components';
 import { ComponentError } from '../geometry/architecture/schema';
 import type { ComponentKind, ComponentParameters } from '../geometry/architecture/types';
@@ -9,7 +9,7 @@ export function componentFailure(error: unknown): never { if (error instanceof C
 export async function changeComponentField(api: CommandApi, kind: ComponentKind, parameters: ComponentParameters, key?: string): Promise<ComponentParameters> {
   const definition = COMPONENT_CATALOG.find(c => c.kind === kind)!;
   if (!key) {
-    const selected = await api.getKeyword({ prompt: L('Parámetro a cambiar', 'Parameter to change'), allowNone: true, keywords: definition.fields.map(f => K(f.key, f.label.es, f.label.en)) });
+    const selected = await api.getKeyword({ prompt: L('Parámetro a cambiar · campos inactivos guardados para otra variante', 'Parameter to change · inactive fields retained for another variant'), allowNone: true, keywords: visibleComponentFields(kind, parameters).map(f => K(f.key, f.label.es, f.label.en)) });
     if (selected.kind === 'none') return parameters; key = selected.key;
   }
   const field = definition.fields.find(f => f.key === key)!;

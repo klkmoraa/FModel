@@ -5,6 +5,10 @@ import { COMPONENT_DEFINITIONS, componentDefinition, invalid, requireLayout } fr
 import type { ComponentField, ComponentKind, ComponentParameters } from '../geometry/architecture/types';
 export const COMPONENT_CATALOG = COMPONENT_DEFINITIONS;
 export { ComponentError } from '../geometry/architecture/schema';
+/** Presentation only: inactive fields remain validated and saved for future variants. */
+export function visibleComponentFields(kind: ComponentKind, parameters: ComponentParameters): ComponentField[] {
+  return componentDefinition(kind).fields.filter(field => !field.visibleWhen || field.visibleWhen.values.includes(String(parameters[field.visibleWhen.key])));
+}
 /** Length defaults are physical mm converted anew for the active document. Angles remain radians. */
 export function componentDefaults(kind: ComponentKind, units: DrawingUnits): ComponentParameters {
   const definition = componentDefinition(kind), result = { ...definition.physicalDefaults };

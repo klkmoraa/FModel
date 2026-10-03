@@ -89,6 +89,7 @@ export const RIBBON: RibbonTab[] = [
     id: 'architecture',
     label: { es: 'Arquitectura', en: 'Architecture' },
     groups: [
+      { label: { es: 'Piezas de construcción', en: 'Construction components' }, tools: [t('ARCHITECTURE', 'room', 'Catálogo de piezas', 'Component catalogue', 'lg'), t('COLUMN', 'room', 'Columna', 'Column'), t('AXISGRID', 'grid', 'Retícula', 'Axis grid'), t('STAIRPLAN', 'room', 'Escalera en planta', 'Stair plan'), t('WINDOWELEVATION', 'window', 'Ventana en alzado', 'Window elevation'), t('COMPONENTEDIT', 'room', 'Editar pieza', 'Edit component')] },
       { label: { es: 'Muros', en: 'Walls' }, tools: [t('WALL', 'wall', 'Muro', 'Wall', 'lg'), t('WALLRECT', 'room', 'Habitación', 'Room', 'lg'), t('WALLCONVERT', 'wall', 'Convertir a muro', 'Convert to wall')] },
       { label: { es: 'Huecos', en: 'Openings' }, tools: [t('WALLDOOR', 'door', 'Puerta', 'Door', 'lg'), t('WALLWINDOW', 'window', 'Ventana', 'Window', 'lg')] },
       { label: { es: 'Espesores', en: 'Thicknesses' }, tools: [t('WALL', 'wall', '100 mm', '100 mm', 'sm', ['100mm']), t('WALL', 'wall', '150 mm', '150 mm', 'sm', ['150mm']), t('WALL', 'wall', '200 mm', '200 mm', 'sm', ['200mm'])] },

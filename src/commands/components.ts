@@ -1,4 +1,4 @@
-import { COMPONENT_CATALOG, parseComponentArguments } from '../app/componentCatalog';
+import { COMPONENT_CATALOG, parseComponentArguments, visibleComponentFields } from '../app/componentCatalog';
 import { entityDefaults } from '../document/defaults';
 import { buildComponent } from '../geometry/architecture/components';
 import { requireLayout } from '../geometry/architecture/schema';
@@ -43,12 +43,11 @@ export const COMPONENTEDIT: CommandDef = {
     const state: ComponentState = { kind: assembly!.kind, parameters: { ...assembly!.parameters }, insertion: { ...assembly!.insertion }, rotation: assembly!.rotation };
     const assertSelectable = () => { if (assembly!.members.some(id => !api.editor.isSelectable(id))) fail('La pieza contiene objetos bloqueados, ocultos o de otro espacio.', 'The component contains locked, hidden or foreign-space entities.'); };
     assertSelectable();
-    const fields = COMPONENT_CATALOG.find(c => c.kind === state.kind)!.fields;
     for (;;) {
       const principal = api.editor.doc.entity(assembly!.principalId)!;
       const preview = () => ({ entities: componentPreviewEntities(state, componentProperties(principal), api.editor.doc.settings.currentTextStyle) });
       api.setPreview(preview());
-      const choice = await api.getKeyword({ prompt: L('Parámetro o Giro · Intro confirma', 'Parameter or Rotation · Enter confirms'), allowNone: true, preview, keywords: [...fields.map(f => K(f.key, f.label.es, f.label.en)), rotation] });
+      const choice = await api.getKeyword({ prompt: L('Parámetro o Giro · Intro confirma', 'Parameter or Rotation · Enter confirms'), allowNone: true, preview, keywords: [...visibleComponentFields(state.kind, state.parameters).map(f => K(f.key, f.label.es, f.label.en)), rotation] });
       if (choice.kind === 'none') break;
       if (choice.key === rotation.key) await changeRotation(api, state); else state.parameters = await changeComponentField(api, state.kind, state.parameters, choice.key);
     }

@@ -9,11 +9,13 @@ import { BlocksPanel } from './panels/BlocksPanel';
 import { ToolPalettesPanel } from './panels/ToolPalettesPanel';
 import { BlockAuthoringPanel } from './panels/BlockAuthoringPanel';
 import { ParametersPanel } from './panels/ParametersPanel';
+import { ArchitecturePanel } from './panels/ArchitecturePanel';
 import { tr } from './controls';
 import { fieldLabelsRef } from './fieldLabels';
 import { isWorkspacePanelId, normalizeDockWidth, setPanelFloating, type WorkspacePanelId } from '../editor/workspaceChrome';
 
-export const PANELS: Record<string, { icon: string; label: { es: string; en: string }; render: (editor: Editor, onUi: (ui: string, cmd?: string) => void) => React.ReactNode }> = {
+export const PANELS: Record<string, { icon: string; label: { es: string; en: string }; render: (editor: Editor, onUi: (ui: string, cmd?: string) => void, onStart?: () => void) => React.ReactNode }> = {
+  architecture: { icon: 'room', label: { es: 'Arquitectura', en: 'Architecture' }, render: (e, _onUi, onStart) => <ArchitecturePanel editor={e} onStart={onStart} /> },
   properties: { icon: 'properties', label: { es: 'Propiedades', en: 'Properties' }, render: (e) => <PropertiesPanel editor={e} /> },
   layers: { icon: 'layers', label: { es: 'Capas', en: 'Layers' }, render: (e) => <LayersPanel editor={e} /> },
   blocks: { icon: 'block', label: { es: 'Bloques', en: 'Blocks' }, render: (e, onUi) => <BlocksPanel editor={e} onUi={onUi} /> },

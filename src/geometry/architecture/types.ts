@@ -9,5 +9,5 @@ export type ComponentPrimitive = { key: string } & (
   | { type: 'text'; position: Vec2; text: string; height: number; rotation: number }
 );
 export type ComponentLabel = { es: string; en: string };
-export interface ComponentField { key: string; label: ComponentLabel; type: 'number' | 'integer' | 'enum' | 'boolean'; min?: number; max?: number; choices?: { value: string; label: ComponentLabel }[]; unit: 'length' | 'angle' | 'count' | 'none' }
+export interface ComponentField { key: string; label: ComponentLabel; type: 'number' | 'integer' | 'enum' | 'boolean'; min?: number; max?: number; choices?: { value: string; label: ComponentLabel }[]; unit: 'length' | 'angle' | 'count' | 'none'; visibleWhen?: { key: string; values: readonly string[] } }
 export interface ComponentDefinition { kind: ComponentKind; command: string; label: ComponentLabel; category: ComponentLabel; fields: ComponentField[]; physicalDefaults: ComponentParameters }
