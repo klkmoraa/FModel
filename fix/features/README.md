@@ -63,6 +63,9 @@
 | 37 | UI-006 | P2 | Unificar la mesa en teléfono y tableta con la de escritorio | Cerrada | UI-004, UI-005 | [Interfaz](./04-interfaz-accesibilidad.md#ui-006--unificar-la-mesa-en-teléfono-y-tableta-con-la-de-escritorio) |
 | 38 | UI-007 | P2 | Priorizar el uso vertical del teléfono | Cerrada | UI-006 | [Interfaz](./04-interfaz-accesibilidad.md#ui-007--priorizar-el-uso-vertical-del-teléfono) |
 | 39 | UI-008 | P3 | Retirar la tarjeta «Lienzo vacío» de la mesa | Cerrada | UI-005 | [Interfaz](./04-interfaz-accesibilidad.md#ui-008--retirar-la-tarjeta-lienzo-vacío-de-la-mesa) |
+| 40 | ARC-002 | P2 | Muros y huecos arquitectónicos 2D | Cerrado (núcleo 2D) | — | [Geometría](./02-geometria-comandos.md#arc-002--muros-y-huecos-arquitectónicos-2d) |
+| 41 | ARC-003 | P2 | Componentes de construcción 2D y edición paramétrica | Cerrado (14 familias 2D) | — | [Geometría](./02-geometria-comandos.md#arc-003--componentes-de-construcción-2d-y-edición-paramétrica) |
+| 42 | ARC-004 | P2 | Ciclo de huecos asociados y espesor de muro | Cerrado (muros rectos compatibles) | ARC-002 | [Geometría](./02-geometria-comandos.md#arc-004--ciclo-de-huecos-asociados-y-espesor-de-muro) |
 
 ## Mapa de dependencias
 

@@ -29,6 +29,7 @@ function envFor(editor: Editor, theme: RenderTheme, extra: Partial<TraverseEnv> 
     plotting: false,
     plotStyle: 'color',
     hidden: editor.hidden,
+    previewExcluded: editor.previewExcluded,
     isolated: editor.isolated,
     viewport: null,
     dashScale: 1,
@@ -236,7 +237,7 @@ export function renderHighlight(g: CanvasRenderingContext2D, editor: Editor, ids
   const env: TraverseEnv = { ...envFor(editor, opts.theme), forceColor: color, viewport: editor.activeViewport };
   for (const id of ids) {
     const e = editor.doc.entity(id);
-    if (!e || !entityVisible(editor.doc, e, editor.visibility())) continue;
+    if (!e || editor.previewExcluded.has(id) || !entityVisible(editor.doc, e, editor.visibility())) continue;
     drawEntity(sink, env, e, null);
   }
   sink.end();
@@ -252,7 +253,7 @@ export function renderPreviewEntities(g: CanvasRenderingContext2D, editor: Edito
   const own = editor.ownerToSpace;
   if (own) base = multiply(base, own);
   const sink = new CanvasSink(g, { base, dpr, lineweightDisplay: false, lwPxPerHundredth: 0, background: opts.theme.background, images: opts.images, deviceWidth: view.width * dpr, deviceHeight: view.height * dpr, minWidthPx: 1 });
-  const env: TraverseEnv = { ...envFor(editor, opts.theme), forceColor: color };
+  const env: TraverseEnv = { ...envFor(editor, opts.theme), previewExcluded: undefined, forceColor: color };
   for (const e of entities) drawEntity(sink, env, e, null);
   sink.end();
 }

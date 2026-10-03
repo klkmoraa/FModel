@@ -89,7 +89,7 @@ export function CanvasView({ editor, theme, onContextMenu }: Props) {
       dirty.current.overlay = true;
       schedule();
     };
-    const offs = [editor.on('doc', markScene), editor.on('view', markScene), editor.on('prefs', markScene), editor.on('space', markScene), editor.on('overlay', markOverlay), editor.on('selection', markOverlay), editor.on('command', markOverlay)];
+    const offs = [editor.on('doc', markScene), editor.on('view', markScene), editor.on('prefs', markScene), editor.on('space', markScene), editor.on('scene', markScene), editor.on('overlay', markOverlay), editor.on('selection', markOverlay), editor.on('command', markOverlay)];
     return () => offs.forEach((o) => o());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editor]);

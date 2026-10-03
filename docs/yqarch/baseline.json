@@ -1,0 +1,75 @@
+{
+  "baseline_commit": "ef7e1ac05cda1778abfa7a9208b736d26ced0111",
+  "source_version": "6.7.4c",
+  "source_release_date": "2023-07-24",
+  "archive_url": "http://www.yqarch.cn/mydown/yqarch.rar",
+  "archive_sha256": "d9957950a36eedcf141ab6a675fa6b8c78038d74af60ab32b6108d26d0f90162",
+  "scope": "All 499 main dispatch entries plus named supplementary declarations and all unique action expressions/commands in shipped system and four user panel configurations. Configurations only; no compiled plugin executed or decompiled.",
+  "mapping_limit": "Static audit only. Native-core means documented core outcome exists with cited reachable code; partial means explicit automation/options missing. In-progress construction commands excluded.",
+  "sources": [
+    {
+      "url": "http://www.yqarch.cn/mydown/yqarch.rar",
+      "files": [
+        "sys/yqshortcut.txt",
+        "sys/shortcut_6.7.4c.yqs",
+        "sys/yqpanel.txt",
+        "sys/user1/userpanel.txt",
+        "sys/user2/userpanel.txt",
+        "sys/userCCD/userpanel.txt",
+        "sys/userHBA/userpanel.txt",
+        "sys/yqarch.mnu",
+        "sys/源泉设计说明及更新.txt"
+      ]
+    },
+    {
+      "url": "http://www.yqarch.cn/yqarch.asp",
+      "role": "Author landing page / base 6.7.4 changelog"
+    },
+    {
+      "url": "https://code.buxiantang.top/file/yqhelp.pdf",
+      "version": "6.6.7 / 2018-12-14",
+      "role": "Author-written older manual on third-party mirror; explanatory cross-check only"
+    }
+  ],
+  "counts": {
+    "main": 499,
+    "supplementary": 144,
+    "panel_action": 95
+  },
+  "mapping_status_counts": {
+    "navigation": 22,
+    "native_core": 114,
+    "partial": 162,
+    "host_integration": 62,
+    "missing_specialized": 355,
+    "portable_2d_gap_host_binding": 13,
+    "out_of_scope_3d": 7,
+    "policy_exception": 3
+  },
+  "module_counts_main": {
+    "system_workflow": 25,
+    "walls_openings": 44,
+    "construction_components": 53,
+    "architectural_annotations": 45,
+    "statistics_data": 27,
+    "text_productivity": 32,
+    "dimensions": 48,
+    "curve_processing": 22,
+    "geometry_productivity": 42,
+    "drawing_quality": 18,
+    "blocks_attributes": 36,
+    "hatch_linetype": 22,
+    "layers_standards": 30,
+    "viewports_sheets": 38,
+    "property_matching": 17
+  },
+  "audit_resolution": {
+    "baseline_commit": "ef7e1ac05cda1778abfa7a9208b736d26ced0111",
+    "pending_before": 126,
+    "resolved": 126,
+    "remaining_needs_flow_review": 0,
+    "method": "Read-only static tracing of command prompts, selection, mutations, model and reachable property panels; no YQArch execution and no new browser/runtime parity test.",
+    "construction_in_progress_counted": false,
+    "boundary": "Resolved is an evidence-based classification, not proof of complete equivalence. Partial entries retain explicit gaps. Shallow official labels retain scope cautions."
+  }
+}

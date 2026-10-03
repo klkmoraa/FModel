@@ -12,6 +12,63 @@ export interface EvidenceRecord {
 }
 
 export const EVIDENCE_CATALOG: Record<string, EvidenceRecord> = {
+  'BEH-OPENINGS': {
+    kind: 'unit', testFile: 'src/commands/behavior/openingLifecycle.test.ts', testName: 'two doors, move repairs old gap',
+    testCommand: 'pnpm vitest run src/commands/behavior/openingLifecycle.test.ts',
+    commands: ['OPENINGMOVE', 'OPENINGCOPY', 'OPENINGEDIT', 'OPENINGMIRROR', 'OPENINGDELETE', 'WALLTHICKNESS'],
+  },
+  'GEO-OPENINGS': {
+    kind: 'unit', testFile: 'src/geometry/wallOpenings.test.ts', testName: 'wall opening geometry',
+    testCommand: 'pnpm vitest run src/geometry/wallOpenings.test.ts',
+  },
+  'IO-OPENINGS': {
+    kind: 'integration', testFile: 'src/io/wallAssembly.test.ts', testName: 'wall assembly interchange',
+    testCommand: 'pnpm vitest run src/io/wallAssembly.test.ts',
+  },
+  'UI-OPENINGS': {
+    kind: 'integration', testFile: 'src/ui/panels/architecturePanel.test.ts', testName: 'opening lifecycle actions start native commands',
+    testCommand: 'pnpm vitest run src/ui/panels/architecturePanel.test.ts src/render/openingPreview.test.ts',
+  },
+  'E2E-OPENINGS': {
+    kind: 'e2e', testFile: 'e2e/openingLifecycle.spec.ts', testName: 'Associated opening lifecycle: room geometry and controls',
+    testCommand: 'pnpm test:e2e -- e2e/openingLifecycle.spec.ts',
+  },
+  'UI-COMPONENTS': {
+    kind: 'integration', testFile: 'src/ui/panels/architecturePanel.test.ts', testName: 'invalid Place/Edit retains fields and errors without starting the real runner',
+    testCommand: 'pnpm vitest run src/ui/panels/architecturePanel.test.ts src/ui/panels/architectureForm.test.ts src/editor/workspaceChrome.test.ts src/commands/architecturePanel.test.ts',
+    commands: ['ARCHITECTURE'],
+  },
+  'E2E-COMPONENTS': {
+    kind: 'e2e', testFile: 'e2e/componentsJourneys.spec.ts', testName: 'Construction components: native panel journeys',
+    testCommand: 'pnpm test:e2e -- e2e/componentsJourneys.spec.ts',
+  },
+  'BEH-COMPONENTS': {
+    kind: 'unit', testFile: 'src/commands/behavior/components.test.ts', testName: 'construction command behavior',
+    testCommand: 'pnpm vitest run src/commands/behavior/components.test.ts',
+    commands: ['COLUMN', 'AXISGRID', 'STAIRPLAN', 'STAIRSECTION', 'ESCALATOR', 'LIFTPLAN', 'DOORELEVATION', 'DOORSECTION', 'WINDOWELEVATION', 'WINDOWSECTION', 'BAYWINDOWSECTION', 'CURTAINWALL', 'GLASSPARTITION', 'BANISTER', 'COMPONENTEDIT'],
+  },
+  'GEO-COMPONENTS': {
+    kind: 'unit', testFile: 'src/geometry/architecture/components.test.ts', testName: 'construction geometry',
+    testCommand: 'pnpm vitest run src/geometry/architecture/components.test.ts',
+  },
+  'IO-COMPONENTS': {
+    kind: 'integration', testFile: 'src/io/components.test.ts', testName: 'component native and DXF round trip',
+    testCommand: 'pnpm vitest run src/io/components.test.ts',
+  },
+  'BEH-ARCHITECTURE': {
+    kind: 'unit', testFile: 'src/commands/behavior/architecture.test.ts',
+    testName: 'Comportamiento de Comandos — Arquitectura (ARC-002)',
+    testCommand: 'pnpm vitest run src/commands/behavior/architecture.test.ts',
+    commands: ['WALL', 'WALLRECT', 'WALLCONVERT', 'WALLDOOR', 'WALLWINDOW'],
+  },
+  'GEO-WALLS': {
+    kind: 'unit', testFile: 'src/geometry/walls.test.ts', testName: 'wall geometry',
+    testCommand: 'pnpm vitest run src/geometry/walls.test.ts',
+  },
+  'IO-ARCHITECTURE': {
+    kind: 'integration', testFile: 'src/io/architecture.test.ts', testName: 'architecture native and DXF round trip',
+    testCommand: 'pnpm vitest run src/io/architecture.test.ts',
+  },
   'E2E-CRITICAL-JOURNEYS': {
     kind: 'e2e',
     testFile: 'e2e/criticalJourneys.spec.ts',

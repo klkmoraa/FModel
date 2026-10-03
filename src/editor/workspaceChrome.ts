@@ -1,4 +1,4 @@
-export const WORKSPACE_PANEL_IDS = ['properties', 'layers', 'blocks', 'palettes', 'authoring', 'parameters'] as const;
+export const WORKSPACE_PANEL_IDS = ['properties', 'layers', 'blocks', 'palettes', 'authoring', 'parameters', 'architecture'] as const;
 
 export type WorkspacePanelId = (typeof WORKSPACE_PANEL_IDS)[number];
 
@@ -13,13 +13,13 @@ export interface WorkspacePanelPreferences {
 export const DEFAULT_WORKSPACE_PANELS: WorkspacePanelPreferences = {
   version: 4,
   left: ['palettes'],
-  right: ['properties', 'layers', 'blocks', 'parameters'],
+  right: ['properties', 'layers', 'blocks', 'parameters', 'architecture'],
   collapsed: [],
-  floating: ['palettes', 'properties', 'layers', 'blocks', 'parameters'],
+  floating: ['palettes', 'properties', 'layers', 'blocks', 'parameters', 'architecture'],
 };
 
 /** Paneles incorporados después de la versión 4 de las preferencias. */
-const PANELS_ADDED_LATER: readonly WorkspacePanelId[] = ['parameters'];
+const PANELS_ADDED_LATER: readonly WorkspacePanelId[] = ['parameters', 'architecture'];
 
 function uniqueAllowed<T extends string>(value: unknown, allowed: readonly T[]): T[] {
   if (!Array.isArray(value)) return [];

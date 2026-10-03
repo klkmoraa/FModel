@@ -56,7 +56,7 @@ Limitaciones: versiones anteriores a R13 o muy recientes pueden fallar; los par�
 |---|---|---|
 | Bloque dinámico (cada estado usado) | bloque estático `Nombre_Vn` para otros programas, más datos propios FModel (XRECORD en `FMODEL_DYNAMIC_BLOCKS` y XDATA `FMODEL` en cada `INSERT`) | DXF no tiene parámetros ni acciones; al reimportar en FModel vuelven parámetros, acciones, restricciones y estados |
 | Matriz asociativa | objetos individuales | sin equivalente asociativo portable |
-| Multilínea | líneas y arcos | los estilos `MLINE` no se conservan |
+| Multilínea | líneas y arcos; tapas rectas incluidas | los estilos `MLINE` no se conservan; muros de arquitectura se descomponen en sus caras y tapas. Hoja, jambas y marcos son `LINE`; arco de puerta es `ARC` de 90° / Architecture walls decompose to faces and straight caps; door leaves, jambs and frames are `LINE`, door swings are 90° `ARC`. Native wall/opening association and editable parameters are lost (`FMODELWALLASSEMBLY` transformation and bilingual warning); geometría de huecos asociados exportada como fragmentos y símbolos, sin edición asociada al reimportar / associated opening geometry exports as fragments and symbols, without editable association on reimport |
 | Tabla | líneas y textos | `ACAD_TABLE` no se genera |
 | Directriz múltiple | líneas, rellenos y textos | `MULTILEADER` requiere datos de contexto propietarios |
 | Región | `LWPOLYLINE` cerradas | `REGION` requiere datos ACIS |

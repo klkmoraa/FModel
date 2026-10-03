@@ -13,9 +13,9 @@ describe('workspace chrome preferences', () => {
     ).toEqual({
       version: 4,
       left: ['palettes'],
-      right: ['properties', 'layers', 'blocks', 'parameters'],
+      right: ['properties', 'layers', 'blocks', 'parameters', 'architecture'],
       collapsed: [],
-      floating: ['palettes', 'properties', 'layers', 'blocks', 'parameters'],
+      floating: ['palettes', 'properties', 'layers', 'blocks', 'parameters', 'architecture'],
     });
   });
 
@@ -31,9 +31,9 @@ describe('workspace chrome preferences', () => {
     ).toEqual({
       version: 4,
       left: ['palettes'],
-      right: ['properties', 'authoring', 'layers', 'blocks', 'parameters'],
+      right: ['properties', 'authoring', 'layers', 'blocks', 'parameters', 'architecture'],
       collapsed: ['left'],
-      floating: ['layers', 'parameters'],
+      floating: ['layers', 'parameters', 'architecture'],
     });
   });
 
@@ -41,9 +41,9 @@ describe('workspace chrome preferences', () => {
     expect(normalizeWorkspacePanels({ version: 4, left: [], right: [], floating: [] })).toEqual({
       version: 4,
       left: ['palettes'],
-      right: ['properties', 'layers', 'blocks', 'parameters'],
+      right: ['properties', 'layers', 'blocks', 'parameters', 'architecture'],
       collapsed: [],
-      floating: ['parameters'],
+      floating: ['parameters', 'architecture'],
     });
   });
 

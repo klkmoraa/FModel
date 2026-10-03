@@ -108,6 +108,10 @@ const paths: Record<string, JSX.Element> = {
       <path d="M3.5 9.5h17M3.5 14h17M9.5 9.5V19M15 9.5V19" />
     </>
   ),
+  wall: <path d="M3 18V5h17v4H7v9z" />,
+  room: <path d="M3 3h18v18H3zM7 7h10v10H7z" />,
+  door: <path d="M3 20h4V4m0 0a16 16 0 0 1 16 16H7M3 16h4" />,
+  window: <path d="M3 7h18M3 17h18M6 7v10m12-10v10M6 10h12M6 14h12" />,
   mline: <path d="M3 9h12l4 4M3 14h10l4 4" />,
   wipeout: <path d="M5 5h14v14H5z" fill="var(--paper)" strokeDasharray="2 2" />,
   divide: (

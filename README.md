@@ -54,9 +54,12 @@ Auditoría opcional de la salida DXF con [ezdxf](https://ezdxf.mozman.at/):
 FMODEL_DXF_OUT=/tmp/fmodel.dxf pnpm vitest run src/io/dxf && python scripts/audit-dxf.py /tmp/fmodel.dxf
 ```
 
+**Muros 2D / 2D walls.** Arquitectura ofrece `WALL`/`MURO`, `WALLRECT`/`HABITACION`, conversión de líneas y huecos reales con puerta o ventana. Espesor inicial 150 mm; presets físicos 100/150/200 mm. Usa multilíneas nativas; los huecos y símbolos no son asociativos. / Architecture offers continuous walls, rooms, straight-line conversion and real openings with door/window symbols. Initial thickness 150 mm; physical 100/150/200 mm presets. Uses native multilines; openings and symbols are not associative. [Guía / Guide](docs/arquitectura-muros.md).
+
 ## Documentación
 
 - [Arquitectura](docs/arquitectura.md)
+- [Muros y huecos / Walls and openings](docs/arquitectura-muros.md)
 - [Tolerancias geométricas](docs/tolerancias.md)
 - [Compatibilidad DXF](docs/dxf-compatibilidad.md)
 - [Estado de funciones](docs/FEATURES.md)

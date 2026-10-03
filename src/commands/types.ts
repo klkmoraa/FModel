@@ -30,6 +30,8 @@ export interface Keyword {
 }
 
 export interface PreviewSpec {
+  /** Render-only replacement: omit these current IDs from the scene, never from the document. */
+  hideIds?: Id[];
   entities?: Entity[];
   items?: DisplayItem[];
   /** texto a mostrar junto al cursor */

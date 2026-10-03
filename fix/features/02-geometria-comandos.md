@@ -127,3 +127,31 @@
 - [x] Los comandos interactivos prueban Esc/cancelación sin cambios residuales.
 
 **Verificación:** `pnpm vitest run src/commands src/app/features.test.ts`, `pnpm check:features` y la suite completa (63 archivos/582 pruebas) pasan.
+
+
+## ARC-002 — Muros y huecos arquitectónicos 2D
+
+- [x] **Estado: Cerrado (núcleo 2D)** — 2026-10-03; responsable: Codex. CI real y capturas revisadas por el controlador: [ejecución 37022156512](https://github.com/klkmoraa/FModel/actions/runs/37022156512), 50/50 Chromium E2E y 966 pruebas; escritorio Día/Noche 1280×720 y teléfono 390×844 con preset/cancelación sin desbordamiento. Evidencia conservada en `walls-qa.md`; no supone paridad amplia con YQARCH.
+- **Prioridad:** P2. ID ARC-002 para conservar ARC-001 histórico (división de módulos, categoría calidad).
+- **Alcance:** WALL/MURO, WALLRECT/HABITACION, WALLCONVERT/CONVERTIRMURO, WALLDOOR/PUERTA y WALLWINDOW/VENTANA; pestaña y paleta Arquitectura, presets físicos y ayuda bilingüe.
+- **Contrato:** entidades MLINE nativas de dos caras y tapas rectas; hueco geométrico con símbolos estándar; CommandApi y undo/redo atómico; sin nueva versión de archivo ni red.
+- **Evidencia automática:** `src/geometry/walls.test.ts`, `src/commands/behavior/architecture.test.ts`, `src/io/architecture.test.ts`, catálogo BEH-ARCHITECTURE/GEO-WALLS/IO-ARCHITECTURE.
+- **Guía:** [Muros y huecos](../../docs/arquitectura-muros.md). [Plan](../../docs/plans/2026-10-02-architecture-tools.md).
+- **Cierre:** tipos/lint/capas/catálogo/pruebas/cobertura/build y navegador de esa CI aprobados; capturas reales de muros y ficha de marca actualizadas. Huecos no asociativos y demás límites documentados permanecen explícitos.
+
+## ARC-003 — Componentes de construcción 2D y edición paramétrica
+
+- [x] **Estado: Cerrado (14 familias 2D)** — inicio 2026-10-02; cierre 2026-10-03; responsable: Codex. Núcleo nativo y panel Arquitectura verificados; [CI 37097760918](https://github.com/klkmoraa/FModel/actions/runs/37097760918), 1100/1100 pruebas y 56/56 recorridos Chromium, incluidas seis rutas de componentes y 14 capturas Día/Noche/escritorio/teléfono revisadas por el controlador. [Ficha QA](../../docs/brandbook/components-qa.md). No implica paridad general con YQARCH ni el ciclo de vida de huecos asociados.
+- **Prioridad:** P2. Alcance: las 14 familias de la especificación de construcción, comandos canónicos y `COMPONENTEDIT`; sin cambiar el formato nativo ni ampliar DWG.
+- **Contrato:** constructores puros con curvas nativas, roles estables y máximo 2000 primitivas; argumentos dimensionales nativos/físicos, radianes internos y grados en comandos; grupos seleccionables y validación de pertenencia/metadatos antes de editar. Una confirmación corresponde a un paso de undo/redo.
+- **Evidencia:** BEH-COMPONENTS, GEO-COMPONENTS, IO-COMPONENTS, UI-COMPONENTS y E2E-COMPONENTS; suites de catálogo/modelo adicionales. Seis recorridos reales (mm/m × Día/Noche; teléfono × Día/Noche) y 14 capturas originales aprobadas. Retícula, escalera curva y ventana editada sobreviven a formato nativo/DXF; DXF pierde parámetros y lo indica en el informe.
+- **Guía:** [Componentes](../../docs/arquitectura-componentes.md). [Especificación](../../docs/superpowers/specs/2026-10-02-construction-components-design.md).
+- **Cierre:** completado para las catorce familias 2D y su edición/panel nativos; no se amplía DWG ni se afirma paridad de otros módulos.
+
+## ARC-004 — Ciclo de huecos asociados y espesor de muro
+
+- [x] **Estado: Cerrado (muros rectos compatibles)** — 2026-10-03; [CI 37131723475](https://github.com/klkmoraa/FModel/actions/runs/37131723475): 1169/1169 pruebas y 60/60 recorridos Chromium, incluidos cuatro nuevos con píxeles de escena/overlay, y [seis capturas originales aprobadas](../../docs/brandbook/openings-qa.md).
+- **Prioridad:** P2; dependencia ARC-002. `WALLDOOR`/`WALLWINDOW` generan grupos nativos asociados; `OPENINGMOVE`, `OPENINGCOPY`, `OPENINGEDIT`, `OPENINGMIRROR`, `OPENINGDELETE`, `WALLTHICKNESS` y alias españoles son comandos atómicos con vista previa de sustitución.
+- **Límites:** sólo muros compatibles de dos caras ±0.5 y segmentos rectos. No redes T/X, recorte de columnas, curvas o huecos en esquinas; máximos de 500 vértices, 200 huecos y 2000 primitivas. El DXF pierde la asociación editable; no se infieren grupos legados incompletos.
+- **Evidencia:** `src/geometry/wallOpenings.test.ts`, `src/model/wallAssembly.test.ts`, `src/commands/behavior/openingLifecycle.test.ts`, `src/render/openingPreview.test.ts`, `src/io/wallAssembly.test.ts`, `src/ui/panels/architecturePanel.test.ts`; recorrido `e2e/openingLifecycle.spec.ts` aprobado en CI real Día/Noche/escritorio/teléfono y seis capturas revisadas. Catálogo BEH/GEO/IO/UI/E2E-OPENINGS.
+- **Guía:** [Muros y huecos](../../docs/arquitectura-muros.md), [diseño](../../docs/superpowers/specs/2026-10-02-opening-lifecycle-design.md).

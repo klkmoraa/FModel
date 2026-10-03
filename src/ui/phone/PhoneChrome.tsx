@@ -192,7 +192,7 @@ export function PrecisionSheet({ editor, onClose, onUi }: { editor: Editor; onCl
 export function PanelSheet({ editor, panel, onPanel, onClose, onUi }: { editor: Editor; panel: WorkspacePanelId; onPanel: (id: WorkspacePanelId) => void; onClose: () => void; onUi: (ui: string, cmd?: string) => void }) {
   useEditorEvents(editor, ['prefs', 'space']);
   const lang = editor.lang;
-  const ids: WorkspacePanelId[] = ['properties', 'layers', 'blocks', 'palettes', 'parameters'];
+  const ids: WorkspacePanelId[] = ['properties', 'layers', 'blocks', 'palettes', 'parameters', 'architecture'];
   if (editor.blockEdit) ids.unshift('authoring');
   const shown = ids.includes(panel) ? panel : 'properties';
   const meta = PANELS[shown];
@@ -202,7 +202,7 @@ export function PanelSheet({ editor, panel, onPanel, onClose, onUi }: { editor: 
         <Segmented size="sm" label={tr(lang, 'Paneles', 'Panels')} value={shown} onChange={(id) => isWorkspacePanelId(id) && onPanel(id)} options={ids.map((id) => ({ id, label: PANELS[id].label[lang] }))} controls="phone-panel-body" />
       </div>
       <div id="phone-panel-body" ref={fieldLabelsRef} className="sheet__panel" role="tabpanel">
-        {meta.render(editor, onUi)}
+        {meta.render(editor, onUi, onClose)}
       </div>
     </BottomSheet>
   );

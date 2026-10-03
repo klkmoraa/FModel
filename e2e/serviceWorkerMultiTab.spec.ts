@@ -29,7 +29,7 @@ test('las pestañas conservan la versión de su chunk y recogen caché antigua a
     }
 
     const upstream = httpRequest({
-      hostname: '127.0.0.1',
+      hostname: 'localhost',
       port: 4173,
       method: incoming.method,
       path: incoming.url,
@@ -49,7 +49,8 @@ test('las pestañas conservan la versión de su chunk y recogen caché antigua a
 
   try {
     const oldPage = await context.newPage();
-    await oldPage.goto(`${base}/?surface=workspace`);
+    const initialResponse = await oldPage.goto(`${base}/?surface=workspace`);
+    expect(initialResponse?.ok(), 'The proxy must load the preview before waiting for service-worker registration.').toBe(true);
     await oldPage.evaluate(async () => navigator.serviceWorker.ready);
     await oldPage.reload();
     await oldPage.waitForFunction(() => !!navigator.serviceWorker.controller);
