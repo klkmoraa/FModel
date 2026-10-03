@@ -12,6 +12,27 @@ export interface EvidenceRecord {
 }
 
 export const EVIDENCE_CATALOG: Record<string, EvidenceRecord> = {
+  'BEH-OPENINGS': {
+    kind: 'unit', testFile: 'src/commands/behavior/openingLifecycle.test.ts', testName: 'two doors, move repairs old gap',
+    testCommand: 'pnpm vitest run src/commands/behavior/openingLifecycle.test.ts',
+    commands: ['OPENINGMOVE', 'OPENINGCOPY', 'OPENINGEDIT', 'OPENINGMIRROR', 'OPENINGDELETE', 'WALLTHICKNESS'],
+  },
+  'GEO-OPENINGS': {
+    kind: 'unit', testFile: 'src/geometry/wallOpenings.test.ts', testName: 'wall opening geometry',
+    testCommand: 'pnpm vitest run src/geometry/wallOpenings.test.ts',
+  },
+  'IO-OPENINGS': {
+    kind: 'integration', testFile: 'src/io/wallAssembly.test.ts', testName: 'wall assembly interchange',
+    testCommand: 'pnpm vitest run src/io/wallAssembly.test.ts',
+  },
+  'UI-OPENINGS': {
+    kind: 'integration', testFile: 'src/ui/panels/architecturePanel.test.ts', testName: 'opening lifecycle actions start native commands',
+    testCommand: 'pnpm vitest run src/ui/panels/architecturePanel.test.ts src/render/openingPreview.test.ts',
+  },
+  'E2E-OPENINGS': {
+    kind: 'e2e', testFile: 'e2e/openingLifecycle.spec.ts', testName: 'Associated opening lifecycle: room geometry and controls',
+    testCommand: 'pnpm test:e2e -- e2e/openingLifecycle.spec.ts',
+  },
   'UI-COMPONENTS': {
     kind: 'integration', testFile: 'src/ui/panels/architecturePanel.test.ts', testName: 'invalid Place/Edit retains fields and errors without starting the real runner',
     testCommand: 'pnpm vitest run src/ui/panels/architecturePanel.test.ts src/ui/panels/architectureForm.test.ts src/editor/workspaceChrome.test.ts src/commands/architecturePanel.test.ts',

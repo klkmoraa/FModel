@@ -147,3 +147,11 @@
 - **Evidencia:** BEH-COMPONENTS, GEO-COMPONENTS, IO-COMPONENTS, UI-COMPONENTS y E2E-COMPONENTS; suites de catálogo/modelo adicionales. Seis recorridos reales (mm/m × Día/Noche; teléfono × Día/Noche) y 14 capturas originales aprobadas. Retícula, escalera curva y ventana editada sobreviven a formato nativo/DXF; DXF pierde parámetros y lo indica en el informe.
 - **Guía:** [Componentes](../../docs/arquitectura-componentes.md). [Especificación](../../docs/superpowers/specs/2026-10-02-construction-components-design.md).
 - **Cierre:** completado para las catorce familias 2D y su edición/panel nativos; no se amplía DWG ni se afirma paridad de otros módulos.
+
+## ARC-004 — Ciclo de huecos asociados y espesor de muro
+
+- [>] **Estado: En curso** — 2026-10-03; núcleo de comandos/UI y evidencia local implementados. El controlador debe ejecutar y revisar CI Chromium y capturas Día/Noche/teléfono antes de cerrar.
+- **Prioridad:** P2; dependencia ARC-002. `WALLDOOR`/`WALLWINDOW` generan grupos nativos asociados; `OPENINGMOVE`, `OPENINGCOPY`, `OPENINGEDIT`, `OPENINGMIRROR`, `OPENINGDELETE`, `WALLTHICKNESS` y alias españoles son comandos atómicos con vista previa de sustitución.
+- **Límites:** sólo muros compatibles de dos caras ±0.5 y segmentos rectos. No redes T/X, curvas o huecos en esquinas; máximos de 500 vértices, 200 huecos y 2000 primitivas. El DXF pierde la asociación editable; no se infieren grupos legados incompletos.
+- **Evidencia:** `src/geometry/wallOpenings.test.ts`, `src/model/wallAssembly.test.ts`, `src/commands/behavior/openingLifecycle.test.ts`, `src/render/openingPreview.test.ts`, `src/io/wallAssembly.test.ts`, `src/ui/panels/architecturePanel.test.ts`; recorrido `e2e/openingLifecycle.spec.ts` pendiente de CI real y capturas revisadas. Catálogo BEH/GEO/IO/UI/E2E-OPENINGS.
+- **Guía:** [Muros y huecos](../../docs/arquitectura-muros.md), [diseño](../../docs/superpowers/specs/2026-10-02-opening-lifecycle-design.md).

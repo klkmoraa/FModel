@@ -46,7 +46,7 @@ export function ArchitecturePanel({ editor, onStart }: { editor: Editor; onStart
     } catch (failure) { setError(failure instanceof ComponentError ? failure : new ComponentError({ es: 'Revisa los valores de la pieza.', en: 'Review the component values.' })); }
   };
   const message = error?.l10n[lang];
-  return <div ref={ref} className="panel panel--architecture" onKeyDown={event => { if ((event.target as HTMLElement).matches('input,select')) event.stopPropagation(); }}>
+  return <div ref={ref} className="panel panel--architecture" onKeyDown={event => { if (event.key !== 'Escape' && (event.target as HTMLElement).matches('input,select')) event.stopPropagation(); }}>
     <label className="architecture-field"><span>{tr(lang, 'Buscar piezas', 'Search components')}</span><input className="input" aria-label={tr(lang, 'Buscar piezas', 'Search components')} value={query} onChange={e => setQuery(e.target.value)} /></label>
     <label className="architecture-field"><span>{tr(lang, 'Categoría', 'Category')}</span><select className="input" aria-label={tr(lang, 'Categoría', 'Category')} value={category} onChange={e => setCategory(e.target.value)}><option value="">{tr(lang, 'Todas', 'All')}</option>{categories.map(c => <option key={c.en} value={c.en}>{c[lang]}</option>)}</select></label>
     <label className="architecture-field"><span>{tr(lang, 'Pieza', 'Component')}</span><select className="input" aria-label={tr(lang, 'Pieza', 'Component')} value={available ? state.kind : ''} onChange={e => { setError(null); update(newComponentForm(e.target.value as ComponentKind, units, editor.doc.id)); }}>
@@ -66,6 +66,18 @@ export function ArchitecturePanel({ editor, onStart }: { editor: Editor; onStart
     {message && <p className="architecture-error" id={`${id}-error`} role="alert">{message}</p>}
     {summary && <p className="panel__hint" role="status">{tr(lang, 'Pieza seleccionada', 'Selected component')}: {summary}</p>}
     <div className="panel-actions"><button type="button" className="btn btn--primary" disabled={!available} onClick={() => start(false)}>{tr(lang, 'Colocar', 'Place')}</button><button type="button" className="btn" onClick={() => start(true)}>{tr(lang, 'Editar pieza', 'Edit component')}</button></div>
+    <div className="architecture-opening-actions" role="group" aria-label={tr(lang, 'Huecos asociados', 'Associated openings')}>
+      <p className="panel__hint">{tr(lang, 'Selecciona una jamba o símbolo para editar el hueco; un fragmento de muro sólo permite crear huecos o cambiar espesor. Intro confirma y Esc descarta.', 'Select a jamb or symbol to edit its opening; a wall fragment only supports creation or thickness. Enter confirms and Esc discards.')}</p>
+      <div className="panel-actions">{([
+        ['WALLDOOR', 'Puerta', 'Door'], ['WALLWINDOW', 'Ventana', 'Window'],
+        ['OPENINGMOVE', 'Mover hueco', 'Move opening'], ['OPENINGCOPY', 'Copiar hueco', 'Copy opening'],
+        ['OPENINGEDIT', 'Editar hueco', 'Edit opening'], ['OPENINGMIRROR', 'Reflejar hueco', 'Mirror opening'],
+        ['OPENINGDELETE', 'Borrar hueco', 'Delete opening'], ['WALLTHICKNESS', 'Espesor de muro', 'Wall thickness'],
+      ] as const).map(([command, es, en]) => <button key={command} type="button" className="btn" onClick={() => {
+        void editor.command(command); const canvas = ref.current?.ownerDocument.querySelector<HTMLElement>('.canvas-host');
+        onStart?.(); requestAnimationFrame(() => canvas?.focus());
+      }}>{tr(lang, es, en)}</button>)}</div>
+    </div>
     <p className="panel__hint">{tr(lang, 'Las medidas configuran la colocación. Editar pieza abre las solicitudes nativas para una pieza existente. Los campos inactivos se conservan y validan para otra variante. Longitudes: unidades del dibujo o mm/cm/m/in; giros: grados. Intro o Esc antes de colocar cancela.', 'Dimensions configure placement. Edit component opens native prompts for an existing component. Inactive fields are retained and validated for another variant. Lengths: drawing units or mm/cm/m/in; angles: degrees. Enter or Esc before placement cancels.')}</p>
   </div>;
 }

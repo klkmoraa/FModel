@@ -94,3 +94,15 @@ it('selection summary rejects altered native geometry through the assembly reade
   await act(async () => editor.doc.transact('alter geometry', tx => tx.updateEntity(member, { vertices: [{ x: 0, y: 0 }, { x: 2, y: 0 }, { x: 2, y: 1 }, { x: 0, y: 1 }] })));
   expect(host.querySelector('[role="status"]')).toBeNull();
 });
+it('opening lifecycle actions start native commands and field Escape reaches the phone sheet while dimensions persist', async () => {
+  const phone = () => createElement(PanelSheet, { editor, panel: 'architecture', onPanel: () => {}, onClose: () => root.render(null), onUi: () => {} });
+  await act(async () => root.render(phone()));
+  await change('Width · m', '0.9');
+  const input = control('Width · m'); input.focus();
+  await act(async () => input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })));
+  expect(host.querySelector('[role="dialog"]')).toBeNull();
+  await act(async () => root.render(phone())); expect(control('Width · m').value).toBe('0.9');
+  await click('Move opening');
+  expect(editor.runner.active?.def.name).toBe('OPENINGMOVE');
+  expect(host.querySelector('[role="dialog"]')).toBeNull();
+});
