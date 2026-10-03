@@ -52,7 +52,7 @@ La suma es499incluyendo22 lanzadores. Un módulo puede reunir categorías de ori
 | Resultado | Estado / evidencia |
 |---|---|
 | Muros continuos, habitación rectangular, conversión de trazos y huecos con símbolo | Implementados. CI 37022156512:966 pruebas unitarias y50 recorridos de navegador pasan; el alcance original es no asociativo. ARC-002. |
-| 14 familias de construcción, variantes y edición paramétrica | En implementación según [diseño](../superpowers/specs/2026-10-02-construction-components-design.md). ARC-003 pendiente de revisión y navegador. |
+| 14 familias de construcción, variantes y edición paramétrica | Núcleo implementado y revisado: comandos, geometría, edición, guardado nativo y advertencia DXF. [CI 37072626256](https://github.com/klkmoraa/FModel/actions/runs/37072626256): 1.078 pruebas unitarias, cobertura y 50 recorridos existentes pasan. El panel visual y sus recorridos nuevos siguen en implementación; ARC-003 permanece pendiente. [Diseño](../superpowers/specs/2026-10-02-construction-components-design.md). |
 | Huecos asociados y reparación de muro al mover/copiar/editar/reflejar/borrar | Especificado en [diseño](../superpowers/specs/2026-10-02-opening-lifecycle-design.md); aún no implementado. ARC-004. |
 | Resto de resultados 2D | Seguir [diseño general](../superpowers/specs/2026-10-02-yqarch-native-design.md), con evidencia por módulo. |
 

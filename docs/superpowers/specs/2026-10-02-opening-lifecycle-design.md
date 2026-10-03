@@ -10,7 +10,7 @@ Este subproyecto cubre muros de tramos rectos compatibles con el estilo actual d
 
 ## Geometría y validación
 
-Cada abertura tiene ID estable, segmento entero, offset (distancia positiva desde su vértice inicial), ancho, tipo, side=±1 e hingeEnd booleano. Se calcula sobre el eje original, usando los límites de caras de wallFaces para despejar esquinas. Se ordenan los intervalos por recorrido y se rechazan solapamientos o contactos dentro de linearTol. Nunca se ajusta un valor imposible silenciosamente. Hasta200 aberturas,2000 primitivas de salida y recorridos de hasta500 vértices.
+Cada abertura tiene ID estable, segmento entero, offset (distancia positiva hasta el centro desde el vértice inicial del segmento), ancho, tipo, side=±1 e hingeEnd booleano. Se calcula sobre el eje original, usando los límites de caras de wallFaces para despejar esquinas. Se ordenan los intervalos por recorrido y se rechazan solapamientos o contactos dentro de linearTol. Nunca se ajusta un valor imposible silenciosamente. Hasta 200 aberturas, 2000 primitivas de salida y recorridos de hasta 500 vértices.
 
 Un constructor puro recibe el WallPath original y todas las aberturas, devuelve los recorridos MLINE abiertos restantes y primitivas de símbolos con roles estables. Una puerta simple tiene dos jambas, hoja y arco real90°. Una doble tiene dos hojas/arcos de radio ancho/2; una corredera tiene dos hojas paralelas en el espesor con marca de dirección; ventana fija conserva dos líneas interiores y jambas; un hueco sólo jambas. Radios positivos, puntos finitos y medidas mayores que TOL.LINEAR. No se aproximan arcos con líneas.
 
@@ -20,7 +20,9 @@ En recorrido cerrado, el constructor enlaza por el camino original entre un extr
 
 Un grupo seleccionable contiene todos los fragmentos MLINE y símbolos de una misma fuente. El primer MLINE conserva el ID/orden del muro original y es el miembro principal. Sus metadatos fmodelWallAssembly versión1 guardan fuente completa (vertices/closed/scale/justification/style y owner), groupId y aberturas. Los miembros guardan fmodelWallMember con groupId, anchorId, role y openingId opcional. No hay ancla oculta ni versión nueva del formato.
 
-Los roles supervivientes conservan ID, orden y propiedades individuales. Añadir una abertura no recrea símbolos de otra. Quitar la última elimina el grupo y únicamente estos metadatos propios, conservando otros metadatos del muro. La fuente no incorpora IDs arbitrarios a eliminar.
+Los roles supervivientes conservan ID, orden y propiedades individuales. Añadir una abertura no recrea símbolos de otra. Quitar la última elimina el grupo y únicamente estos metadatos propios, conservando otros metadatos del muro. La fuente no incorpora IDs arbitrarios a eliminar. Si desaparece un rol, su ID se elimina de las pertenencias de otros grupos nativos dentro de la misma transacción: se conservan los registros de esos grupos, incluso vacíos, sus propiedades y el orden de los miembros supervivientes. Deshacer restaura las pertenencias originales; guardar y reabrir no requiere repararlas.
+
+Fuente original significa el recorrido completo sin cortes vigente, no una copia histórica inmutable: WALLTHICKNESS actualiza su escala. Borrar el último hueco conserva ese nuevo espesor y las propiedades vigentes del miembro principal.
 
 El lector valida esquema, límites, propietario, estilos, pertenencia exacta al grupo, roles únicos y geometría actual equivalente al constructor. Una copia individual fuera del grupo o una pieza modificada manualmente se rechaza antes de tocar nada; el mensaje explica que el grupo está incompleto/modificado. Nunca se reconstruye sobre geometría ajena. Los cambios de propiedades no invalidan geometría y se preservan. Todas las entidades afectadas deben ser editables (capas visibles/desbloqueadas y propietario vigente).
 

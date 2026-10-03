@@ -25,6 +25,7 @@
 - Borrar el último hueco debe recuperar muro original cerrado/abierto, mismo ID/orden/propiedades.
 - Dos huecos y edición de uno no recrean IDs ni cambian propiedades del otro.
 - Grupo importado incompleto, roles duplicados, clone o geometría manualmente alterada deben fallar antes de mutar.
+- Al desaparecer un rol, sus pertenencias en otros grupos se reconcilian en la misma transacción; grupos vacíos, propiedades y orden superviviente permanecen intactos y deshacibles.
 - Preview oculta sólo IDs declarados y los restaura incluso Esc/error; document.version/historial no cambian durante preview.
 - No solapar intervalos ni llenar un hueco de otro, incluso diferentes segmentos de una habitación cerrada.
 
@@ -49,6 +50,7 @@ Also closed6000×4000 cuts different segments, double radius450 quarter arcs, wi
 - [ ] Implement validated ordered interval cuts on full source paths, stable fragment/symbol roles, all5types. Reject impossible outputs before returning. Use wallFaces/linearTol and native arcs.
 - [ ] Write/run RED model tests: two openings then movea keeps b symbol IDs/properties; deletinglast returns originalclosed ID; corrupted group/roles/source/count/clone/manualgeometry/owner cannot mutate. Use real CadDocument transactions.
 - [ ] Implement model create/update/read with nativegroups/metadata, all editability validated by command consumer. Store complete source, boundedversion1 metadata and exactmember ownership; no hiddenanchor/no format bump. Preserve unrelatedmeta.
+- [ ] Cover removed-role membership in additional native groups, including mixed and empty groups: filter only deleted IDs, retain group properties and surviving order, undo/redo exact membership, and native reopening without broken-group repairs. Reuse the established component-assembly reconciliation pattern instead of introducing a global document reactor.
 - [ ] Native roundtrip preserves source/association/editability; DXF roundtrip physicalmeasurements/quarterarcs remain and real report warns loss. No ownership guess for legacy unassociatedsymbols. Run focused tests plus types/lint/layers/fulltests once.
 - [ ] Self-review commit taskfiles only, report actualAPIs/REDGREEN/checks/concerns to own taskreport. No push/merge/subagents.
 
