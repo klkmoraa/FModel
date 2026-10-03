@@ -85,8 +85,9 @@ async function catalogue(page: Page) {
 }
 
 test.describe('Associated opening lifecycle: room geometry and controls', () => {
-  for (const theme of ['dia', 'noche'] as const) for (const phone of [false, true]) {
-    test(`${phone ? 'phone' : 'desktop'} ${theme}: two openings, repaired move, undo/redo, delete/undo`, async ({ page }, testInfo) => {
+  for (const phone of [false, true]) test.describe(phone ? 'phone' : 'desktop', () => {
+    if (phone) test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+    for (const theme of ['dia', 'noche'] as const) test(`${phone ? 'phone' : 'desktop'} ${theme}: two openings, repaired move, undo/redo, delete/undo`, async ({ page }, testInfo) => {
       await workspace(page, theme, phone);
       await command(page, 'WALLRECT'); await command(page, '#0,0'); await command(page, '#6000,4000');
       await expect.poll(async () => (await data(page)).entities.filter((e: any) => e.type === 'mline').length).toBe(1);
@@ -145,5 +146,5 @@ test.describe('Associated opening lifecycle: room geometry and controls', () => 
       }
       await page.screenshot({ path: testInfo.outputPath(`openings-${phone ? 'phone' : 'desktop'}-${theme}-geometry.png`), animations: 'disabled' });
     });
-  }
+  });
 });
