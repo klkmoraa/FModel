@@ -16,7 +16,7 @@ async function openWorkspace(page: Page, theme: 'dia' | 'noche', units: 'mm' | '
 async function openCatalogue(page: Page) {
   await page.getByRole('button', { name: /^(Open all tools|All tools)$/ }).click();
   await page.locator('.tool-deck').getByRole('tab', { name: 'Architecture', exact: true }).click();
-  await page.locator('.tool-deck__item').filter({ hasText: 'ARCHITECTURE' }).click();
+  await page.locator('.tool-deck').getByRole('button', { name: 'Component catalogue ARCHITECTURE', exact: true }).click();
   await expect(page.locator('.panel--architecture')).toBeVisible();
 }
 async function command(page: Page, text: string) {
@@ -78,7 +78,12 @@ test.describe('Construction components: native panel journeys', () => {
       await command(page, 'UNDO'); expect(await entities(page)).toEqual(placed);
       await command(page, 'REDO'); expect(await entities(page)).toEqual(edited);
       await panel.getByRole('button', { name: 'Place', exact: true }).click();
-      await page.getByRole('application', { name: 'Drawing canvas' }).press('Escape');
+      await page.waitForFunction(() => (window as any).fmodel.editor.runner.pending?.req.kind === 'point');
+      const canvas = page.getByRole('application', { name: 'Drawing canvas' });
+      await canvas.press('Escape');
+      await expect(panel).toHaveCount(0);
+      await page.waitForFunction(() => (window as any).fmodel.editor.runner.pending?.req.kind === 'point');
+      await canvas.press('Escape');
       await page.waitForFunction(() => !(window as any).fmodel.editor.runner.busy); expect(await entities(page)).toEqual(edited);
       await page.screenshot({ path: testInfo.outputPath(`components-desktop-${units}-${theme}-placed.png`) });
     });

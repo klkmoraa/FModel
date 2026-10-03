@@ -1,6 +1,6 @@
 # Task 2 recovery report
 
-Status: SOURCE IMPLEMENTED; final full verification and controller browser/review pending. Branch `codex/architecture-tools`; review base `82de57888cb5ffb772ecc3d3b8c2d569d965ead3`. Controller-only future-opening documentation commit `ee5c14f` is outside Task 2 source. Preserved all 13 restored Task 2 files; no Task 1 reimplementation, push, merge, subagents, local browser or Playwright execution.
+Status: SOURCE IMPLEMENTED AND LOCALLY VERIFIED; controller browser/review pending. Branch `codex/architecture-tools`; review base `82de57888cb5ffb772ecc3d3b8c2d569d965ead3`. Controller-only future-opening documentation commit `ee5c14f` is outside Task 2 source. Preserved all 13 restored Task 2 files; no Task 1 reimplementation, push, merge, subagents, local browser or Playwright execution.
 
 ## Fresh evidence (2026-10-03)
 
@@ -53,4 +53,17 @@ Desktop enters through actual ToolDeck Architecture tab, uses named fields/Tab, 
 
 ## Pending
 
-Run full verify once after final source; final self-review and commit. Controller must run genuine remote browser CI and inspect captures; ARC-003 stays open/experimental until that evidence exists. No new dependency/network/native format/DWG changes. All drawing writes remain existing native atomic commands. Existing polygon-clipping dynamic-import build warning may remain; report actual final verify output.
+Controller must rerun genuine remote browser CI and inspect captures; ARC-003 stays open/experimental until that evidence exists. No new dependency/network/native format/DWG changes. All drawing writes remain existing native atomic commands.
+
+## Final local gate (2026-10-03)
+
+- Self-review checked the Task 2 brief against the complete local source, staged 13-path diff and actual native entry paths: desktop/phone ToolDeck, floating/phone panel, strict all-field validation, context reset, preview builder, native edit/placement, preference migration, evidence and documentation. Traced the browser journey selectors against existing architecture/touch journeys and the command runner; no concrete source defect was found in review. `git diff --check` and `git diff --cached --check`: exit 0.
+- `pnpm verify` on final source: **exit 0**. `pnpm lint` zero warnings; `pnpm typecheck` exit 0; `pnpm check:layers` passed **682 imports**; `pnpm check:features` confirmed generated FEATURES and evidence; `pnpm test` passed **111 files / 1100 tests**; `pnpm build` transformed **2316 modules** and built successfully. Vite emitted `node:module` browser-externalization messages from existing libredwg-web and the existing `polygon-clipping` ineffective dynamic import warning; neither failed the build.
+- Browser evidence remains **unexecuted locally**. Six authored Playwright journeys and screenshots still require a passing genuine remote CI plus controller inspection. This local verify does not close ARC-003 or establish visual QA.
+
+## Controller browser CI 37095370558 and fix round 1 (2026-10-03)
+
+- Application-equivalent remote commit `027fe9d` passed 50 preexisting browser journeys plus the local source quality gate (1100 unit tests, types, lint and build), but all six **new** component journeys failed. This is real RED evidence; no new component screenshot or visual pass is claimed. Four desktop variants reached native place, edit, undo and redo, then timed out at the final pending-placement cancellation (`e2e/componentsJourneys.spec.ts` former line 82). Two phone variants reached placement and failed on catalogue reopening (former lines 103/19): Playwright found both recent `Architecture ARCHITECTURE` and canonical `Component catalogue ARCHITECTURE` buttons.
+- Desktop root cause from event-flow inspection: Architecture opens as a later-added floating panel (`src/editor/workspaceChrome.ts`); a canvas Escape with `floatingPanel` set takes `src/ui/App.tsx`'s earlier floating-panel dismissal branch and returns before `editor.key('Escape')` can cancel the runner. The prior single-Escape E2E assertion assumed it immediately canceled placement. Existing keyboard precedence remains unchanged. The journey now waits for the native point request, presses Escape, asserts the panel disappears while the point request remains, then presses Escape again and checks the runner stops without changing entities. This retains real keyboard cancellation coverage and makes both Escape effects explicit.
+- Phone root cause: the ToolDeck recent-command section includes ARCHITECTURE after the first invocation, so a text-only `.tool-deck__item` filter is ambiguous. The journey now selects the exact canonical accessible name `Component catalogue ARCHITECTURE`, distinguishing it from the recent tile without positional selection or waits.
+- After the E2E-only edit, `pnpm exec tsc --noEmit --target ES2022 --module ESNext --moduleResolution bundler --skipLibCheck e2e/componentsJourneys.spec.ts`, `pnpm exec oxlint --deny-warnings e2e/componentsJourneys.spec.ts`, `pnpm lint`, `pnpm typecheck` and `git diff --check` all exited 0. No application source changed; the previous full `pnpm verify` passed on that same source. Local Playwright/browser remains prohibited; corrected journey GREEN and captures await controller CI.
