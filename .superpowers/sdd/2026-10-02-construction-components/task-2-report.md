@@ -1,6 +1,6 @@
 # Task 2 recovery report
 
-Status: IMPLEMENTING. Branch `codex/architecture-tools`; review base `82de57888cb5ffb772ecc3d3b8c2d569d965ead3`. Controller-only future-opening documentation commit `ee5c14f` is outside Task 2 source. Preserved all 13 restored Task 2 files; no Task 1 reimplementation, push, merge, subagents, local browser or Playwright execution.
+Status: SOURCE IMPLEMENTED; final full verification and controller browser/review pending. Branch `codex/architecture-tools`; review base `82de57888cb5ffb772ecc3d3b8c2d569d965ead3`. Controller-only future-opening documentation commit `ee5c14f` is outside Task 2 source. Preserved all 13 restored Task 2 files; no Task 1 reimplementation, push, merge, subagents, local browser or Playwright execution.
 
 ## Fresh evidence (2026-10-03)
 
@@ -15,6 +15,42 @@ Prior disconnected-executor claims (1100/94 tests) are not evidence for this sou
 
 ArchitecturePanel is reachable via PANELS (desktop/floating/phone), actual ToolDeck architecture tools and palette. Optional third PANELS.render callback is passed only by the phone sheet; invoked after successful validation/command invocation. Edit invokes COMPONENTEDIT with no arguments and uses existing prompts. Both invalid actions retain errors and the phone sheet. Placement filtering disables the unavailable chosen family, clearing filters restores its dimensions. Native component reader alone produces selection summaries. All schema fields, including hidden fields, are parsed/validated/submitted. Schema visibility is shared with command pickers. WeakMap editor UI cache preserves form state across unmount while actual doc.id/units changes reset defaults. SVG uses builder primitives and transformComponent at zero insertion with validated rotation; does not mutate the drawing.
 
+## Recovery milestone 1
+
+Local commit `feca0bcceff9d33e1980625860d847b120cb2121`. Immediately reported to controller; controller confirmed durable exact-tree checkpoint at remote `267ef5a97130128a0f7c3499e88a8234016912ba`, tree `b0d6ec07e16a5dd4fdcb4296a229525673a70264`. Milestone command combining form/panel/preferences/entry tests passed 4 files / 19 tests; typecheck/lint/layers/diff-check passed. Controller CI 37081625943 subsequently passed types/lint/layers/features but found 3 old preference fixtures expecting the pre-Architecture arrays; no browser step ran. Its 1094 pass / 3 fail result is checkpoint evidence only.
+
+## Additional RED/GREEN and focused validation
+
+- `pnpm vitest run src/ui/panels/architecturePanel.test.ts`: fresh behavioral RED **1 failed / 8 passed**. After changing units, defaults refreshed but an old `Invalid number: Width` alert remained attached. Resetting the context now clears errors together with fields. Native visibility/picker and corrupt-selection summary tests also passed immediately; they are coverage of integrated behavior, not claimed RED evidence.
+- GREEN `pnpm vitest run src/ui/panels/architecturePanel.test.ts src/ui/panels/architectureForm.test.ts src/editor/workspaceChrome.test.ts src/commands/architecturePanel.test.ts src/commands/behavior/components.test.ts`: **5 files / 82 tests passed**; typecheck passed.
+- `pnpm vitest run src/ui/workspaceChrome.test.ts`: **3 failed / 3 passed** because existing old fixture arrays omitted the newly added panel. Updated only required right/floating expectations, not production migration semantics. The new editor/workspaceChrome test still checks preserved choices, adding once, idempotence, and a deliberate pinned panel staying pinned.
+- Latest `pnpm vitest run src/ui/workspaceChrome.test.ts src/ui/panels/architecturePanel.test.ts src/ui/panels/architectureForm.test.ts src/editor/workspaceChrome.test.ts src/commands/architecturePanel.test.ts src/app/features.test.ts`: **6 files / 40 tests passed**.
+- `pnpm docs:features` + `pnpm check:features`: **60 features**, current/generated documentation and evidence validated.
+- `pnpm typecheck`, `pnpm lint`, `pnpm check:layers`, `git diff --check`: exit 0; **682 imports**, no lint warnings.
+- E2E authoring typecheck only: `pnpm exec tsc --noEmit --target ES2022 --module ESNext --moduleResolution bundler --skipLibCheck e2e/componentsJourneys.spec.ts`: exit 0. No Playwright command or local browser was run.
+
+## Genuine CI browser journeys authored
+
+`e2e/componentsJourneys.spec.ts`, describe `Construction components: native panel journeys`, enumerates exactly six tests:
+
+1. desktop mm dia: fields, refusal, placement, edit and undo/redo
+2. desktop mm noche: fields, refusal, placement, edit and undo/redo
+3. desktop m dia: fields, refusal, placement, edit and undo/redo
+4. desktop m noche: fields, refusal, placement, edit and undo/redo
+5. phone dia: no autofocus/overflow, invalid Place/Edit, close/place/cancel/reopen
+6. phone noche: no autofocus/overflow, invalid Place/Edit, close/place/cancel/reopen
+
+Desktop enters through actual ToolDeck Architecture tab, uses named fields/Tab, verifies field errors without runner or mutation, filtering refusal, native placement width/rotation/vertices, actual canvas focus, actual canvas member selection, native edit prompts, unchanged pending geometry, confirmation/stable ID, undo/redo and placement cancellation. Phone uses its actual tools-sheet accessible name, asserts opening does not focus an INPUT and no document/panel overflow, invalid Place/Edit retain the real sheet, valid Place/Edit close it, native placement, cancel and three reopen cycles preserve chosen width. Screenshots are genuine `page.screenshot` outputs once CI runs: `components-desktop-{mm,m}-{dia,noche}.png`, `*-placed.png`, `components-phone-{dia,noche}.png`, `*-reopened.png`. These have **not** executed locally and no success is claimed.
+
+## Files and interfaces
+
+- New `ArchitecturePanel.tsx`, `ComponentMiniature.tsx`, form/panel tests and `e2e/componentsJourneys.spec.ts`.
+- Preserved helpers: `componentFormValues`, `validateComponentForm`, `newComponentForm`, `refreshComponentForm`, `assertComponentContext`, `startComponentPlacement` consume Task 1's strict catalogue/parser; UI holds strings and command-angle degrees, domain gets radians/drawing units.
+- Shared `ComponentField.visibleWhen?: { key: string; values: readonly string[] }` and `visibleComponentFields` used by UI/placement picker/edit picker. Hidden field values remain retained/validated/submitted.
+- `PANELS.render(editor, onUi, onStart?)` callback only supplied by PhoneChrome. Desktop Docks retain standard behavior. Canonical ARCHITECTURE alias registered read-only and actual ribbon/palette entry updated without replacing existing commands.
+- workspaceChrome defaults/migration and existing/new preference tests; styles use existing tokens/classes, phone controls minimum 44 px.
+- Bilingual guide, src/app/features and src/audit/evidence + generated FEATURES.md, backlog and brandbook ficha updated. ARC-002 closes only its core using already-reviewed CI 37022156512/walls-qa.md; wall feature still explicitly experimental, no broad parity claim. ARC-003 remains open/experimental. Controller-owned architecture-touch.png unchanged and incorporated by reference in brandbook.
+
 ## Pending
 
-Author six genuine CI browser journeys (mm/m × Day/Night, phone × Day/Night), guide/catalogue/backlog/brandbook updates, full verify once after final source, final self-review and commit. Controller must run genuine remote browser CI and inspect captures; ARC-003 stays open/experimental until that evidence exists. Existing wall QA in walls-qa.md authorizes ARC-002 closure. Root-owned architecture-touch.png remains unchanged.
+Run full verify once after final source; final self-review and commit. Controller must run genuine remote browser CI and inspect captures; ARC-003 stays open/experimental until that evidence exists. No new dependency/network/native format/DWG changes. All drawing writes remain existing native atomic commands. Existing polygon-clipping dynamic-import build warning may remain; report actual final verify output.

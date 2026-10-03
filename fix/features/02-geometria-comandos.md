@@ -131,19 +131,19 @@
 
 ## ARC-002 — Muros y huecos arquitectónicos 2D
 
-- [>] **Estado: En curso** — inicio 2026-10-02; responsable: Codex. Pendiente de revisión final del controlador y evidencia visual Día/Noche.
+- [x] **Estado: Cerrado (núcleo 2D)** — 2026-10-03; responsable: Codex. CI real y capturas revisadas por el controlador: [ejecución 37022156512](https://github.com/klkmoraa/FModel/actions/runs/37022156512), 50/50 Chromium E2E y 966 pruebas; escritorio Día/Noche 1280×720 y teléfono 390×844 con preset/cancelación sin desbordamiento. Evidencia conservada en `walls-qa.md`; no supone paridad amplia con YQARCH.
 - **Prioridad:** P2. ID ARC-002 para conservar ARC-001 histórico (división de módulos, categoría calidad).
 - **Alcance:** WALL/MURO, WALLRECT/HABITACION, WALLCONVERT/CONVERTIRMURO, WALLDOOR/PUERTA y WALLWINDOW/VENTANA; pestaña y paleta Arquitectura, presets físicos y ayuda bilingüe.
 - **Contrato:** entidades MLINE nativas de dos caras y tapas rectas; hueco geométrico con símbolos estándar; CommandApi y undo/redo atómico; sin nueva versión de archivo ni red.
 - **Evidencia automática:** `src/geometry/walls.test.ts`, `src/commands/behavior/architecture.test.ts`, `src/io/architecture.test.ts`, catálogo BEH-ARCHITECTURE/GEO-WALLS/IO-ARCHITECTURE.
 - **Guía:** [Muros y huecos](../../docs/arquitectura-muros.md). [Plan](../../docs/plans/2026-10-02-architecture-tools.md).
-- **Cierre:** sólo tras verify, revisión final y navegador del controlador; no afirmar evidencia visual pendiente como completada.
+- **Cierre:** tipos/lint/capas/catálogo/pruebas/cobertura/build y navegador de esa CI aprobados; capturas reales de muros y ficha de marca actualizadas. Huecos no asociativos y demás límites documentados permanecen explícitos.
 
 ## ARC-003 — Componentes de construcción 2D y edición paramétrica
 
-- [>] **Estado: En curso** — inicio 2026-10-02; responsable: Codex. Pendientes panel Arquitectura y QA real Día/Noche/teléfono.
+- [>] **Estado: En curso** — inicio 2026-10-02; responsable: Codex. Panel Arquitectura implementado con prueba DOM/runner real; pendientes QA real de componentes Día/Noche/teléfono y revisión final del controlador.
 - **Prioridad:** P2. Alcance: las 14 familias de la especificación de construcción, comandos canónicos y `COMPONENTEDIT`; sin cambiar el formato nativo ni ampliar DWG.
 - **Contrato:** constructores puros con curvas nativas, roles estables y máximo 2000 primitivas; argumentos dimensionales nativos/físicos, radianes internos y grados en comandos; grupos seleccionables y validación de pertenencia/metadatos antes de editar. Una confirmación corresponde a un paso de undo/redo.
-- **Evidencia:** BEH-COMPONENTS, GEO-COMPONENTS e IO-COMPONENTS; suites de catálogo/modelo adicionales. Retícula, escalera curva y ventana editada sobreviven a formato nativo/DXF; DXF pierde parámetros y lo indica en el informe.
+- **Evidencia:** BEH-COMPONENTS, GEO-COMPONENTS, IO-COMPONENTS y UI-COMPONENTS; suites de catálogo/modelo adicionales. E2E-COMPONENTS define seis recorridos para CI (mm/m × Día/Noche; teléfono × Día/Noche); ejecución y capturas pendientes. Retícula, escalera curva y ventana editada sobreviven a formato nativo/DXF; DXF pierde parámetros y lo indica en el informe.
 - **Guía:** [Componentes](../../docs/arquitectura-componentes.md). [Especificación](../../docs/superpowers/specs/2026-10-02-construction-components-design.md).
-- **Cierre:** pendiente del panel y revisión final del controlador; permanece experimental.
+- **Cierre:** pendiente de navegador/capturas finales y revisión del controlador; permanece experimental.

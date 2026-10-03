@@ -70,3 +70,27 @@ it('an actual replacement document refreshes the cached form while close/reopen 
   await renderPanel(); await change('Width · m', '0.9'); await act(async () => root.render(null));
   editor.doc = createDocument({ units: 'm' }); await renderPanel(); expect(control('Width · m').value).toBe('0.4');
 });
+it('changing the drawing units resets outdated field errors with the refreshed defaults', async () => {
+  await renderPanel(); await change('Width · m', 'Infinity'); await click('Place');
+  expect(host.querySelector('[role="alert"]')).not.toBeNull();
+  await act(async () => editor.doc.transact('units', tx => tx.setSettings({ units: 'mm' })));
+  expect(control('Width · mm').value).toBe('400');
+  expect(host.querySelector('[role="alert"]')).toBeNull();
+  expect(control('Width · mm').hasAttribute('aria-invalid')).toBe(false);
+});
+it('variant visibility retains hidden dimensions and native picker uses the same active fields', async () => {
+  await renderPanel(); await change('Width · m', '0.8'); await change('Variant', 'circular');
+  expect(control('Width · m')).toBeNull(); expect(control('Diameter · m').value).toBe('0.4');
+  await click('Place'); await act(async () => editor.runner.submitKeyword('Parameters'));
+  expect(editor.runner.pending?.req.keywords?.map(k => k.key)).toEqual(['variant', 'diameter']);
+  await act(async () => editor.key('Escape')); await change('Variant', 'rectangular');
+  expect(control('Width · m').value).toBe('0.8');
+});
+it('selection summary rejects altered native geometry through the assembly reader', async () => {
+  await renderPanel(); await click('Place'); await act(async () => editor.runner.submitPoint({ x: 0, y: 0 }));
+  const member = [...editor.doc.data.entities.keys()][0];
+  await act(async () => { editor.selection.set([member]); });
+  expect(host.querySelector('[role="status"]')?.textContent).toContain('Selected component: Column');
+  await act(async () => editor.doc.transact('alter geometry', tx => tx.updateEntity(member, { vertices: [{ x: 0, y: 0 }, { x: 2, y: 0 }, { x: 2, y: 1 }, { x: 0, y: 1 }] })));
+  expect(host.querySelector('[role="status"]')).toBeNull();
+});

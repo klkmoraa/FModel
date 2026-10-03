@@ -12,6 +12,15 @@ export interface EvidenceRecord {
 }
 
 export const EVIDENCE_CATALOG: Record<string, EvidenceRecord> = {
+  'UI-COMPONENTS': {
+    kind: 'integration', testFile: 'src/ui/panels/architecturePanel.test.ts', testName: 'invalid Place/Edit retains fields and errors without starting the real runner',
+    testCommand: 'pnpm vitest run src/ui/panels/architecturePanel.test.ts src/ui/panels/architectureForm.test.ts src/editor/workspaceChrome.test.ts src/commands/architecturePanel.test.ts',
+    commands: ['ARCHITECTURE'],
+  },
+  'E2E-COMPONENTS': {
+    kind: 'e2e', testFile: 'e2e/componentsJourneys.spec.ts', testName: 'Construction components: native panel journeys',
+    testCommand: 'pnpm test:e2e -- e2e/componentsJourneys.spec.ts',
+  },
   'BEH-COMPONENTS': {
     kind: 'unit', testFile: 'src/commands/behavior/components.test.ts', testName: 'construction command behavior',
     testCommand: 'pnpm vitest run src/commands/behavior/components.test.ts',

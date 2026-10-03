@@ -2,7 +2,13 @@
 
 ## Español
 
-Los comandos crean piezas agrupadas de geometría nativa. El panel de parámetros y su revisión visual están pendientes; el estado sigue siendo experimental. Los muros y sus huecos existentes conservan sus propios comandos.
+Los comandos crean piezas agrupadas de geometría nativa. Abre `ARCHITECTURE` / `ARQUITECTURA` desde la línea de comandos, Arquitectura › Catálogo de piezas o la paleta Arquitectura. En teléfono aparece la hoja de paneles; en escritorio, el panel flotante que puedes fijar. La revisión visual final de componentes sigue pendiente y el estado es experimental. Los muros y sus huecos existentes conservan sus propios comandos.
+
+Busca por nombre o comando y filtra la categoría; elige una de las catorce familias. Cada campo muestra las unidades del dibujo, grados o cantidades. La miniatura utiliza el constructor y giro nativos sin escribir en el dibujo. Colocar valida todos los campos, incluidos los ocultos, y abre el punto de inserción del comando canónico. Una pieza filtrada no puede colocarse. Las medidas elegidas sobreviven a la colocación y al cierre/reapertura de la hoja; un dibujo nuevo/cargado con otro ID o un cambio de unidades restaura los defaults.
+
+La variante controla los campos efectivos: columna circular usa diámetro; otras usan ancho/fondo y L/T/cruz añaden brazo. Escalera curva usa radio interior/giro/cantidad; huella pertenece a tramos rectos/L/U y descanso a L/U. Barandal en planta oculta alto. Los valores inactivos se conservan, validan y guardan para cambiar de variante; los selectores interactivos usan la misma regla declarativa.
+
+Editar pieza abre `COMPONENTEDIT` sin argumentos: los campos del panel configuran la **colocación**, y los cambios de una pieza existente se solicitan mediante sus prompts nativos. Los errores de campo y de medidas incompatibles aparecen en el panel sin iniciar un comando. En teléfono, una acción válida cierra la hoja para usar el lienzo; una acción inválida la conserva abierta. Abrir la hoja no enfoca un campo ni levanta el teclado. La invocación válida devuelve el foco al lienzo.
 
 | Comando / alias español | Campos (variantes y vistas en inglés) |
 |---|---|
@@ -33,7 +39,13 @@ El formato `.fmodel` conserva parámetros, grupos, roles y geometría sin nueva 
 
 ## English
 
-The command/field table above is shared in both languages; canonical argument keys and enum values remain unchanged. These fourteen commands create selectable native groups. The parameter panel and real desktop/phone visual QA are pending, so the feature remains experimental.
+The command/field table above is shared in both languages; canonical argument keys and enum values remain unchanged. These fourteen commands create selectable native groups. Open `ARCHITECTURE` / `ARQUITECTURA` from the command line, Architecture › Component catalogue, the Architecture palette or the phone panel sheet. The desktop panel can float or be pinned. Final component visual QA remains pending, so the feature stays experimental.
+
+Search by name/command, filter a category and select a family. Fields show drawing units, degrees or counts. The miniature uses the native builder and rigid rotation without document writes. Place validates every field, including inactive values, and starts the canonical insertion command. Filtered-out components cannot be placed. Chosen dimensions persist after placement and sheet close/reopen; a different document ID or unit change refreshes defaults.
+
+Variant controls effective fields: circular columns use diameter; other columns use width/depth and L/T/cross add arm. Curved stairs use inner radius/turn/count, straight/L/U flights use tread, and L/U use landing. Plan banisters hide height. Inactive values remain saved and validated for a future variant; interactive command pickers consume the same declarative rule.
+
+Edit component invokes `COMPONENTEDIT` without arguments. Panel fields configure **placement**; existing-component edits use native command prompts. Invalid Place/Edit keeps errors visible and does not start a command. Valid actions close the phone sheet and restore canvas focus. Opening the phone panel never automatically focuses an input or raises the keyboard.
 
 Use named literal arguments, for example `COLUMN width=800 depth=60cm rotation=90`. Bare dimensional numbers use drawing units; mm/cm/m/in suffixes are physical lengths. Defaults convert freshly from millimetres for each document; a 400 mm column is 0.4 drawing units in metres and 400 units in unitless drawings. Counts are integers from 1 to 200, stairs require at least 2 steps, escalator angles range from 10 to 60 degrees and curved flight turns from 15 to 270 degrees. Command angles use degrees; native state uses radians. Unknown/duplicate keys, expressions, nonfinite values and impossible layouts are rejected.
 

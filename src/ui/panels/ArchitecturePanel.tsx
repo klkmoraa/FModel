@@ -18,9 +18,9 @@ export function ArchitecturePanel({ editor, onStart }: { editor: Editor; onStart
   const [saved, setSaved] = useState(() => forms.get(editor) ?? newComponentForm('column', units, editor.doc.id));
   const state = refreshComponentForm(saved, saved.kind, units, editor.doc.id);
   const update = (next: ComponentFormState) => { forms.set(editor, next); setSaved(next); };
-  if (state !== saved) update(state);
   const [query, setQuery] = useState(''), [category, setCategory] = useState('');
   const [error, setError] = useState<ComponentError | null>(null);
+  if (state !== saved) { update(state); setError(null); }
   const ref = useRef<HTMLDivElement>(null), id = useId();
   const categories = [...new Map(COMPONENT_CATALOG.map(c => [c.category.en, c.category])).values()];
   const matches = COMPONENT_CATALOG.filter(c => (!category || c.category.en === category) && `${c.label.es} ${c.label.en} ${c.command}`.toLowerCase().includes(query.toLowerCase().trim()));
