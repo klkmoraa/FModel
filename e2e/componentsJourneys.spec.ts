@@ -52,7 +52,7 @@ test.describe('Construction components: native panel journeys', () => {
       await panel.getByLabel(`Width · ${units}`, { exact: true }).focus();
       await panel.getByLabel(`Width · ${units}`, { exact: true }).press('Tab');
       await expect(panel.getByLabel(`Depth · ${units}`, { exact: true })).toBeFocused();
-      await page.screenshot({ path: testInfo.outputPath(`components-desktop-${units}-${theme}.png`) });
+      await page.screenshot({ path: testInfo.outputPath(`components-desktop-${units}-${theme}.png`), animations: 'disabled' });
       await panel.getByRole('button', { name: 'Place', exact: true }).click();
       await expect(page.getByRole('application', { name: 'Drawing canvas' })).toBeFocused();
       await command(page, '#0,0');
@@ -85,7 +85,17 @@ test.describe('Construction components: native panel journeys', () => {
       await page.waitForFunction(() => (window as any).fmodel.editor.runner.pending?.req.kind === 'point');
       await canvas.press('Escape');
       await page.waitForFunction(() => !(window as any).fmodel.editor.runner.busy); expect(await entities(page)).toEqual(edited);
-      await page.screenshot({ path: testInfo.outputPath(`components-desktop-${units}-${theme}-placed.png`) });
+      await command(page, 'ZOOM'); await command(page, 'E');
+      await command(page, 'ZOOM'); await command(page, 'Out');
+      await page.waitForFunction(() => !(window as any).fmodel.editor.runner.busy);
+      await expect.poll(() => page.evaluate(() => {
+        const editor = (window as any).fmodel.editor, member = [...editor.doc.data.entities.values()][0];
+        return member.vertices.every((vertex: any) => {
+          const p = editor.view.toScreen(vertex);
+          return p.x > 48 && p.x < editor.view.width - 48 && p.y > 48 && p.y < editor.view.height - 90;
+        });
+      })).toBe(true);
+      await page.screenshot({ path: testInfo.outputPath(`components-desktop-${units}-${theme}-placed.png`), animations: 'disabled' });
     });
   }
   for (const theme of ['dia', 'noche'] as const) {
@@ -98,8 +108,13 @@ test.describe('Construction components: native panel journeys', () => {
       await panel.getByLabel('Width · mm', { exact: true }).fill('650mm');
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       expect(await panel.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
-      await page.screenshot({ path: testInfo.outputPath(`components-phone-${theme}.png`) });
-      await panel.getByRole('button', { name: 'Place', exact: true }).click(); await expect(sheet).toHaveCount(0);
+      await page.screenshot({ path: testInfo.outputPath(`components-phone-${theme}.png`), animations: 'disabled' });
+      const place = panel.getByRole('button', { name: 'Place', exact: true });
+      await place.scrollIntoViewIfNeeded();
+      await expect(place).toBeInViewport({ ratio: 1 });
+      await expect(panel.getByRole('button', { name: 'Edit component', exact: true })).toBeInViewport({ ratio: 1 });
+      await page.screenshot({ path: testInfo.outputPath(`components-phone-${theme}-actions.png`), animations: 'disabled' });
+      await place.click(); await expect(sheet).toHaveCount(0);
       const canvas = page.getByRole('application', { name: 'Drawing canvas' }); await expect(canvas).toBeFocused();
       const bounds = await canvas.boundingBox(); expect(bounds).not.toBeNull();
       await page.mouse.click(bounds!.x + bounds!.width * 0.4, bounds!.y + bounds!.height * 0.2);
@@ -114,7 +129,7 @@ test.describe('Construction components: native panel journeys', () => {
       await page.getByRole('region', { name: 'Active command', exact: true }).getByRole('button', { name: 'Cancel', exact: true }).click();
       await page.waitForFunction(() => !(window as any).fmodel.editor.runner.busy); expect(await entities(page)).toEqual(placed);
       await openCatalogue(page); await expect(panel.getByLabel('Width · mm', { exact: true })).toHaveValue('650mm');
-      await page.screenshot({ path: testInfo.outputPath(`components-phone-${theme}-reopened.png`) });
+      await page.screenshot({ path: testInfo.outputPath(`components-phone-${theme}-reopened.png`), animations: 'disabled' });
     });
   }
 });
