@@ -24,10 +24,11 @@ async function door(wallId: string, center: number) {
 }
 it('two doors, move repairs old gap, edit and mirror retain role IDs and atomic history', async () => {
   const id = await wall(), a = await door(id, 2000), b = await door(id, 7000);
-  const old = readWallOpening(h.doc, a), other = readWallOpening(h.doc, b), before = new Map(h.doc.data.entities);
+  const old = readWallOpening(h.doc, a), other = readWallOpening(h.doc, b), before = new Map(h.doc.data.entities), otherIds = new Map(other.assembly.roles);
   expect(old.assembly.openings).toHaveLength(2);
   expect(await selected('MOVERHUECO', a, [p(3500), ''])).toEqual([]);
   const moved = readWallOpening(h.doc, a); expect(moved.opening.offset).toBe(3500); expect(readWallOpening(h.doc, b).opening).toEqual(other.opening);
+  for (const [role, id] of otherIds) if (role.includes(JSON.stringify(other.opening.id))) expect(readWallOpening(h.doc, b).assembly.roles.get(role)).toBe(id);
   const fragments = buildWallAssembly(moved.assembly.source, moved.assembly.openings).fragments;
   expect(fragments.some(f => f.vertices.some(v => v.x === 1550))).toBe(false);
   h.undo(); expect(h.doc.data.entities).toEqual(before); h.redo();
@@ -97,3 +98,52 @@ it('corrupt associated member and a locked secondary member reject atomically', 
   expect((await selected('OPENINGEDIT', symbol, [])).length).toBeGreaterThan(0);
   expect(h.doc.data.entities).toEqual(before);
 });
+it.each(['locked', 'hidden layer', 'foreign owner', 'changed source'] as const)('independent WALLTHICKNESS revalidates %s immediately before confirmation', async change => {
+  const id = await wall();
+  const run = h.runner.execute('WALLTHICKNESS');
+  await vi.waitFor(() => expect(h.runner.pending?.req.kind).toBe('entity')); h.runner.submitEntity(id, p(0));
+  await vi.waitFor(() => expect(h.runner.pending?.req.kind).toBe('distance')); h.runner.submitText('250');
+  await vi.waitFor(() => expect(h.runner.pending?.req.kind).toBe('keyword'));
+  const current = h.doc.entity(id)!;
+  // Simulate an interleaved editor/import state without placing its write in this command's open history group.
+  if (change === 'hidden layer') h.doc.data.layers.set(current.layer, { ...h.doc.data.layers.get(current.layer)!, on: false });
+  else h.doc.data.entities.set(id, { ...current, ...(change === 'locked' ? { locked: true } : change === 'foreign owner' ? { owner: 'foreign' } : { vertices: [p(0), p(12000)] }) } as typeof current);
+  const before = { entities: new Map(h.doc.data.entities), layers: new Map(h.doc.data.layers), styles: new Map(h.doc.data.mlineStyles), groups: new Map(h.doc.data.groups), history: [...h.doc.history.entries()], version: h.doc.version };
+  h.runner.submitText(''); await run;
+  expect(h.runner.log.at(-1)?.kind).toBe('error');
+  expect({ entities: h.doc.data.entities, layers: h.doc.data.layers, styles: h.doc.data.mlineStyles, groups: h.doc.data.groups, history: h.doc.history.entries(), version: h.doc.version }).toEqual(before);
+  expect(h.editor.preview).toBeNull(); expect(h.editor.previewExcluded.size).toBe(0);
+});
+type Stage = { kind: 'entity' | 'point' | 'keyword' | 'distance'; input?: string | { x: number; y: number } | 'source' | 'symbol' };
+const stage = (kind: Stage['kind'], input?: Stage['input']): Stage => ({ kind, input });
+const cancellationFlows: Record<string, Stage[]> = {
+  WALLDOOR: [stage('entity', 'source'), stage('point', p(3000)), stage('point', 'Width'), stage('distance', '1000'), stage('point', 'Type'), stage('keyword', 'Double'), stage('point', 'Side'), stage('point', 'Hinge'), stage('point')],
+  WALLWINDOW: [stage('entity', 'source'), stage('point', p(5000)), stage('point', 'Width'), stage('distance', '1100'), stage('point', 'Type'), stage('keyword', 'Sliding'), stage('point')],
+  OPENINGMOVE: [stage('entity', 'symbol'), stage('point', p(3500)), stage('point')],
+  OPENINGCOPY: [stage('entity', 'symbol'), stage('entity', 'source'), stage('point', p(5000)), stage('keyword')],
+  OPENINGEDIT: [stage('entity', 'symbol'), stage('keyword', 'Width'), stage('distance', '1000'), stage('keyword', 'Type'), stage('keyword', 'Double'), stage('keyword', 'Side'), stage('keyword', 'Hinge'), stage('keyword')],
+  OPENINGMIRROR: [stage('entity', 'symbol'), stage('keyword', 'Axis'), stage('keyword', 'Center'), stage('keyword', 'Both'), stage('keyword')],
+  OPENINGDELETE: [stage('entity', 'symbol'), stage('keyword')],
+  WALLTHICKNESS: [stage('entity', 'source'), stage('distance', '250'), stage('keyword')],
+};
+it.each(Object.entries(cancellationFlows))('%s cancels every pending input stage without entities, styles, groups or history writes', async (name, flow) => {
+  const id = await wall(), symbol = await door(id, 2000);
+  for (let cancelAt = 0; cancelAt < flow.length; cancelAt++) {
+    const before = { entities: new Map(h.doc.data.entities), styles: new Map(h.doc.data.mlineStyles), groups: new Map(h.doc.data.groups), history: [...h.doc.history.entries()], version: h.doc.version, dirty: h.doc.dirty };
+    const run = h.runner.execute(name);
+    for (let i = 0; i <= cancelAt; i++) {
+      const request = flow[i];
+      await vi.waitFor(() => expect(h.runner.pending?.req.kind).toBe(request.kind));
+      if (i === cancelAt) break;
+      const value = request.input;
+      if (request.kind === 'entity') h.runner.submitEntity(value === 'source' ? id : symbol, p(0));
+      else if (typeof value === 'string') h.runner.submitText(value);
+      else if (value) h.runner.submitPoint(value);
+      else throw Error(`missing input at ${name} stage ${i}`);
+    }
+    h.runner.cancel(); await run;
+    expect({ entities: h.doc.data.entities, styles: h.doc.data.mlineStyles, groups: h.doc.data.groups, history: h.doc.history.entries(), version: h.doc.version, dirty: h.doc.dirty }).toEqual(before);
+    expect(h.editor.preview).toBeNull(); expect(h.editor.previewExcluded.size).toBe(0);
+    expect(h.doc.history.inGroup).toBe(false);
+  }
+}, 30000);

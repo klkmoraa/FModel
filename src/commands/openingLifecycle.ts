@@ -6,7 +6,7 @@ import { TOL } from '../geometry/tolerance';
 import { readWallOpening, readWallSource, createWallAssembly, updateWallAssembly, WallAssemblyError, type WallAssemblySource, type WallAssembly } from '../model/wallAssembly';
 import { K, L, fail } from './helpers';
 import { physicalSize } from './architectureHelpers';
-import type { CommandApi, CommandDef, PreviewSpec } from './types';
+import { CommandError, type CommandApi, type CommandDef, type PreviewSpec } from './types';
 
 const unavailable = L('Selecciona un miembro editable de un muro compatible; el grupo completo debe estar visible y desbloqueado.', 'Select an editable member of a compatible wall; the entire group must be visible and unlocked.');
 const explicit = L('Selecciona una jamba, hoja, arco o marco del hueco; un fragmento de muro no identifica un hueco.', 'Select an opening jamb, leaf, arc or frame; a wall fragment does not identify an opening.');
@@ -49,7 +49,8 @@ function preview(api: CommandApi, source: WallAssemblySource, openings: WallOpen
   return { entities, hideIds: assembly?.members ?? [anchorId] };
 }
 function safePreview(api: CommandApi, source: WallAssemblySource, openings: WallOpeningSpec[], assembly: WallAssembly | null, anchorId: Id): PreviewSpec | null {
-  try { return preview(api, source, openings, assembly, anchorId); } catch { return null; }
+  try { return preview(api, source, openings, assembly, anchorId); }
+  catch (error) { if (error instanceof CommandError) return null; throw error; }
 }
 function commit(api: CommandApi, label: string, source: WallAssemblySource, openings: WallOpeningSpec[], assembly: WallAssembly | null, anchorId: Id) {
   checked(api, anchorId); validate(source, openings);
@@ -188,7 +189,12 @@ export const WALLTHICKNESS = operation('WALLTHICKNESS', 'ESPESORMURO', L('Espeso
   api.setPreview(preview(api, source, openings, selected.assembly, selected.anchorId));
   const confirm = await api.getKeyword({ prompt: L('Intro confirma espesor', 'Enter confirms thickness'), allowNone: true });
   if (confirm.kind !== 'none') return;
-  if (!selected.assembly) api.apply('WALLTHICKNESS', tx => tx.updateEntity(selected.anchorId, { scale: width.value }));
+  if (!selected.assembly) {
+    const current = checked(api, selected.anchorId);
+    const a = current.source, b = selected.source;
+    if (current.assembly || current.anchorId !== selected.anchorId || a.owner !== b.owner || a.style !== b.style || a.justification !== b.justification || a.closed !== b.closed || a.scale !== b.scale || a.vertices.length !== b.vertices.length || a.vertices.some((p, i) => p.x !== b.vertices[i].x || p.y !== b.vertices[i].y)) fail(unavailable.es, unavailable.en);
+    api.apply('WALLTHICKNESS', tx => tx.updateEntity(selected.anchorId, { scale: width.value }));
+  }
   else commit(api, 'WALLTHICKNESS', source, openings, selected.assembly, selected.anchorId);
 });
 export const OPENING_LIFECYCLE = [OPENINGMOVE, OPENINGCOPY, OPENINGEDIT, OPENINGMIRROR, OPENINGDELETE, WALLTHICKNESS];
