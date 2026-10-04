@@ -78,6 +78,13 @@ export function ArchitecturePanel({ editor, onStart }: { editor: Editor; onStart
         onStart?.(); requestAnimationFrame(() => canvas?.focus());
       }}>{tr(lang, es, en)}</button>)}</div>
     </div>
+    <div className="architecture-opening-actions" role="group" aria-label={tr(lang, 'Herramientas de muro', 'Wall tools')}>
+      <p className="panel__hint">{tr(lang, 'Selecciona un muro compatible; Intro crea el eje o muro paralelo. Esc descarta.', 'Select a compatible wall; Enter creates the axis or parallel wall. Esc cancels.')}</p>
+      <div className="panel-actions">{([['WALLAXIS', 'Eje de muro', 'Wall axis'], ['WALLOFFSET', 'Muro paralelo', 'Parallel wall']] as const).map(([command, es, en]) => <button key={command} type="button" className="btn" onClick={() => {
+        void editor.command(command); const canvas = ref.current?.ownerDocument.querySelector<HTMLElement>('.canvas-host');
+        onStart?.(); requestAnimationFrame(() => canvas?.focus());
+      }}>{tr(lang, es, en)}</button>)}</div>
+    </div>
     <p className="panel__hint">{tr(lang, 'Las medidas configuran la colocación. Editar pieza abre las solicitudes nativas para una pieza existente. Los campos inactivos se conservan y validan para otra variante. Longitudes: unidades del dibujo o mm/cm/m/in; giros: grados. Intro o Esc antes de colocar cancela.', 'Dimensions configure placement. Edit component opens native prompts for an existing component. Inactive fields are retained and validated for another variant. Lengths: drawing units or mm/cm/m/in; angles: degrees. Enter or Esc before placement cancels.')}</p>
   </div>;
 }

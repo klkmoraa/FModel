@@ -106,3 +106,21 @@ it('opening lifecycle actions start native commands and field Escape reaches the
   expect(editor.runner.active?.def.name).toBe('OPENINGMOVE');
   expect(host.querySelector('[role="dialog"]')).toBeNull();
 });
+it('wall utility actions route through native prompts and close the phone sheet', async () => {
+  const phone = () => createElement(PanelSheet, { editor, panel: 'architecture', onPanel: () => {}, onClose: () => root.render(null), onUi: () => {} });
+  await act(async () => root.render(phone()));
+  expect(host.querySelector('[role="group"][aria-label="Wall tools"]')?.textContent).toContain('Wall axis');
+  expect(host.querySelector('[role="group"][aria-label="Wall tools"]')?.textContent).toContain('Parallel wall');
+  await click('Wall axis');
+  expect(editor.runner.active?.def.name).toBe('WALLAXIS');
+  expect(editor.runner.pending?.req.kind).toBe('entity');
+  expect(host.querySelector('[role="dialog"]')).toBeNull();
+  await act(async () => editor.key('Escape'));
+  await act(async () => root.render(phone()));
+  await click('Parallel wall');
+  expect(editor.runner.active?.def.name).toBe('WALLOFFSET');
+  expect(editor.runner.pending?.req.kind).toBe('entity');
+  expect(host.querySelector('[role="dialog"]')).toBeNull();
+  await act(async () => editor.key('Escape'));
+  expect(editor.doc.data.entities.size).toBe(0);
+});

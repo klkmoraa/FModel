@@ -66,6 +66,7 @@
 | 40 | ARC-002 | P2 | Muros y huecos arquitectónicos 2D | Cerrado (núcleo 2D) | — | [Geometría](./02-geometria-comandos.md#arc-002--muros-y-huecos-arquitectónicos-2d) |
 | 41 | ARC-003 | P2 | Componentes de construcción 2D y edición paramétrica | Cerrado (14 familias 2D) | — | [Geometría](./02-geometria-comandos.md#arc-003--componentes-de-construcción-2d-y-edición-paramétrica) |
 | 42 | ARC-004 | P2 | Ciclo de huecos asociados y espesor de muro | Cerrado (muros rectos compatibles) | ARC-002 | [Geometría](./02-geometria-comandos.md#arc-004--ciclo-de-huecos-asociados-y-espesor-de-muro) |
+| 43 | ARC-005 | P2 | Eje físico y muro paralelo por distancia libre | En curso (CI y aprobación visual pendientes) | ARC-002, ARC-004 | [Geometría](./02-geometria-comandos.md#arc-005--eje-físico-y-muro-paralelo-por-distancia-libre) |
 
 ## Mapa de dependencias
 

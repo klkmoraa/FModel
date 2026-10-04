@@ -4,6 +4,7 @@ import type { CommandDef } from './types';
 import { changeWallOption, ensureWallStyle, insertEntity, JUSTIFY_KW, rectangleVertices, requestWallStart, THICKNESS_KW, validWall, wallPreview, wallProperties, wallThickness } from './architectureHelpers';
 import { WALLDOOR, WALLWINDOW } from './architectureOpenings';
 import { OPENING_LIFECYCLE } from './openingLifecycle';
+import { WALL_UTILITIES } from './wallUtilities';
 
 const HELP = L('Punto inicial; Espesor en unidades del dibujo y Justificación Centro/Izquierda/Derecha. Puntos siguientes, desHacer, Cerrar o Intro para terminar. 150 mm por defecto (0.15 m); presets WALL 100mm/150mm/200mm. Sin unidad: 150 unidades numéricas. Sólo tramos rectos; une esquinas del mismo recorrido, no objetos independientes.', 'Start point; Thickness in drawing units and Center/Left/Right Justification. Next points, Undo, Close or Enter to finish. Default 150 mm (0.15 m); presets WALL 100mm/150mm/200mm. Unitless: 150 numeric units. Straight segments only; joins corners of the same path, not independent objects.');
 export const WALL: CommandDef = {
@@ -94,4 +95,4 @@ export const WALLCONVERT: CommandDef = {
     });
   },
 };
-export const ARCHITECTURE_COMMANDS: CommandDef[] = [WALL, WALLRECT, WALLCONVERT, WALLDOOR, WALLWINDOW, ...OPENING_LIFECYCLE];
+export const ARCHITECTURE_COMMANDS: CommandDef[] = [WALL, WALLRECT, WALLCONVERT, WALLDOOR, WALLWINDOW, ...OPENING_LIFECYCLE, ...WALL_UTILITIES];

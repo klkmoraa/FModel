@@ -12,6 +12,26 @@ export interface EvidenceRecord {
 }
 
 export const EVIDENCE_CATALOG: Record<string, EvidenceRecord> = {
+  'BEH-WALL-UTILITIES': {
+    kind: 'unit', testFile: 'src/commands/behavior/wallUtilities.test.ts', testName: 'extracts a full physical axis',
+    testCommand: 'pnpm vitest run src/commands/behavior/wallUtilities.test.ts', commands: ['WALLAXIS', 'WALLOFFSET'],
+  },
+  'GEO-WALL-UTILITIES': {
+    kind: 'unit', testFile: 'src/geometry/wallUtilities.test.ts', testName: 'physical wall axis',
+    testCommand: 'pnpm vitest run src/geometry/wallUtilities.test.ts',
+  },
+  'IO-WALL-UTILITIES': {
+    kind: 'integration', testFile: 'src/io/wallUtilities.test.ts', testName: 'wall utilities retain native standard geometry',
+    testCommand: 'pnpm vitest run src/io/wallUtilities.test.ts',
+  },
+  'UI-WALL-UTILITIES': {
+    kind: 'integration', testFile: 'src/ui/panels/architecturePanel.test.ts', testName: 'wall utility actions route through native prompts',
+    testCommand: 'pnpm vitest run src/ui/panels/architecturePanel.test.ts',
+  },
+  'E2E-WALL-UTILITIES': {
+    kind: 'e2e', testFile: 'e2e/wallUtilities.spec.ts', testName: 'Wall utilities: physical axis and clear gap',
+    testCommand: 'pnpm test:e2e -- e2e/wallUtilities.spec.ts',
+  },
   'BEH-OPENINGS': {
     kind: 'unit', testFile: 'src/commands/behavior/openingLifecycle.test.ts', testName: 'two doors, move repairs old gap',
     testCommand: 'pnpm vitest run src/commands/behavior/openingLifecycle.test.ts',

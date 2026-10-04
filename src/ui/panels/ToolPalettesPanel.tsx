@@ -118,6 +118,8 @@ export function ToolPalettesPanel({ editor }: { editor: Editor }) {
           { kind: 'command', cmd: 'WALL', label: { es: 'Muro', en: 'Wall' }, icon: 'wall' },
           { kind: 'command', cmd: 'WALLRECT', label: { es: 'Habitación', en: 'Room' }, icon: 'room' },
           { kind: 'command', cmd: 'WALLCONVERT', label: { es: 'Convertir a muro', en: 'Convert to wall' }, icon: 'wall' },
+          { kind: 'command', cmd: 'WALLAXIS', label: { es: 'Eje de muro', en: 'Wall axis' }, icon: 'wall' },
+          { kind: 'command', cmd: 'WALLOFFSET', label: { es: 'Muro paralelo', en: 'Parallel wall' }, icon: 'wall' },
           { kind: 'command', cmd: 'WALLDOOR', label: { es: 'Puerta', en: 'Door' }, icon: 'door' },
           { kind: 'command', cmd: 'WALLWINDOW', label: { es: 'Ventana', en: 'Window' }, icon: 'window' },
           ...([['OPENINGMOVE', 'Mover hueco', 'Move opening'], ['OPENINGCOPY', 'Copiar hueco', 'Copy opening'], ['OPENINGEDIT', 'Editar hueco', 'Edit opening'], ['OPENINGMIRROR', 'Reflejar hueco', 'Mirror opening'], ['OPENINGDELETE', 'Borrar hueco', 'Delete opening'], ['WALLTHICKNESS', 'Espesor de muro', 'Wall thickness']] as const).map(([cmd, es, en]) => ({ kind: 'command' as const, cmd, label: { es, en }, icon: 'wall' })),

@@ -155,3 +155,11 @@
 - **Límites:** sólo muros compatibles de dos caras ±0.5 y segmentos rectos. No redes T/X, recorte de columnas, curvas o huecos en esquinas; máximos de 500 vértices, 200 huecos y 2000 primitivas. El DXF pierde la asociación editable; no se infieren grupos legados incompletos.
 - **Evidencia:** `src/geometry/wallOpenings.test.ts`, `src/model/wallAssembly.test.ts`, `src/commands/behavior/openingLifecycle.test.ts`, `src/render/openingPreview.test.ts`, `src/io/wallAssembly.test.ts`, `src/ui/panels/architecturePanel.test.ts`; recorrido `e2e/openingLifecycle.spec.ts` aprobado en CI real Día/Noche/escritorio/teléfono y seis capturas revisadas. Catálogo BEH/GEO/IO/UI/E2E-OPENINGS.
 - **Guía:** [Muros y huecos](../../docs/arquitectura-muros.md), [diseño](../../docs/superpowers/specs/2026-10-02-opening-lifecycle-design.md).
+
+## ARC-005 — Eje físico y muro paralelo por distancia libre
+
+- [>] **Estado: En curso** — 2026-10-04. Implementación nativa y pruebas locales; falta revisión de código, CI real y aprobación del controlador sobre originales de Chromium Día/Noche/escritorio/teléfono.
+- **Alcance:** `WALLAXIS`/`EJEMURO` extrae el eje físico completo como polilínea independiente; `WALLOFFSET`/`PARALELAMURO` crea un muro paralelo vacío por distancia libre entre caras, con espesor y lado ajustables. El muro origen y sus huecos asociados permanecen intactos. No se registran WWA/WWO como alias.
+- **Límites:** recorridos rectos compatibles de dos caras ±0.5; hasta 500 vértices para eje y 200 para paralelo. Sin redes T/X, ejes inferidos de líneas sueltas, curvas, recorte de columnas, huecos de esquina ni rellenos. No se amplía DWG. `.fmodel` conserva entidades/grupos y DXF conserva geometría estándar; la asociación de huecos del origen sigue perdiéndose con la advertencia existente.
+- **Evidencia provisional:** pruebas `src/geometry/wallUtilities.test.ts`, `src/commands/behavior/wallUtilities.test.ts`, `src/io/wallUtilities.test.ts`, `src/ui/panels/architecturePanel.test.ts`; recorrido `e2e/wallUtilities.spec.ts` pendiente de CI y revisión visual. Catálogo GEO/BEH/IO/UI/E2E-WALL-UTILITIES.
+- **Guía:** [Muros](../../docs/arquitectura-muros.md), [diseño](../../docs/superpowers/specs/2026-10-03-wall-utilities-design.md).
