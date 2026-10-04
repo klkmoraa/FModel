@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createDocument } from '../../document/defaults';
-import type { CircleEntity, LineEntity, LwPolylineEntity, TextEntity } from '../../document/types';
+import type { CircleEntity, HatchEntity, LineEntity, LwPolylineEntity, TextEntity } from '../../document/types';
 import { decodeDxfBytes, importDxfFile, importDxfIntoDocument } from './importDxf';
 import { INPUT_LIMITS } from '../limits';
 import { parseDxf } from './parser';
@@ -16,6 +16,88 @@ const run = (text: string) => {
   const report = importDxfIntoDocument(doc, text);
   return { doc, report, list: [...doc.data.entities.values()] };
 };
+
+const family = (angle = '0', x = '1250', y = '2300', dx = '0', dy = '100', dashes = '0') =>
+  ['53', angle, '43', x, '44', y, '45', dx, '46', dy, '79', dashes];
+const userHatch = (definition: string[], flags: string[] = ['52', '0', '41', '1', '77', '0'], kind = '0', solid = '0') => [
+  '0', 'HATCH', '8', '0', '62', '3', '370', '35', '60', '1', '2', '_USER', '70', solid,
+  '91', '1', '92', '2', '72', '0', '73', '1', '93', '4',
+  '10', '0', '20', '0', '10', '500', '20', '0', '10', '500', '20', '500', '10', '0', '20', '500', '97', '0',
+  '75', '2', '76', kind, ...flags, ...definition, '98', '0',
+];
+
+describe('user HATCH family recovery', () => {
+  it('uses drawing families after 78 rather than header scale, angle, origin or double flags', () => {
+    const { list, report } = run(dxf(header(), entities(...userHatch(
+      ['78', '2', ...family(), ...family('90', '1250', '2300', '-100', '0')],
+      ['52', '37', '41', '17', '77', '0', '43', '999', '44', '999', '45', '999', '46', '999'],
+    ))));
+    const hatch = list[0] as HatchEntity;
+    expect(hatch.pattern).toEqual({ type: 'user', name: '_USER', angle: 0, scale: 1, spacing: 100, double: true });
+    expect(hatch.origin).toEqual({ x: 1250, y: 2300 });
+    expect(report.warnings).toEqual([]);
+  });
+
+  it.each([
+    ['extra family', ['78', '3', ...family(), ...family('90', '1250', '2300', '-100', '0'), ...family('30')]],
+    ['dashed', ['78', '1', ...family('0', '1250', '2300', '0', '100', '1'), '49', '10']],
+    ['mismatched origins', ['78', '2', ...family(), ...family('90', '1251', '2300', '-100', '0')]],
+    ['nonorthogonal double', ['78', '2', ...family(), ...family('45', '1250', '2300', '-100', '100')]],
+    ['unequal spacing', ['78', '2', ...family(), ...family('90', '1250', '2300', '-101', '0')]],
+    ['nonperpendicular offset', ['78', '1', ...family('0', '1250', '2300', '1', '100')]],
+    ['collapsed spacing', ['78', '1', ...family('0', '1250', '2300', '0', '0')]],
+    ['truncated count', ['78', '2', ...family()]],
+    ['missing field', ['78', '1', '53', '0', '43', '1250', '45', '0', '46', '100', '79', '0']],
+    ['undeclared extra family', ['78', '1', ...family(), ...family()]],
+    ['undeclared dash', ['78', '1', ...family(), '49', 'NaN']],
+    ['empty family count', ['78', '']],
+    ['fractional count', ['78', '1.5', ...family()]],
+    ['huge count', ['78', '1000000000', ...family()]],
+    ['nonfinite count', ['78', 'Infinity', ...family()]],
+    ['nonfinite angle', ['78', '1', ...family('NaN')]],
+    ['nonfinite origin', ['78', '1', ...family('0', 'Infinity')]],
+    ['nonfinite offset', ['78', '1', ...family('0', '1250', '2300', 'NaN')]],
+    ['nonfinite dash count', ['78', '1', ...family('0', '1250', '2300', '0', '100', 'Infinity')]],
+    ['missing definition', []],
+  ])('retains contours as solid and reports loss for %s', (_name, definition) => {
+    const { list, report } = run(dxf(header(), entities(...userHatch(definition), ...line(7, 8, 9, 10))));
+    const hatch = list.find((e): e is HatchEntity => e.type === 'hatch')!;
+    expect(hatch.pattern).toEqual({ type: 'solid', name: 'SOLID', angle: 0, scale: 1, spacing: 1, double: false });
+    expect(hatch.origin).toEqual({ x: 0, y: 0 });
+    expect(hatch.loops).toEqual([{ closed: true, vertices: [{ x: 0, y: 0, bulge: 0 }, { x: 500, y: 0, bulge: 0 }, { x: 500, y: 500, bulge: 0 }, { x: 0, y: 500, bulge: 0 }] }]);
+    expect(hatch).toMatchObject({ color: 'aci:3', lineweight: 35, visible: false, islandStyle: 'ignore' });
+    expect(list.find((e) => e.type === 'line')).toMatchObject({ start: { x: 7, y: 8 }, end: { x: 9, y: 10 } });
+    expect(report.imported).toEqual({ HATCH: 1, LINE: 1 });
+    expect(report.ignored).toEqual({});
+    expect(report.transformed['HATCH (patrón de usuario)']).toMatchObject({ count: 1, reason: expect.stringMatching(/sólido.*solid/) });
+    expect(report.warnings).toHaveLength(1);
+    expect(report.warnings[0]).toMatch(/HATCH.*sólido.*solid/);
+  });
+
+  it.each([['0', '1', 'solid'], ['1', '0', 'predefined']])('leaves existing %s/%s behavior unchanged', (kind, solid, type) => {
+    const { list, report } = run(dxf(header(), entities(...userHatch(['78', '99', ...family('NaN')], ['52', '30', '41', '2', '77', '1'], kind, solid))));
+    expect((list[0] as HatchEntity).pattern).toEqual({ type, name: type === 'solid' ? 'SOLID' : '_USER', angle: Math.PI / 6, scale: 2, spacing: 2, double: true });
+    expect(report.transformed).toEqual({});
+    expect(report.warnings).toEqual([]);
+  });
+
+  it('counts repeated pattern losses without duplicating their warning', () => {
+    const bad = userHatch(['78', '1', ...family('NaN')]);
+    const { list, report } = run(dxf(header(), entities(...bad, ...bad)));
+    expect(list).toHaveLength(2);
+    expect(list.every((e) => e.type === 'hatch' && e.pattern.type === 'solid')).toBe(true);
+    expect(report.transformed['HATCH (patrón de usuario)']?.count).toBe(2);
+    expect(report.warnings).toHaveLength(1);
+  });
+
+  it('preserves the identity and properties of existing drawing objects on lossy import', () => {
+    const { doc, list } = run(dxf(header(), entities(...line(7, 8, 9, 10))));
+    const existing = list[0];
+    importDxfIntoDocument(doc, dxf(header(), entities(...userHatch(['78', '2', ...family()]))));
+    expect(doc.data.entities.get(existing.id)).toEqual(existing);
+    expect(doc.data.entities.size).toBe(2);
+  });
+});
 
 describe('importación de DXF', () => {
   it('rechaza más entidades que el límite antes de sustituir el dibujo', () => {

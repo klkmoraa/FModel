@@ -23,6 +23,7 @@ import type {
 import { MODEL_SPACE_ID } from '../../document/types';
 import type { DxfFile, DxfRecord } from './parser';
 import { assertDxfLimits, parseDxf, R } from './parser';
+import { recoverUserHatchPattern } from './userHatchPattern';
 import { decodeDefinition, readInstanceXdata, readXrecord } from './dynamicData';
 import { acadIndex, anonymousRepresentations, instanceNodes, readAcadDynamicBlocks } from './acadDynamic';
 import type { PolyVertex } from '../../geometry/polyline';
@@ -527,12 +528,17 @@ export function importDxfFile(doc: CadDocument, dxf: DxfFile, opts: { replace?: 
           return 0;
         }
         case 'HATCH': {
-          const hatch = convertHatch(r, base);
-          if (!hatch) {
+          const converted = convertHatch(r, base);
+          if (!converted) {
             ignored('HATCH', 'contorno no legible');
             return 0;
           }
-          add(hatch as Entity);
+          add(converted.entity as Entity);
+          if (converted.patternLoss) {
+            transformed('HATCH (patrón de usuario)', converted.patternLoss);
+            const warning = `HATCH: ${converted.patternLoss}`;
+            if (!report.warnings.includes(warning)) report.warnings.push(warning);
+          }
           ok('HATCH');
           return 0;
         }
@@ -745,7 +751,7 @@ export function decodeDxfText(s: string): string {
     .replace(/\^J/g, '\\P');
 }
 
-function convertHatch(r: R, base: Omit<EntityBase, 'id' | 'type' | 'order'>): Omit<HatchEntity, 'id' | 'order'> | null {
+function convertHatch(r: R, base: Omit<EntityBase, 'id' | 'type' | 'order'>): { entity: Omit<HatchEntity, 'id' | 'order'>; patternLoss?: string } | null {
   const pairs = r.rec.pairs;
   const loops: Loop[] = [];
   let i = pairs.findIndex((p) => p[0] === 91);
@@ -829,7 +835,11 @@ function convertHatch(r: R, base: Omit<EntityBase, 'id' | 'type' | 'order'>): Om
   const name = r.str(2, 'SOLID').toUpperCase();
   const ptype = r.num(76, 1);
   const style = r.num(75, 0);
-  return {
+  const recovered = !solid && ptype === 0 ? recoverUserHatchPattern(pairs.slice(i), name) : undefined;
+  const patternLoss = recovered && 'reason' in recovered
+    ? `Patrón de usuario convertido a sólido / User pattern converted to solid: ${recovered.reason}.`
+    : undefined;
+  const entity: Omit<HatchEntity, 'id' | 'order'> = {
     ...base,
     type: 'hatch',
     loops,
@@ -837,6 +847,13 @@ function convertHatch(r: R, base: Omit<EntityBase, 'id' | 'type' | 'order'>): Om
     origin: { x: 0, y: 0 },
     islandStyle: style === 1 ? 'outer' : style === 2 ? 'ignore' : 'normal',
   };
+  if (recovered && 'pattern' in recovered) {
+    entity.pattern = recovered.pattern;
+    entity.origin = recovered.origin;
+  } else if (patternLoss) {
+    entity.pattern = { type: 'solid', name: 'SOLID', angle: 0, scale: 1, spacing: 1, double: false };
+  }
+  return { entity, patternLoss };
 }
 
 function convertDimension(r: R, base: Omit<EntityBase, 'id' | 'type' | 'order'>, style: Id): Omit<DimensionEntity, 'id' | 'order'> | null {
