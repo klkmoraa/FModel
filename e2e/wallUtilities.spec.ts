@@ -139,10 +139,12 @@ test.describe('Wall utilities: physical axis and clear gap', () => {
         await page.screenshot({ path: testInfo.outputPath(`wall-utilities-phone-${theme}-actions.png`) });
         await panel.getByRole('button', { name: 'Wall axis', exact: true }).click();
         await expect(sheet).toHaveCount(0); await pending(page, 'entity');
+        await expect(page.locator('.canvas-host')).toBeFocused();
         await page.evaluate(() => (window as any).fmodel.editor.key('Escape'));
         await catalogue(page);
         await panel.getByRole('button', { name: 'Parallel wall', exact: true }).click();
         await expect(sheet).toHaveCount(0); await pending(page, 'entity');
+        await expect(page.locator('.canvas-host')).toBeFocused();
         await page.evaluate(() => (window as any).fmodel.editor.key('Escape'));
         await canvasSettled(page, phone);
       }

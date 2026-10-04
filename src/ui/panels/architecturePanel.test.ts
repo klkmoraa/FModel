@@ -115,12 +115,16 @@ it('wall utility actions route through native prompts and close the phone sheet'
   expect(editor.runner.active?.def.name).toBe('WALLAXIS');
   expect(editor.runner.pending?.req.kind).toBe('entity');
   expect(host.querySelector('[role="dialog"]')).toBeNull();
+  await act(async () => { await new Promise<void>(resolve => requestAnimationFrame(() => resolve())); });
+  expect(document.activeElement).toBe(canvas);
   await act(async () => editor.key('Escape'));
   await act(async () => root.render(phone()));
   await click('Parallel wall');
   expect(editor.runner.active?.def.name).toBe('WALLOFFSET');
   expect(editor.runner.pending?.req.kind).toBe('entity');
   expect(host.querySelector('[role="dialog"]')).toBeNull();
+  await act(async () => { await new Promise<void>(resolve => requestAnimationFrame(() => resolve())); });
+  expect(document.activeElement).toBe(canvas);
   await act(async () => editor.key('Escape'));
   expect(editor.doc.data.entities.size).toBe(0);
 });
