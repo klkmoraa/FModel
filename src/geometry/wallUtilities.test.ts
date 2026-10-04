@@ -40,6 +40,7 @@ describe('parallel wall clear distance', () => {
     expect(copy).toEqual({ ...source, scale: 300, justification: 'zero', vertices: xy([[0, 1225], [6000, 1225]]) });
     expect(wallFaces(copy)[1][0].y - wallFaces(source)[0][0].y).toBe(1000);
     expect(parallelWall(source, 0, 1, 300).vertices[0].y).toBe(225);
+    expect(wallFaces(parallelWall(source, 0, 1, 300))[1][0].y).toBe(wallFaces(source)[0][0].y);
     expect(parallelWall(source, 1000, -1, 300).vertices[0].y).toBe(-1225);
     expect(parallelWall({ ...source, justification: 'top' }, 1000, 1, 300).vertices[0].y).toBe(1150);
     expect(parallelWall({ ...source, justification: 'bottom' }, 1000, 1, 300).vertices[0].y).toBe(1300);
@@ -73,6 +74,19 @@ describe('parallel wall clear distance', () => {
     const inner = parallelWall(room, 1000, 1, 300);
     expect(inner.vertices).toEqual(xy([[1225, 1225], [4775, 1225], [4775, 2775], [1225, 2775]]));
     expect(wallFaces(inner)[1][0].y - wallFaces(room)[0][0].y).toBe(1000);
+    const outward = parallelWall(room, 1000, -1, 300);
+    expect(outward.vertices).toEqual(xy([[-1225, -1225], [7225, -1225], [7225, 5225], [-1225, 5225]]));
+    expect(wallFaces(room)[1][0].y - wallFaces(outward)[0][0].y).toBe(1000);
+    const cw = { ...room, vertices: xy([[0, 0], [0, 4000], [6000, 4000], [6000, 0]]) };
+    expect(parallelWall(cw, 1000, 1, 300).vertices).toEqual(xy([[-1225, -1225], [-1225, 5225], [7225, 5225], [7225, -1225]]));
+  });
+
+  it('accepts zero-gap contact across both legs of a nonstraight L without material overlap', () => {
+    const l = { ...source, vertices: xy([[0, 0], [6000, 0], [6000, 4000]]) };
+    const copy = parallelWall(l, 0, 1, 300);
+    expect(copy.vertices).toEqual(xy([[0, 225], [5775, 225], [5775, 4000]]));
+    const originalLeft = wallFaces(l)[0], copyRight = wallFaces(copy)[1];
+    expect(copyRight).toEqual(originalLeft);
   });
 
   it('rejects impossible clearance, crossing, overlap and pathological geometry', () => {
@@ -80,11 +94,16 @@ describe('parallel wall clear distance', () => {
     expectCode(() => parallelWall(room, 1000, 1, 300), 'collapse');
     const u = { ...source, vertices: xy([[0, 0], [6000, 0], [6000, 800], [0, 800]]) };
     expectCode(() => parallelWall(u, 1000, 1, 300), 'collapse');
+    const overlappingCopy = { ...u, vertices: xy([[0, 0], [6000, 0], [6000, 2500], [0, 2500]]) };
+    expectCode(() => parallelWall(overlappingCopy, 1000, 1, 300), 'collapse');
+    const zeroOverlap = { ...u, vertices: xy([[0, 0], [6000, 0], [6000, 300], [0, 300]]) };
+    expect(() => parallelWall(zeroOverlap, 0, 1, 300)).toThrow(WallUtilityError);
     const bowtie = { ...source, vertices: xy([[0, 0], [4000, 4000], [0, 4000], [4000, 0]]) };
     expectCode(() => parallelWall(bowtie, 100, 1), 'path');
     const overlap = { ...source, vertices: xy([[0, 0], [6000, 0], [6000, 1000], [1000, 1000], [1000, 0], [4000, 0]]) };
     expectCode(() => parallelWall(overlap, 100, 1), 'path');
     expectCode(() => parallelWall({ ...source, vertices: xy([[0, 0], [6000, 0], [0, 0]]) }, 100, 1), 'path');
+    expectCode(() => parallelWall({ ...source, vertices: xy([[0, 0], [6000, 0], [0, 1]]) }, 100, 1), 'collapse');
   });
 
   it('rejects malformed measures, side, path and the 200 vertex cap before pairwise work', () => {
@@ -93,5 +112,24 @@ describe('parallel wall clear distance', () => {
     expectCode(() => parallelWall(source, 100, 0 as 1), 'side');
     expectCode(() => parallelWall({ ...source, vertices: xy([[NaN, 0], [6000, 0]]) }, 100, 1), 'path');
     expectCode(() => parallelWall({ ...source, vertices: Array.from({ length: 201 }, (_, i) => ({ x: i * 100, y: 0 })) }, 100, 1), 'limit');
+  });
+
+  it('reports malformed imported vertices as path errors before reading coordinates', () => {
+    const malformed = [null, undefined, 4, { x: '0', y: 0 }, Object.create({ x: 0, y: 0 })];
+    for (const vertex of malformed) {
+      const vertices = [vertex, { x: 6000, y: 0 }] as WallPath['vertices'];
+      expectCode(() => wallCenterAxis({ ...source, vertices }), 'path');
+      expectCode(() => parallelWall({ ...source, vertices }, 100, 1), 'path');
+    }
+    const sparse = Array(2) as WallPath['vertices'];
+    sparse[1] = { x: 6000, y: 0 };
+    expectCode(() => wallCenterAxis({ ...source, vertices: sparse }), 'path');
+    expectCode(() => parallelWall({ ...source, vertices: sparse }, 100, 1), 'path');
+  });
+
+  it('rejects huge finite returns before noncorresponding boundary comparisons lose precision', () => {
+    const hugeReturn = { ...source, scale: 1e145, vertices: xy([[0, 0], [1e155, 0], [1e155, 1e146], [0, 1e146]]) };
+    expectCode(() => wallCenterAxis(hugeReturn), 'range');
+    expectCode(() => parallelWall(hugeReturn, 1e145, 1, 3e145), 'range');
   });
 });

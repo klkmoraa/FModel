@@ -1,6 +1,7 @@
 import { TOL, linearTol } from './tolerance';
 import { wallFaces } from './walls';
 import type { WallPath } from './walls';
+import { pointInPolygon, pointOnPolygonEdge } from './polyline';
 import { cross, dist, dot, mid, sub } from './vec';
 import type { Vec2 } from './vec';
 
@@ -12,6 +13,7 @@ export class WallUtilityError extends Error {
       limit: { es: 'Reduce la cantidad de vértices del muro.', en: 'Reduce the wall vertex count.' },
       measure: { es: 'Introduce una distancia no negativa y un espesor positivo y finito.', en: 'Enter a finite nonnegative gap and positive thickness.' },
       side: { es: 'Elige izquierda o derecha del recorrido.', en: 'Choose the left or right side of the path.' },
+      range: { es: 'Reduce las coordenadas o medidas extremas del muro.', en: 'Reduce extreme wall coordinates or dimensions.' },
       collapse: { es: 'El desplazamiento colapsa una cara o la habitación.', en: 'The offset collapses a face or room.' },
       separation: { es: 'No cabe un muro con esa distancia libre en todo el recorrido.', en: 'The clear distance cannot be maintained along the whole path.' },
     };
@@ -24,7 +26,16 @@ export class WallUtilityError extends Error {
 
 type Segment = [Vec2, Vec2];
 type Material = { rings: Vec2[][]; segments: Segment[]; samples: Vec2[] };
-const finite = (p: Vec2) => Number.isFinite(p.x) && Number.isFinite(p.y);
+// Squared segment lengths and orientation cross-products stay finite when both
+// coordinate differences are at most twice this bound (including subtraction).
+const MAX_GEOMETRY_MAGNITUDE = Math.sqrt(Number.MAX_VALUE) / 32;
+const finite = (p: unknown): p is Vec2 => {
+  if (p === null || typeof p !== 'object' || Array.isArray(p)) return false;
+  const x = Object.getOwnPropertyDescriptor(p, 'x');
+  const y = Object.getOwnPropertyDescriptor(p, 'y');
+  return typeof x?.value === 'number' && Number.isFinite(x.value) &&
+    typeof y?.value === 'number' && Number.isFinite(y.value);
+};
 const magnitude = (points: Vec2[]) => points.reduce((n, p) => Math.max(n, Math.abs(p.x), Math.abs(p.y)), 0);
 const segments = (points: Vec2[], closed: boolean): Segment[] =>
   Array.from({ length: closed ? points.length : points.length - 1 }, (_, i) => [points[i], points[(i + 1) % points.length]]);
@@ -74,13 +85,7 @@ function simple(points: Vec2[], closed: boolean, tol: number): boolean {
 }
 
 function inside(p: Vec2, ring: Vec2[], tol: number): boolean {
-  let contained = false;
-  for (const edge of segments(ring, true)) {
-    if (onSegment(p, edge, tol)) return false;
-    const [a, b] = edge;
-    if ((a.y > p.y) !== (b.y > p.y) && p.x < a.x + (p.y - a.y) * (b.x - a.x) / (b.y - a.y)) contained = !contained;
-  }
-  return contained;
+  return !pointOnPolygonEdge(p, ring, tol) && pointInPolygon(p, ring);
 }
 
 function inMaterial(p: Vec2, material: Material, tol: number): boolean {
@@ -93,7 +98,11 @@ function validated(path: WallPath, max: number): { faces: Vec2[][]; material: Ma
   const pts = path.vertices;
   if (typeof path.closed !== 'boolean' || !['zero', 'top', 'bottom'].includes(path.justification) ||
     !Number.isFinite(path.scale) || path.scale <= TOL.LINEAR ||
-    pts.length < (path.closed ? 3 : 2) || !pts.every(finite)) throw new WallUtilityError('path');
+    pts.length < (path.closed ? 3 : 2)) throw new WallUtilityError('path');
+  for (let i = 0; i < pts.length; i++) {
+    if (!Object.prototype.hasOwnProperty.call(pts, i) || !finite(pts[i])) throw new WallUtilityError('path');
+  }
+  if (Math.max(magnitude(pts), path.scale) > MAX_GEOMETRY_MAGNITUDE) throw new WallUtilityError('range');
   const tol = linearTol(Math.max(magnitude(pts), path.scale));
   if (!simple(pts, path.closed, tol)) throw new WallUtilityError('path');
   let faces: Vec2[][];
@@ -101,6 +110,7 @@ function validated(path: WallPath, max: number): { faces: Vec2[][]; material: Ma
     if (error instanceof Error && ['path', 'segment', 'reversal', 'miter', 'finite', 'collapsed-face'].includes(error.message)) throw new WallUtilityError('collapse');
     throw error;
   }
+  if (faces.some(face => face.some(p => !finite(p) || Math.abs(p.x) > MAX_GEOMETRY_MAGNITUDE || Math.abs(p.y) > MAX_GEOMETRY_MAGNITUDE))) throw new WallUtilityError('range');
   if (!faces.every(face => face.every(finite) && simple(face, path.closed, tol))) throw new WallUtilityError('collapse');
   const rings = path.closed ? faces : [[...faces[0], ...faces[1].slice().reverse()]];
   if (!rings.every(ring => simple(ring, true, tol))) throw new WallUtilityError('collapse');
@@ -121,11 +131,13 @@ export function wallCenterAxis(path: WallPath): { vertices: Vec2[]; closed: bool
 export function parallelWall(path: WallPath, clearance: number, side: 1 | -1, thickness = path.scale): WallPath {
   if (path?.vertices?.length > 200) throw new WallUtilityError('limit');
   if (!Number.isFinite(clearance) || clearance < 0 || !Number.isFinite(thickness) || thickness <= TOL.LINEAR) throw new WallUtilityError('measure');
+  if (Math.max(clearance, thickness) > MAX_GEOMETRY_MAGNITUDE) throw new WallUtilityError('range');
   if (side !== 1 && side !== -1) throw new WallUtilityError('side');
   const source = validated(path, 200);
   const axis: WallPath = { vertices: source.faces[0].map((p, i) => mid(p, source.faces[1][i])), closed: path.closed,
     scale: clearance + (path.scale + thickness) / 2, justification: side === 1 ? 'bottom' : 'top' };
   if (!Number.isFinite(axis.scale) || axis.scale <= TOL.LINEAR) throw new WallUtilityError('measure');
+  if (axis.scale > MAX_GEOMETRY_MAGNITUDE) throw new WallUtilityError('range');
   let offset: Vec2[][];
   try { offset = wallFaces(axis); } catch (error) {
     if (error instanceof Error && ['path', 'segment', 'reversal', 'miter', 'finite', 'collapsed-face'].includes(error.message)) throw new WallUtilityError('collapse');
