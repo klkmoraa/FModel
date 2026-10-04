@@ -128,3 +128,14 @@ it('wall utility actions route through native prompts and close the phone sheet'
   await act(async () => editor.key('Escape'));
   expect(editor.doc.data.entities.size).toBe(0);
 });
+
+it.each([['en', 'Fill walls', 'Wall tools'], ['es', 'Rellenar muros', 'Herramientas de muro']] as const)('wall fill action routes the native flow and restores focus in %s', async (lang, label, group) => {
+  editor.setPrefs({ lang });
+  const phone = () => createElement(PanelSheet, { editor, panel: 'architecture', onPanel: () => {}, onClose: () => root.render(null), onUi: () => {} });
+  await act(async () => root.render(phone()));
+  expect(host.querySelector(`[role="group"][aria-label="${group}"]`)?.textContent).toContain(label);
+  await click(label); expect(editor.runner.active?.def.name).toBe('WALLFILL'); expect(editor.runner.pending?.req.kind).toBe('selection');
+  expect(host.querySelector('[role="dialog"]')).toBeNull();
+  await act(async () => { await new Promise<void>(resolve => requestAnimationFrame(() => resolve())); }); expect(document.activeElement).toBe(canvas);
+  await act(async () => editor.key('Escape')); expect(editor.runner.busy).toBe(false); expect(editor.preview).toBeNull(); expect(editor.doc.data.entities.size).toBe(0);
+});

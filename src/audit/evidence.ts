@@ -12,6 +12,27 @@ export interface EvidenceRecord {
 }
 
 export const EVIDENCE_CATALOG: Record<string, EvidenceRecord> = {
+  'BEH-WALL-FILL': {
+    kind: 'unit', testFile: 'src/commands/behavior/wallFill.test.ts', testName: 'selected_material_and_dedup',
+    testCommand: 'pnpm vitest run src/commands/behavior/wallFill.test.ts', commands: ['WALLFILL'],
+  },
+  'GEO-WALL-FILL': {
+    kind: 'unit', testFile: 'src/geometry/wallFill.test.ts', testName: 'native material fill geometry',
+    testCommand: 'pnpm vitest run src/geometry/wallFill.test.ts',
+  },
+  'IO-WALL-FILL': {
+    kind: 'integration', testFile: 'src/io/wallFill.test.ts', testName: 'wall fill native and DXF roundtrip',
+    testCommand: 'pnpm vitest run src/io/wallFill.test.ts',
+  },
+  'UI-WALL-FILL': {
+    kind: 'integration', testFile: 'src/ui/panels/architecturePanel.test.ts', testName: 'wall fill action routes the native flow',
+    testCommand: 'pnpm vitest run src/ui/panels/architecturePanel.test.ts src/ui/panels/wallFillAccess.test.ts',
+  },
+  'E2E-WALL-FILL': {
+    kind: 'e2e', testFile: 'e2e/wallFill.spec.ts', testName: 'Architectural wall fill: material snapshots and native controls',
+    testCommand: 'pnpm exec playwright test e2e/wallFill.spec.ts',
+  },
+
   'BEH-WALL-UTILITIES': {
     kind: 'unit', testFile: 'src/commands/behavior/wallUtilities.test.ts', testName: 'extracts a full physical axis',
     testCommand: 'pnpm vitest run src/commands/behavior/wallUtilities.test.ts', commands: ['WALLAXIS', 'WALLOFFSET'],

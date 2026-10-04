@@ -79,8 +79,8 @@ export function ArchitecturePanel({ editor, onStart }: { editor: Editor; onStart
       }}>{tr(lang, es, en)}</button>)}</div>
     </div>
     <div className="architecture-opening-actions" role="group" aria-label={tr(lang, 'Herramientas de muro', 'Wall tools')}>
-      <p className="panel__hint">{tr(lang, 'Selecciona un muro compatible; Intro crea el eje o muro paralelo. Esc descarta.', 'Select a compatible wall; Enter creates the axis or parallel wall. Esc cancels.')}</p>
-      <div className="panel-actions">{([['WALLAXIS', 'Eje de muro', 'Wall axis'], ['WALLOFFSET', 'Muro paralelo', 'Parallel wall']] as const).map(([command, es, en]) => <button key={command} type="button" className="btn" onClick={() => {
+      <p className="panel__hint">{tr(lang, 'Selecciona muros o columnas nativas; Intro crea el eje, muro paralelo o relleno independiente. Rellenar conserva vacíos y huecos. Esc descarta.', 'Select native walls or columns; Enter creates the axis, parallel wall or independent fill. Fill keeps rooms and openings empty. Esc cancels.')}</p>
+      <div className="panel-actions">{([['WALLAXIS', 'Eje de muro', 'Wall axis'], ['WALLOFFSET', 'Muro paralelo', 'Parallel wall'], ['WALLFILL', 'Rellenar muros', 'Fill walls']] as const).map(([command, es, en]) => <button key={command} type="button" className="btn" onClick={() => {
         void editor.command(command); const canvas = ref.current?.ownerDocument.querySelector<HTMLElement>('.canvas-host');
         onStart?.(); requestAnimationFrame(() => canvas?.focus());
       }}>{tr(lang, es, en)}</button>)}</div>
