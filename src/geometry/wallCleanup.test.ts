@@ -123,6 +123,15 @@ describe('native wall face cleanup', () => {
     }
   });
 
+  it('retains a small wall when an unrelated distant column is selected', () => {
+    const small = wall('small', [[0, 0], [6, 0]], 0.3);
+    const withoutColumn = cleanWallFaces([small], []);
+    expect(spans(withoutColumn, small.key, 0.15)).toEqual([[0, 6]]);
+    expect(spans(withoutColumn, small.key, -0.15)).toEqual([[0, 6]]);
+    const withColumn = cleanWallFaces([small], [{ kind: 'circle', center: { x: 1e14, y: 0 }, radius: 1000 }]);
+    expect(canonical(withColumn)).toEqual(canonical(withoutColumn));
+  });
+
   it('rejects malformed, nonfinite, collapsed or fully obscured geometry with bilingual domain errors', () => {
     const invalid = [
       () => cleanWallFaces([], []),

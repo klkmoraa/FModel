@@ -56,6 +56,9 @@ function edges(vertices: readonly Vec2[], closed = true): Edge[] {
   return Array.from({ length: closed ? vertices.length : vertices.length - 1 }, (_, i) =>
     [vertices[i], vertices[(i + 1) % vertices.length]] as const);
 }
+function edgeTol(start: Vec2, end: Vec2): number {
+  return linearTol(Math.max(Math.abs(start.x), Math.abs(start.y), Math.abs(end.x), Math.abs(end.y)));
+}
 function overlap(a: Axis, [start, end]: Edge, tol: number): Interval | undefined {
   if (Math.abs(across(a, start)) > tol || Math.abs(across(a, end)) > tol) return;
   const first = along(a, start), last = along(a, end);
@@ -178,7 +181,6 @@ export function cleanWallFaces(walls: readonly CleanupWall[], columns: readonly 
       Math.max(Math.abs(point.x), Math.abs(point.y)) > MAX_MAGNITUDE) throw new WallCleanupError('range');
   };
   const candidates: CleanupSegment[] = [], polygons: Polygon[] = [];
-  let magnitude = 0;
   // Sort without locale-dependent comparison: coincident faces inherit the
   // lexicographically first source, regardless of selection order.
   const ordered = [...walls].sort((a, b) => a.key < b.key ? -1 : a.key > b.key ? 1 : 0);
@@ -194,7 +196,6 @@ export function cleanWallFaces(walls: readonly CleanupWall[], columns: readonly 
     }
     for (const face of faces) for (const point of face) {
       checkPoint(point);
-      magnitude = Math.max(magnitude, Math.abs(point.x), Math.abs(point.y));
     }
     for (const [start, end] of own) candidates.push({ sourceKey: wall.key, start, end });
   }
@@ -202,15 +203,12 @@ export function cleanWallFaces(walls: readonly CleanupWall[], columns: readonly 
     try {
       if (column.kind === 'polygon') {
         const vertices = polygonFillLoop(column.vertices).vertices.map(({ x, y }) => ({ x, y }));
-        for (const point of vertices) magnitude = Math.max(magnitude, Math.abs(point.x), Math.abs(point.y));
         return { kind: 'polygon', vertices };
       }
       circleFillLoop(column.center, column.radius);
-      magnitude = Math.max(magnitude, Math.abs(column.center.x), Math.abs(column.center.y), column.radius);
       return { kind: 'circle', center: { ...column.center }, radius: column.radius };
     } catch { throw new WallCleanupError('column'); }
   });
-  const tol = linearTol(magnitude);
   // Local coordinates keep polygon-clipping independent of UTM offsets.
   const origin = candidates[0].start;
   const local = polygons.map(polygon => polygon.map(ring => ring.map(([x, y]) => [x - origin.x, y - origin.y] as [number, number])));
@@ -223,7 +221,7 @@ export function cleanWallFaces(walls: readonly CleanupWall[], columns: readonly 
       const start = { x: ring[i - 1][0] + origin.x, y: ring[i - 1][1] + origin.y };
       const end = { x: ring[i][0] + origin.x, y: ring[i][1] + origin.y };
       checkPoint(start); checkPoint(end);
-      if (Math.hypot(end.x - start.x, end.y - start.y) > tol) boundary.push([start, end]);
+      if (Math.hypot(end.x - start.x, end.y - start.y) > edgeTol(start, end)) boundary.push([start, end]);
     }
   }
   // Union intersections can increase the edge count; reject that candidate
@@ -232,6 +230,9 @@ export function cleanWallFaces(walls: readonly CleanupWall[], columns: readonly 
   const result: CleanupSegment[] = [];
   for (const candidate of candidates) {
     const a = axis([candidate.start, candidate.end]);
+    // Projected distances use this candidate's precision, including UTM
+    // roundoff. Unrelated walls or columns cannot erase its retained spans.
+    const tol = edgeTol(candidate.start, candidate.end);
     let kept = merge(boundary.flatMap(edge => {
       const interval = overlap(a, edge, tol);
       return interval ? [interval] : [];
