@@ -1,4 +1,7 @@
-import { expect, test, type Locator, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page, type TestInfo } from '@playwright/test';
+
+// Keep this file's diagnostic artifact small; other suites retain their configured traces.
+test.use({ trace: 'off' });
 
 async function workspace(page: Page, theme: 'dia' | 'noche') {
   await page.emulateMedia({ colorScheme: theme === 'dia' ? 'light' : 'dark' });
@@ -67,37 +70,91 @@ async function pixels(page: Page) {
   return page.evaluate(() => {
     const editor = (window as any).fmodel.editor, [scene, overlay] = document.querySelectorAll<HTMLCanvasElement>('.canvas-host canvas');
     if (!scene || !overlay) throw Error('canvas not mounted');
+    const coordinates = (canvas: HTMLCanvasElement, x: number, y: number) => {
+      const screen = editor.view.toScreen({ x, y });
+      const cx = Math.round(screen.x * canvas.width / editor.view.width), cy = Math.round(screen.y * canvas.height / editor.view.height);
+      return { world: { x, y }, screen, center: { x: cx, y: cy }, patch: { x: cx - 2, y: cy - 2, width: 5, height: 5 } };
+    };
     const at = (canvas: HTMLCanvasElement, x: number, y: number) => {
-      const s = editor.view.toScreen({ x, y }), cx = Math.round(s.x * canvas.width / editor.view.width), cy = Math.round(s.y * canvas.height / editor.view.height);
+      const { center: { x: cx, y: cy } } = coordinates(canvas, x, y);
       const patch = canvas.getContext('2d')!.getImageData(cx - 2, cy - 2, 5, 5).data;
       return [...Array(25)].map((_, i) => [...patch.slice(i * 4, i * 4 + 4)]);
     };
     const background = at(scene, 4500, 2500)[12];
     const probes = { wall: [1000, 0], column: [1300, 1300], hole: [3000, 0], room: [4500, 2500], wallLine: [800 * Math.SQRT2, 0], wallGap: [1000 * Math.SQRT2, 0], columnLine: [1300, 1300], columnGap: [1300 - 160 / Math.SQRT2, 1300 + 160 / Math.SQRT2] };
-    return Object.fromEntries(Object.entries(probes).map(([key, [x, y]]) => [key, {
+    const metrics = Object.fromEntries(Object.entries(probes).map(([key, [x, y]]) => [key, {
       scene: Math.max(...at(scene, x, y).map(pixel => Math.max(...pixel.slice(0, 3).map((c, i) => Math.abs(c - background[i]))))),
       overlay: Math.max(...at(overlay, x, y).map(pixel => pixel[3])),
     }]));
+    const rect = (element: Element) => { const { x, y, width, height } = element.getBoundingClientRect(); return { x, y, width, height }; };
+    return { metrics, sampling: {
+      view: { center: editor.view.center, scale: editor.view.scale, width: editor.view.width, height: editor.view.height },
+      devicePixelRatio,
+      host: rect(document.querySelector('.canvas-host')!),
+      canvases: { scene: { width: scene.width, height: scene.height, rect: rect(scene) }, overlay: { width: overlay.width, height: overlay.height, rect: rect(overlay) } },
+      probes: Object.fromEntries(Object.entries(probes).map(([key, [x, y]]) => [key, { scene: coordinates(scene, x, y), overlay: coordinates(overlay, x, y) }])),
+    } };
   });
 }
 async function solidPixels(page: Page, where: 'preview' | 'scene' | 'empty') {
   await expect.poll(async () => {
-    const px = await pixels(page);
+    const { metrics: px } = await pixels(page);
     if (where === 'preview') return px.wall.overlay > 30 && px.column.overlay > 30 && px.wall.scene < 10 && px.column.scene < 10 && px.hole.overlay < 10 && px.room.overlay < 10 && px.hole.scene < 10 && px.room.scene < 10;
     if (where === 'scene') return px.wall.scene > 30 && px.column.scene > 30 && px.hole.scene < 10 && px.room.scene < 10;
     return px.wall.scene < 10 && px.column.scene < 10 && px.hole.scene < 10 && px.room.scene < 10 && px.wall.overlay < 10 && px.column.overlay < 10;
   }).toBe(true);
 }
-async function hatchedPixels(page: Page, layer: 'overlay' | 'scene') {
-  await expect.poll(async () => {
-    const px = await pixels(page);
-    return px.wallLine[layer] > 30 && px.columnLine[layer] > 30 && px.wallGap[layer] < 10 && px.columnGap[layer] < 10 && px.hole[layer] < 10 && px.room[layer] < 10;
-  }).toBe(true);
+async function hatchedPixels(page: Page, layer: 'overlay' | 'scene', testInfo: TestInfo) {
+  let last: Awaited<ReturnType<typeof pixels>> | undefined;
+  try {
+    await expect.poll(async () => {
+      last = await pixels(page);
+      const px = last.metrics;
+      return px.wallLine[layer] > 30 && px.columnLine[layer] > 30 && px.wallGap[layer] < 10 && px.columnGap[layer] < 10 && px.hole[layer] < 10 && px.room[layer] < 10;
+    }).toBe(true);
+  } catch (error) {
+    console.log('WALL_FILL_PIXEL_DIAGNOSTIC ' + JSON.stringify({ title: testInfo.title, layer, last }));
+    try {
+      // Preserve the overlay's original intrinsic pixels and transparency, without compositing.
+      const png = await page.evaluate(() => document.querySelectorAll<HTMLCanvasElement>('.canvas-host canvas')[1].toDataURL('image/png'));
+      await testInfo.attach(`wall-fill-rayado-${layer}-original-overlay`, { body: Buffer.from(png.split(',')[1], 'base64'), contentType: 'image/png' });
+    } finally { throw error; }
+  }
 }
 async function selectBatch(page: Page, ids: string[]) {
   await pending(page, 'selection'); await command(page, 'All');
   expect((await state(page)).requestIds.sort()).toEqual([...ids].sort());
   await command(page, ''); await pending(page, 'keyword');
+}
+/** Independent same-origin proof, removed before the required closed-room/circle captures. */
+async function memberDeduplication(page: Page) {
+  const empty = await state(page);
+  await command(page, 'WALL'); await command(page, 'Thickness'); await pending(page, 'distance'); await command(page, '300');
+  await pending(page, 'point'); await command(page, '#0,0'); await command(page, '#6000,0'); await command(page, '');
+  await expect.poll(async () => (await state(page)).entities.length).toBe(1);
+  const anchorId = (await state(page)).entities[0].id;
+  await command(page, 'WALLDOOR'); await select(page, anchorId); await pending(page, 'point'); await command(page, '#3000,0');
+  await pending(page, 'point'); await command(page, 'Type'); await pending(page, 'keyword'); await command(page, 'Empty'); await pending(page, 'point'); await command(page, '');
+  await expect.poll(async () => (await state(page)).entities.length).toBe(4);
+  const source = await state(page);
+  expect(source.anchor.meta.fmodelWallAssembly.openings[0]).toMatchObject({ type: 'empty', width: 900 });
+  await command(page, 'WALLFILL'); await pending(page, 'selection'); await command(page, 'All');
+  const selected = await state(page);
+  const sameOrigin = selected.entities.filter((e: any) => selected.requestIds.includes(e.id) && e.meta?.fmodelWallMember?.anchorId === anchorId);
+  expect(new Set(sameOrigin.map((e: any) => e.id)).size).toBe(4);
+  expect(sameOrigin.filter((e: any) => e.type === 'mline')).toHaveLength(2);
+  expect(selected.requestIds.sort()).toEqual(source.entities.map((e: any) => e.id).sort());
+  await command(page, ''); await pending(page, 'keyword');
+  const preview = await state(page); expect(preview.preview.entities).toHaveLength(2);
+  expect(preview.entities).toEqual(source.entities); expect(preview.history).toBe(source.history);
+  await command(page, ''); await expect.poll(async () => (await state(page)).fills.length).toBe(2);
+  const filled = await state(page); expect(filled.area).toBeCloseTo(1530000, 5); expect(filled.history).toBe(source.history + 1);
+  expect(filled.entities.filter((e: any) => source.entities.some((original: any) => original.id === e.id))).toEqual(source.entities);
+  expect(filled.groups).toEqual(source.groups); expect(filled.styles).toEqual(source.styles);
+  await command(page, 'UNDO'); await expect.poll(async () => (await state(page)).fills.length).toBe(0);
+  expect((await state(page)).entities).toEqual(source.entities); expect((await state(page)).groups).toEqual(source.groups);
+  await command(page, 'UNDO'); await command(page, 'UNDO');
+  const restored = await state(page); expect(restored.entities).toEqual(empty.entities); expect(restored.groups).toEqual(empty.groups); expect(restored.styles).toEqual(empty.styles);
 }
 async function catalogue(page: Page) {
   await page.getByRole('button', { name: /^(Open all tools|All tools)$/ }).click();
@@ -111,6 +168,7 @@ test.describe('Architectural wall fill: material snapshots and native controls',
     if (phone) test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
     for (const theme of ['dia', 'noche'] as const) test(`${phone ? 'phone' : 'desktop'} ${theme}: solid and rayado material, empty voids, atomic history and cancel`, async ({ page }, testInfo) => {
       await workspace(page, theme);
+      await memberDeduplication(page);
       await command(page, 'WALLRECT'); await command(page, 'Thickness'); await pending(page, 'distance'); await command(page, '300');
       await pending(page, 'point'); await command(page, '#0,0'); await command(page, '#6000,4000');
       await expect.poll(async () => (await state(page)).entities.length).toBe(1); const wallId = (await state(page)).entities[0].id;
@@ -148,8 +206,8 @@ test.describe('Architectural wall fill: material snapshots and native controls',
       await command(page, 'UNDO'); await expect.poll(async () => (await state(page)).fills.length).toBe(0); await solidPixels(page, 'empty');
       await command(page, 'WALLFILL'); await selectBatch(page, ids); await command(page, 'Spacing'); await pending(page, 'distance'); await command(page, '400'); await pending(page, 'keyword'); await command(page, 'Hatched'); await pending(page, 'keyword');
       expect((await state(page)).entities).toEqual(original.entities); expect((await state(page)).preview.entities.every((e: any) => e.pattern.type === 'user' && e.pattern.spacing === 400)).toBe(true);
-      await hatchedPixels(page, 'overlay'); await command(page, ''); await expect.poll(async () => (await state(page)).fills.length).toBe(2);
-      expect((await state(page)).fills.every((e: any) => e.pattern.type === 'user')).toBe(true); expect((await state(page)).area).toBeCloseTo(5730000 + 90000 * Math.PI, 5); await hatchedPixels(page, 'scene');
+      await hatchedPixels(page, 'overlay', testInfo); await command(page, ''); await expect.poll(async () => (await state(page)).fills.length).toBe(2);
+      expect((await state(page)).fills.every((e: any) => e.pattern.type === 'user')).toBe(true); expect((await state(page)).area).toBeCloseTo(5730000 + 90000 * Math.PI, 5); await hatchedPixels(page, 'scene', testInfo);
       await command(page, 'UNDO'); await expect.poll(async () => (await state(page)).fills.length).toBe(0); await solidPixels(page, 'empty');
       for (const [option, kind] of [['Spacing', 'distance'], ['Angle', 'angle']] as const) {
         const before = await state(page); await command(page, 'WALLFILL'); await selectBatch(page, ids); await command(page, option); await pending(page, kind);

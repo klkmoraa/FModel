@@ -1,0 +1,225 @@
+1) [chromium] › e2e/wallFill.spec.ts:112:52 › Architectural wall fill: material snapshots and native controls › phone › phone dia: solid and rayado material, empty voids, atomic history and cancel 
+2026-10-04T23:57:55.3474072Z 
+2026-10-04T23:57:55.3474349Z     Error: expect(received).toBe(expected) // Object.is equality
+2026-10-04T23:57:55.3474678Z 
+2026-10-04T23:57:55.3474799Z     Expected: true
+2026-10-04T23:57:55.3475078Z     Received: false
+2026-10-04T23:57:55.3475494Z 
+2026-10-04T23:57:55.3475598Z     Call Log:
+2026-10-04T23:57:55.3475983Z     - Timeout 5000ms exceeded while waiting on the predicate
+2026-10-04T23:57:55.3476278Z 
+2026-10-04T23:57:55.3476411Z       93 |     const px = await pixels(page);
+2026-10-04T23:57:55.3476977Z       94 |     return px.wallLine[layer] > 30 && px.columnLine[layer] > 30 && px.wallGap[layer] < 10 && px.columnGap[layer] < 10 && px.hole[layer] < 10 && px.room[layer] < 10;
+2026-10-04T23:57:55.3477568Z     > 95 |   }).toBe(true);
+2026-10-04T23:57:55.3477775Z          |      ^
+2026-10-04T23:57:55.3477958Z       96 | }
+2026-10-04T23:57:55.3478234Z       97 | async function selectBatch(page: Page, ids: string[]) {
+2026-10-04T23:57:55.3478605Z       98 |   await pending(page, 'selection'); await command(page, 'All');
+2026-10-04T23:57:55.3479034Z         at hatchedPixels (/home/runner/work/FModel/FModel/e2e/wallFill.spec.ts:95:6)
+2026-10-04T23:57:55.3479455Z         at /home/runner/work/FModel/FModel/e2e/wallFill.spec.ts:151:13
+2026-10-04T23:57:55.3479668Z 
+2026-10-04T23:57:55.3480041Z     attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+2026-10-04T23:57:55.3480632Z     test-results/wallFill-Architectural-wal-09728-s-atomic-history-and-cancel-chromium/test-failed-1.png
+2026-10-04T23:57:55.3481265Z     ────────────────────────────────────────────────────────────────────────────────────────────────
+2026-10-04T23:57:55.3481510Z 
+2026-10-04T23:57:55.3481857Z     Error Context: test-results/wallFill-Architectural-wal-09728-s-atomic-history-and-cancel-chromium/error-context.md
+2026-10-04T23:57:55.3482227Z 
+2026-10-04T23:57:55.3482550Z     attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+2026-10-04T23:57:55.3483093Z     test-results/wallFill-Architectural-wal-09728-s-atomic-history-and-cancel-chromium/trace.zip
+2026-10-04T23:57:55.3483492Z     Usage:
+2026-10-04T23:57:55.3483589Z 
+2026-10-04T23:57:55.3484205Z         pnpm exec playwright show-trace test-results/wallFill-Architectural-wal-09728-s-atomic-history-and-cancel-chromium/trace.zip
+2026-10-04T23:57:55.3484602Z 
+2026-10-04T23:57:55.3484908Z     ────────────────────────────────────────────────────────────────────────────────────────────────
+2026-10-04T23:57:55.3485135Z 
+2026-10-04T23:57:55.3485441Z     Retry #1 ───────────────────────────────────────────────────────────────────────────────────────
+2026-10-04T23:57:55.3485688Z 
+2026-10-04T23:57:55.3485853Z     Error: expect(received).toBe(expected) // Object.is equality
+2026-10-04T23:57:55.3486052Z 
+2026-10-04T23:57:55.3486145Z     Expected: true
+2026-10-04T23:57:55.3486342Z     Received: false
+2026-10-04T23:57:55.3486459Z 
+2026-10-04T23:57:55.3486535Z     Call Log:
+2026-10-04T23:57:55.3486797Z     - Timeout 5000ms exceeded while waiting on the predicate
+2026-10-04T23:57:55.3486982Z 
+2026-10-04T23:57:55.3487107Z       93 |     const px = await pixels(page);
+2026-10-04T23:57:55.3487734Z       94 |     return px.wallLine[layer] > 30 && px.columnLine[layer] > 30 && px.wallGap[layer] < 10 && px.columnGap[layer] < 10 && px.hole[layer] < 10 && px.room[layer] < 10;
+2026-10-04T23:57:55.3488206Z     > 95 |   }).toBe(true);
+2026-10-04T23:57:55.3488408Z          |      ^
+2026-10-04T23:57:55.3488589Z       96 | }
+2026-10-04T23:57:55.3488856Z       97 | async function selectBatch(page: Page, ids: string[]) {
+2026-10-04T23:57:55.3489216Z       98 |   await pending(page, 'selection'); await command(page, 'All');
+2026-10-04T23:57:55.3489716Z         at hatchedPixels (/home/runner/work/FModel/FModel/e2e/wallFill.spec.ts:95:6)
+2026-10-04T23:57:55.3490129Z         at /home/runner/work/FModel/FModel/e2e/wallFill.spec.ts:151:13
+2026-10-04T23:57:55.3490330Z 
+2026-10-04T23:57:55.3490651Z     attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+2026-10-04T23:57:55.3491256Z     test-results/wallFill-Architectural-wal-09728-s-atomic-history-and-cancel-chromium-retry1/test-failed-1.png
+2026-10-04T23:57:55.3491927Z     ────────────────────────────────────────────────────────────────────────────────────────────────
+2026-10-04T23:57:55.3492151Z 
+2026-10-04T23:57:55.3492530Z     Error Context: test-results/wallFill-Architectural-wal-09728-s-atomic-history-and-cancel-chromium-retry1/error-context.md
+2026-10-04T23:57:55.3492930Z 
+2026-10-04T23:57:55.3493246Z     attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+2026-10-04T23:57:55.3494122Z     test-results/wallFill-Architectural-wal-09728-s-atomic-history-and-cancel-chromium-retry1/trace.zip
+2026-10-04T23:57:55.3494539Z     Usage:
+2026-10-04T23:57:55.3494642Z 
+2026-10-04T23:57:55.3495046Z         pnpm exec playwright show-trace test-results/wallFill-Architectural-wal-09728-s-atomic-history-and-cancel-chromium-retry1/trace.zip
+2026-10-04T23:57:55.3495457Z 
+2026-10-04T23:57:55.3495755Z     ────────────────────────────────────────────────────────────────────────────────────────────────
+2026-10-04T23:57:55.3495981Z 
+2026-10-04T23:57:55.3496292Z     Retry #2 ───────────────────────────────────────────────────────────────────────────────────────
+2026-10-04T23:57:55.3496520Z 
+2026-10-04T23:57:55.3496679Z     Error: expect(received).toBe(expected) // Object.is equality
+2026-10-04T23:57:55.3496876Z 
+2026-10-04T23:57:55.3496964Z     Expected: true
+2026-10-04T23:57:55.3497157Z     Received: false
+2026-10-04T23:57:55.3497269Z 
+2026-10-04T23:57:55.3497354Z     Call Log:
+2026-10-04T23:57:55.3497610Z     - Timeout 5000ms exceeded while waiting on the predicate
+2026-10-04T23:57:55.3497791Z 
+2026-10-04T23:57:55.3497913Z       93 |     const px = await pixels(page);
+2026-10-04T23:57:55.3498496Z       94 |     return px.wallLine[layer] > 30 && px.columnLine[layer] > 30 && px.wallGap[layer] < 10 && px.columnGap[layer] < 10 && px.hole[layer] < 10 && px.room[layer] < 10;
+2026-10-04T23:57:55.3498969Z     > 95 |   }).toBe(true);
+2026-10-04T23:57:55.3499168Z          |      ^
+2026-10-04T23:57:55.3499345Z       96 | }
+2026-10-04T23:57:55.3499671Z       97 | async function selectBatch(page: Page, ids: string[]) {
+2026-10-04T23:57:55.3500040Z       98 |   await pending(page, 'selection'); await command(page, 'All');
+2026-10-04T23:57:55.3500452Z         at hatchedPixels (/home/runner/work/FModel/FModel/e2e/wallFill.spec.ts:95:6)
+2026-10-04T23:57:55.3500861Z         at /home/runner/work/FModel/FModel/e2e/wallFill.spec.ts:151:13
+2026-10-04T23:57:55.3501059Z 
+2026-10-04T23:57:55.3501394Z     attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+2026-10-04T23:57:55.3501976Z     test-results/wallFill-Architectural-wal-09728-s-atomic-history-and-cancel-chromium-retry2/test-failed-1.png
+2026-10-04T23:57:55.3502630Z     ────────────────────────────────────────────────────────────────────────────────────────────────
+2026-10-04T23:57:55.3502854Z 
+2026-10-04T23:57:55.3503219Z     Error Context: test-results/wallFill-Architectural-wal-09728-s-atomic-history-and-cancel-chromium-retry2/error-context.md
+2026-10-04T23:57:55.3503610Z 
+2026-10-04T23:57:55.3504242Z     attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+2026-10-04T23:57:55.3504815Z     test-results/wallFill-Architectural-wal-09728-s-atomic-history-and-cancel-chromium-retry2/trace.zip
+2026-10-04T23:57:55.3505220Z     Usage:
+2026-10-04T23:57:55.3505329Z 
+2026-10-04T23:57:55.3505740Z         pnpm exec playwright show-trace test-results/wallFill-Architectural-wal-09728-s-atomic-history-and-cancel-chromium-retry2/trace.zip
+2026-10-04T23:57:55.3506236Z 
+2026-10-04T23:57:55.3506542Z     ────────────────────────────────────────────────────────────────────────────────────────────────
+2026-10-04T23:57:55.3506764Z 
+2026-10-04T23:57:55.3507388Z   2) [chromium] › e2e/wallFill.spec.ts:112:52 › Architectural wall fill: material snapshots and native controls › phone › phone noche: solid and rayado material, empty voids, atomic history and cancel 
+2026-10-04T23:57:55.3507876Z 
+2026-10-04T23:57:55.3508033Z     Error: expect(received).toBe(expected) // Object.is equality
+2026-10-04T23:57:55.3508244Z 
+2026-10-04T23:57:55.3508337Z     Expected: true
+2026-10-04T23:57:55.3508531Z     Received: false
+2026-10-04T23:57:55.3508644Z 
+2026-10-04T23:57:55.3508718Z     Call Log:
+2026-10-04T23:57:55.3508975Z     - Timeout 5000ms exceeded while waiting on the predicate
+2026-10-04T23:57:55.3509158Z 
+2026-10-04T23:57:55.3509280Z       93 |     const px = await pixels(page);
+2026-10-04T23:57:55.3509832Z       94 |     return px.wallLine[layer] > 30 && px.columnLine[layer] > 30 && px.wallGap[layer] < 10 && px.columnGap[layer] < 10 && px.hole[layer] < 10 && px.room[layer] < 10;
+2026-10-04T23:57:55.3510304Z     > 95 |   }).toBe(true);
+2026-10-04T23:57:55.3510504Z          |      ^
+2026-10-04T23:57:55.3510679Z       96 | }
+2026-10-04T23:57:55.3510935Z       97 | async function selectBatch(page: Page, ids: string[]) {
+2026-10-04T23:57:55.3511293Z       98 |   await pending(page, 'selection'); await command(page, 'All');
+2026-10-04T23:57:55.3511702Z         at hatchedPixels (/home/runner/work/FModel/FModel/e2e/wallFill.spec.ts:95:6)
+2026-10-04T23:57:55.3512109Z         at /home/runner/work/FModel/FModel/e2e/wallFill.spec.ts:151:13
+2026-10-04T23:57:55.3512304Z 
+2026-10-04T23:57:55.3512620Z     attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+2026-10-04T23:57:55.3513175Z     test-results/wallFill-Architectural-wal-e24db-s-atomic-history-and-cancel-chromium/test-failed-1.png
+2026-10-04T23:57:55.3513941Z     ────────────────────────────────────────────────────────────────────────────────────────────────
+2026-10-04T23:57:55.3514171Z 
+2026-10-04T23:57:55.3514512Z     Error Context: test-results/wallFill-Architectural-wal-e24db-s-atomic-history-and-cancel-chromium/error-context.md
+2026-10-04T23:57:55.3514876Z 
+2026-10-04T23:57:55.3515196Z     attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+2026-10-04T23:57:55.3515730Z     test-results/wallFill-Architectural-wal-e24db-s-atomic-history-and-cancel-chromium/trace.zip
+2026-10-04T23:57:55.3516182Z     Usage:
+2026-10-04T23:57:55.3516288Z 
+2026-10-04T23:57:55.3516665Z         pnpm exec playwright show-trace test-results/wallFill-Architectural-wal-e24db-s-atomic-history-and-cancel-chromium/trace.zip
+2026-10-04T23:57:55.3517052Z 
+2026-10-04T23:57:55.3517343Z     ────────────────────────────────────────────────────────────────────────────────────────────────
+2026-10-04T23:57:55.3517626Z 
+2026-10-04T23:57:55.3517927Z     Retry #1 ───────────────────────────────────────────────────────────────────────────────────────
+2026-10-04T23:57:55.3518149Z 
+2026-10-04T23:57:55.3518317Z     Error: expect(received).toBe(expected) // Object.is equality
+2026-10-04T23:57:55.3518516Z 
+2026-10-04T23:57:55.3518597Z     Expected: true
+2026-10-04T23:57:55.3518794Z     Received: false
+2026-10-04T23:57:55.3518899Z 
+2026-10-04T23:57:55.3518983Z     Call Log:
+2026-10-04T23:57:55.3519233Z     - Timeout 5000ms exceeded while waiting on the predicate
+2026-10-04T23:57:55.3519425Z 
+2026-10-04T23:57:55.3519554Z       93 |     const px = await pixels(page);
+2026-10-04T23:57:55.3520098Z       94 |     return px.wallLine[layer] > 30 && px.columnLine[layer] > 30 && px.wallGap[layer] < 10 && px.columnGap[layer] < 10 && px.hole[layer] < 10 && px.room[layer] < 10;
+2026-10-04T23:57:55.3520562Z     > 95 |   }).toBe(true);
+2026-10-04T23:57:55.3520758Z          |      ^
+2026-10-04T23:57:55.3520935Z       96 | }
+2026-10-04T23:57:55.3521218Z       97 | async function selectBatch(page: Page, ids: string[]) {
+2026-10-04T23:57:55.3521583Z       98 |   await pending(page, 'selection'); await command(page, 'All');
+2026-10-04T23:57:55.3521994Z         at hatchedPixels (/home/runner/work/FModel/FModel/e2e/wallFill.spec.ts:95:6)
+2026-10-04T23:57:55.3522397Z         at /home/runner/work/FModel/FModel/e2e/wallFill.spec.ts:151:13
+2026-10-04T23:57:55.3522591Z 
+2026-10-04T23:57:55.3522912Z     attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+2026-10-04T23:57:55.3523505Z     test-results/wallFill-Architectural-wal-e24db-s-atomic-history-and-cancel-chromium-retry1/test-failed-1.png
+2026-10-04T23:57:55.3524503Z     ────────────────────────────────────────────────────────────────────────────────────────────────
+2026-10-04T23:57:55.3524723Z 
+2026-10-04T23:57:55.3525099Z     Error Context: test-results/wallFill-Architectural-wal-e24db-s-atomic-history-and-cancel-chromium-retry1/error-context.md
+2026-10-04T23:57:55.3525503Z 
+2026-10-04T23:57:55.3525827Z     attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+2026-10-04T23:57:55.3526386Z     test-results/wallFill-Architectural-wal-e24db-s-atomic-history-and-cancel-chromium-retry1/trace.zip
+2026-10-04T23:57:55.3526801Z     Usage:
+2026-10-04T23:57:55.3526903Z 
+2026-10-04T23:57:55.3527303Z         pnpm exec playwright show-trace test-results/wallFill-Architectural-wal-e24db-s-atomic-history-and-cancel-chromium-retry1/trace.zip
+2026-10-04T23:57:55.3527716Z 
+2026-10-04T23:57:55.3528079Z     ────────────────────────────────────────────────────────────────────────────────────────────────
+2026-10-04T23:57:55.3528302Z 
+2026-10-04T23:57:55.3529182Z     Retry #2 ───────────────────────────────────────────────────────────────────────────────────────
+2026-10-04T23:57:55.3529532Z 
+2026-10-04T23:57:55.3529738Z     Error: expect(received).toBe(expected) // Object.is equality
+2026-10-04T23:57:55.3530048Z 
+2026-10-04T23:57:55.3530252Z     Expected: true
+2026-10-04T23:57:55.3530521Z     Received: false
+2026-10-04T23:57:55.3530668Z 
+2026-10-04T23:57:55.3530771Z     Call Log:
+2026-10-04T23:57:55.3531111Z     - Timeout 5000ms exceeded while waiting on the predicate
+2026-10-04T23:57:55.3531397Z 
+2026-10-04T23:57:55.3531600Z       93 |     const px = await pixels(page);
+2026-10-04T23:57:55.3532297Z       94 |     return px.wallLine[layer] > 30 && px.columnLine[layer] > 30 && px.wallGap[layer] < 10 && px.columnGap[layer] < 10 && px.hole[layer] < 10 && px.room[layer] < 10;
+2026-10-04T23:57:55.3532761Z     > 95 |   }).toBe(true);
+2026-10-04T23:57:55.3532976Z          |      ^
+2026-10-04T23:57:55.3533156Z       96 | }
+2026-10-04T23:57:55.3533408Z       97 | async function selectBatch(page: Page, ids: string[]) {
+2026-10-04T23:57:55.3533929Z       98 |   await pending(page, 'selection'); await command(page, 'All');
+2026-10-04T23:57:55.3534398Z         at hatchedPixels (/home/runner/work/FModel/FModel/e2e/wallFill.spec.ts:95:6)
+2026-10-04T23:57:55.3534883Z         at /home/runner/work/FModel/FModel/e2e/wallFill.spec.ts:151:13
+2026-10-04T23:57:55.3535175Z 
+2026-10-04T23:57:55.3535590Z     attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+2026-10-04T23:57:55.3536263Z     test-results/wallFill-Architectural-wal-e24db-s-atomic-history-and-cancel-chromium-retry2/test-failed-1.png
+2026-10-04T23:57:55.3536949Z     ────────────────────────────────────────────────────────────────────────────────────────────────
+2026-10-04T23:57:55.3537164Z 
+2026-10-04T23:57:55.3537546Z     Error Context: test-results/wallFill-Architectural-wal-e24db-s-atomic-history-and-cancel-chromium-retry2/error-context.md
+2026-10-04T23:57:55.3537933Z 
+2026-10-04T23:57:55.3538249Z     attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+2026-10-04T23:57:55.3538799Z     test-results/wallFill-Architectural-wal-e24db-s-atomic-history-and-cancel-chromium-retry2/trace.zip
+2026-10-04T23:57:55.3539206Z     Usage:
+2026-10-04T23:57:55.3539307Z 
+2026-10-04T23:57:55.3539704Z         pnpm exec playwright show-trace test-results/wallFill-Architectural-wal-e24db-s-atomic-history-and-cancel-chromium-retry2/trace.zip
+2026-10-04T23:57:55.3540108Z 
+2026-10-04T23:57:55.3540406Z     ────────────────────────────────────────────────────────────────────────────────────────────────
+2026-10-04T23:57:55.3540626Z 
+2026-10-04T23:57:55.3540700Z   2 failed
+2026-10-04T23:57:55.3541490Z     [chromium] › e2e/wallFill.spec.ts:112:52 › Architectural wall fill: material snapshots and native controls › phone › phone dia: solid and rayado material, empty voids, atomic history and cancel 
+2026-10-04T23:57:55.3542566Z     [chromium] › e2e/wallFill.spec.ts:112:52 › Architectural wall fill: material snapshots and native controls › phone › phone noche: solid and rayado material, empty voids, atomic history and cancel 
+2026-10-04T23:57:55.3543131Z   66 passed (2.8m)
+2026-10-04T23:57:55.3901749Z [ELIFECYCLE] Command failed with exit code 1.
+2026-10-04T23:57:55.4257539Z ##[error]Process completed with exit code 1.
+2026-10-04T23:57:55.4312692Z ##[group]Run actions/upload-artifact@v4
+2026-10-04T23:57:55.4312936Z with:
+2026-10-04T23:57:55.4313125Z   name: playwright-report
+2026-10-04T23:57:55.4313358Z   path: playwright-report/
+test-results/
+
+2026-10-04T23:57:55.4313616Z   if-no-files-found: ignore
+2026-10-04T23:57:55.4314041Z   retention-days: 14
+2026-10-04T23:57:55.4314251Z   compression-level: 6
+2026-10-04T23:57:55.4314449Z   overwrite: false
+2026-10-04T23:57:55.4314648Z   include-hidden-files: false
+2026-10-04T23:57:55.4314866Z env:
+2026-10-04T23:57:55.4315079Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+2026-10-04T23:57:55.4315338Z ##[endgroup]
+2026-10-04T23:57:55.5771

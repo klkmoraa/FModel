@@ -27,6 +27,28 @@ async function input(kind: string, value: string) { await pending(kind); const b
 async function begin(ids: string[]) { h.select(...ids); const run = h.runner.execute('WALLFILL'); await pending('keyword'); return { run }; }
 
 describe('architectural wall fill', () => {
+  it('native All selects distinct members of one wall origin and one batch undo restores the temporary source', async () => {
+    const empty = state();
+    expect((await h.run('WALL', ['Thickness', '300', p(0), p(6000), ''])).ok).toBe(true);
+    const id = [...h.doc.data.entities.keys()][0];
+    const opening = h.runner.execute('WALLDOOR'); await pending('entity'); h.runner.submitEntity(id, p(3000));
+    await input('point', '#3000,0'); await input('point', 'Type'); await input('keyword', 'Empty'); await input('point', ''); await opening;
+    const before = state(), members = readWallSource(h.doc, id).assembly!.members;
+    expect(members).toHaveLength(4); expect(members.filter(mid => h.doc.entity(mid)!.type === 'mline')).toHaveLength(2);
+    const run = h.runner.execute('WALLFILL'); await pending('selection'); h.runner.submitText('All');
+    expect([...h.editor.requestIds].sort()).toEqual([...members].sort());
+    const selected = [...h.editor.requestIds].map(mid => h.doc.entity(mid)!);
+    expect(new Set(selected.map(e => e.id)).size).toBe(4);
+    expect(selected.every(e => (e.meta?.fmodelWallMember as { anchorId?: string })?.anchorId === id)).toBe(true);
+    await input('selection', ''); await pending('keyword');
+    expect(h.editor.preview!.entities).toHaveLength(2); expect(state()).toEqual(before);
+    await input('keyword', ''); await run;
+    expect(hatches()).toHaveLength(2); expect(hatches().reduce((sum, e) => sum + loopsArea(e.loops), 0)).toBeCloseTo(1530000, 5);
+    expect(new Map([...before.entities.keys()].map(mid => [mid, h.doc.entity(mid)]))).toEqual(before.entities);
+    expect(h.doc.data.groups).toEqual(before.groups); expect(h.doc.data.mlineStyles).toEqual(before.styles); expect(h.doc.history.entries()).toHaveLength(before.history.length + 1);
+    h.undo(); expect(h.doc.data.entities).toEqual(before.entities); expect(h.doc.data.groups).toEqual(before.groups);
+    h.undo(); h.undo(); expect(h.doc.data.entities).toEqual(empty.entities); expect(h.doc.data.groups).toEqual(empty.groups); expect(h.doc.data.mlineStyles).toEqual(empty.styles);
+  });
   it('selected_material_and_dedup creates independent material snapshots with one batch undo', async () => {
     const wall = await room(true), assembly = readWallSource(h.doc, wall).assembly!;
     await h.run('COLUMN', [p(1000, 1000)], ['variant=circular', 'diameter=600']);
