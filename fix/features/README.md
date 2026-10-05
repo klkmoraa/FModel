@@ -67,7 +67,7 @@
 | 41 | ARC-003 | P2 | Componentes de construcción 2D y edición paramétrica | Cerrado (14 familias 2D) | — | [Geometría](./02-geometria-comandos.md#arc-003--componentes-de-construcción-2d-y-edición-paramétrica) |
 | 42 | ARC-004 | P2 | Ciclo de huecos asociados y espesor de muro | Cerrado (muros rectos compatibles) | ARC-002 | [Geometría](./02-geometria-comandos.md#arc-004--ciclo-de-huecos-asociados-y-espesor-de-muro) |
 | 43 | ARC-005 | P2 | Eje físico y muro paralelo por distancia libre | Cerrado (dos resultados en muros rectos compatibles) | ARC-002, ARC-004 | [Geometría](./02-geometria-comandos.md#arc-005--eje-físico-y-muro-paralelo-por-distancia-libre) |
-| 44 | ARC-006 | P2 | Relleno de material de muros y columnas nativas | En curso | ARC-002, ARC-003, ARC-004 | [Geometría](./02-geometria-comandos.md#arc-006--relleno-de-material-de-muros-y-columnas-nativas) |
+| 44 | ARC-006 | P2 | Relleno de material de muros y columnas nativas | Cerrado (rellenos independientes) | ARC-002, ARC-003, ARC-004 | [Geometría](./02-geometria-comandos.md#arc-006--relleno-de-material-de-muros-y-columnas-nativas) |
 
 ## Mapa de dependencias
 
