@@ -65,26 +65,27 @@ async function canvasSettled(page: Page, phone: boolean) {
     return stable && framed && canvas.width === Math.round(last.width * devicePixelRatio) && canvas.height === Math.round(last.height * devicePixelRatio) && host.getAnimations().every(a => a.playState === 'idle' || a.playState === 'finished');
   }, phone)).toBe(true);
 }
-/** Actual scene/overlay patches; 400mm rayado has separate line and gap probes. */
+/** 400mm rayado gaps use 3×3 patches; 5×5 would reach a line at phone scale. Other probes keep 5×5. */
 async function pixels(page: Page) {
   return page.evaluate(() => {
     const editor = (window as any).fmodel.editor, [scene, overlay] = document.querySelectorAll<HTMLCanvasElement>('.canvas-host canvas');
     if (!scene || !overlay) throw Error('canvas not mounted');
-    const coordinates = (canvas: HTMLCanvasElement, x: number, y: number) => {
+    const coordinates = (canvas: HTMLCanvasElement, x: number, y: number, radius = 2) => {
       const screen = editor.view.toScreen({ x, y });
       const cx = Math.round(screen.x * canvas.width / editor.view.width), cy = Math.round(screen.y * canvas.height / editor.view.height);
-      return { world: { x, y }, screen, center: { x: cx, y: cy }, patch: { x: cx - 2, y: cy - 2, width: 5, height: 5 } };
+      return { world: { x, y }, screen, center: { x: cx, y: cy }, patch: { x: cx - radius, y: cy - radius, width: 2 * radius + 1, height: 2 * radius + 1 } };
     };
-    const at = (canvas: HTMLCanvasElement, x: number, y: number) => {
-      const { center: { x: cx, y: cy } } = coordinates(canvas, x, y);
-      const patch = canvas.getContext('2d')!.getImageData(cx - 2, cy - 2, 5, 5).data;
-      return [...Array(25)].map((_, i) => [...patch.slice(i * 4, i * 4 + 4)]);
+    const at = (canvas: HTMLCanvasElement, x: number, y: number, radius = 2) => {
+      const { patch: { x: px, y: py, width, height } } = coordinates(canvas, x, y, radius);
+      const patch = canvas.getContext('2d')!.getImageData(px, py, width, height).data;
+      return [...Array(width * height)].map((_, i) => [...patch.slice(i * 4, i * 4 + 4)]);
     };
     const background = at(scene, 4500, 2500)[12];
     const probes = { wall: [1000, 0], column: [1300, 1300], hole: [3000, 0], room: [4500, 2500], wallLine: [800 * Math.SQRT2, 0], wallGap: [1000 * Math.SQRT2, 0], columnLine: [1300, 1300], columnGap: [1300 - 160 / Math.SQRT2, 1300 + 160 / Math.SQRT2] };
+    const radius = (key: string) => key === 'wallGap' || key === 'columnGap' ? 1 : 2;
     const metrics = Object.fromEntries(Object.entries(probes).map(([key, [x, y]]) => [key, {
-      scene: Math.max(...at(scene, x, y).map(pixel => Math.max(...pixel.slice(0, 3).map((c, i) => Math.abs(c - background[i]))))),
-      overlay: Math.max(...at(overlay, x, y).map(pixel => pixel[3])),
+      scene: Math.max(...at(scene, x, y, radius(key)).map(pixel => Math.max(...pixel.slice(0, 3).map((c, i) => Math.abs(c - background[i]))))),
+      overlay: Math.max(...at(overlay, x, y, radius(key)).map(pixel => pixel[3])),
     }]));
     const rect = (element: Element) => { const { x, y, width, height } = element.getBoundingClientRect(); return { x, y, width, height }; };
     return { metrics, sampling: {
@@ -92,7 +93,7 @@ async function pixels(page: Page) {
       devicePixelRatio,
       host: rect(document.querySelector('.canvas-host')!),
       canvases: { scene: { width: scene.width, height: scene.height, rect: rect(scene) }, overlay: { width: overlay.width, height: overlay.height, rect: rect(overlay) } },
-      probes: Object.fromEntries(Object.entries(probes).map(([key, [x, y]]) => [key, { scene: coordinates(scene, x, y), overlay: coordinates(overlay, x, y) }])),
+      probes: Object.fromEntries(Object.entries(probes).map(([key, [x, y]]) => [key, { scene: coordinates(scene, x, y, radius(key)), overlay: coordinates(overlay, x, y, radius(key)) }])),
     } };
   });
 }
