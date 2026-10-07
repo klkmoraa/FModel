@@ -1,3 +1,5 @@
+import { DWG_ENABLED } from '../../lib/capabilities';
+import { DWG_UNAVAILABLE } from '../../lib/dwgUnavailable';
 import { useState } from 'react';
 import { FileCode, FileUp, FolderArchive, HardDriveUpload, Layers, ShieldCheck } from 'lucide-react';
 import type { Editor } from '../../editor/editor';
@@ -11,7 +13,7 @@ import { tr } from '../controls';
 import { InlineAlert } from './InlineAlert';
 import { formatBytes } from './relativeTime';
 
-const OPENABLE = ['.fmodel', '.json', '.dxf', '.dwg'];
+const OPENABLE = ['.fmodel', '.json', '.dxf', ...(DWG_ENABLED ? ['.dwg'] : [])];
 const LIBRARY = ['.fmodellib'];
 
 /** Estado declarado en el registro de funciones (nunca escrito a mano aquí). */
@@ -37,8 +39,12 @@ export function ImportCenterView({ editor, onOpenWorkspace }: ImportCenterViewPr
     setAlert(null);
     const lower = file.name.toLowerCase();
     const ext = lower.slice(lower.lastIndexOf('.'));
+    if (ext === '.dwg' && !DWG_ENABLED) {
+      setAlert(DWG_UNAVAILABLE[lang]);
+      return;
+    }
     if (![...OPENABLE, ...LIBRARY].includes(ext)) {
-      setAlert(tr(lang, `«${file.name}» no es un formato que FModel lea. Usa .fmodel, .dxf, .dwg o .fmodellib.`, `“${file.name}” is not a format FModel reads. Use .fmodel, .dxf, .dwg or .fmodellib.`));
+      setAlert(tr(lang, `«${file.name}» no es un formato que FModel lea. Usa ${DWG_ENABLED ? '.fmodel, .dxf, .dwg o .fmodellib' : '.fmodel, .dxf o .fmodellib'}.`, `“${file.name}” is not a format FModel reads. Use ${DWG_ENABLED ? '.fmodel, .dxf, .dwg or .fmodellib' : '.fmodel, .dxf or .fmodellib'}.`));
       return;
     }
     if (file.size > INPUT_LIMITS.maxCompressedBytes) {
@@ -100,7 +106,7 @@ export function ImportCenterView({ editor, onOpenWorkspace }: ImportCenterViewPr
       ext: '.dwg',
       title: tr(lang, 'AutoCAD DWG', 'AutoCAD DWG'),
       body: tr(lang, 'Lectura local experimental. FModel no escribe DWG: exporta DXF.', 'Experimental local reading. FModel does not write DWG: it exports DXF.'),
-      status: statusOf('Lectura DWG', 'experimental'),
+      status: statusOf('Lectura experimental de DWG', 'experimental'),
     },
     {
       cmd: 'LIBRARYIMPORT',
@@ -108,7 +114,7 @@ export function ImportCenterView({ editor, onOpenWorkspace }: ImportCenterViewPr
       tone: 'var(--fs-family-nucleo)',
       ext: '.fmodellib',
       title: tr(lang, 'Bloques a la biblioteca', 'Blocks to the library'),
-      body: tr(lang, 'Guarda los bloques de un .fmodellib, DXF o DWG en tu biblioteca, con categoría y etiquetas.', 'Saves the blocks of a .fmodellib, DXF or DWG to your library, with category and tags.'),
+      body: tr(lang, `Guarda los bloques de un .fmodellib o ${DWG_ENABLED ? 'DXF o DWG' : 'DXF'} en tu biblioteca, con categoría y etiquetas.`, `Saves the blocks of a .fmodellib or ${DWG_ENABLED ? 'DXF or DWG' : 'DXF'} to your library, with category and tags.`),
       status: 'available',
     },
   ];
@@ -167,12 +173,12 @@ export function ImportCenterView({ editor, onOpenWorkspace }: ImportCenterViewPr
               {tr(lang, 'o', 'or')} <u>{tr(lang, 'elige un archivo', 'choose a file')}</u> ·{' '}
             </>
           )}
-          .fmodel · .dxf · .dwg · .fmodellib · {tr(lang, `hasta ${formatBytes(INPUT_LIMITS.maxCompressedBytes)}`, `up to ${formatBytes(INPUT_LIMITS.maxCompressedBytes)}`)}
+          {[...OPENABLE, ...LIBRARY].join(' · ')} · {tr(lang, `hasta ${formatBytes(INPUT_LIMITS.maxCompressedBytes)}`, `up to ${formatBytes(INPUT_LIMITS.maxCompressedBytes)}`)}
         </span>
       </label>
 
       <div className="welcome-import__cards">
-        {formats.map(({ cmd, icon: Icon, tone, ext, title, body, status }) => (
+        {formats.filter(format => DWG_ENABLED || format.ext !== '.dwg').map(({ cmd, icon: Icon, tone, ext, title, body, status }) => (
           <button key={ext} type="button" className="welcome-import-card" style={{ '--tone': tone } as React.CSSProperties} onClick={() => run(cmd)}>
             <span className="welcome-import-card__top">
               <span className="welcome-import-card__icon" aria-hidden="true">
@@ -199,8 +205,8 @@ export function ImportCenterView({ editor, onOpenWorkspace }: ImportCenterViewPr
           <p>
             {tr(
               lang,
-              'La lectura de DXF y DWG se hace en un Web Worker dentro del navegador; si el navegador no lo permite, en el hilo principal con el mismo resultado. No hay servidor que reciba tus planos.',
-              'DXF and DWG reading runs in a Web Worker inside the browser; if the browser disallows it, on the main thread with the same result. There is no server receiving your drawings.',
+              `La lectura de ${DWG_ENABLED ? 'DXF y DWG' : 'DXF'} se hace en un Web Worker dentro del navegador; si el navegador no lo permite, en el hilo principal con el mismo resultado. No hay servidor que reciba tus planos.`,
+              `${DWG_ENABLED ? 'DXF and DWG' : 'DXF'} reading runs in a Web Worker inside the browser; if the browser disallows it, on the main thread with the same result. There is no server receiving your drawings.`,
             )}
           </p>
         </div>

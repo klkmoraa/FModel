@@ -47,8 +47,12 @@ async function pixels(page: Page, phase: 'native' | 'preview' | 'clean') {
     return missing && contrast(1000, 150) > 30 && contrast(4000, 150) < 10;
   }, phase)).toBe(true);
 }
-async function frame(page: Page) {
-  await command(page, 'ZOOM'); await command(page, 'E'); await command(page, 'ZOOM'); await command(page, 'Out');
+async function frame(page: Page, phone: boolean) {
+  await command(page, 'ZOOM'); await command(page, 'E');
+  // Phone Extents already fits the whole drawing. Another Out halves the 50-unit
+  // clearance between the clipped-face probe and the retained column outline to
+  // 1.306 pixels, putting that legitimate outline inside the 3×3 sample.
+  if (!phone) { await command(page, 'ZOOM'); await command(page, 'Out'); }
   await expect.poll(() => page.evaluate(async () => {
     const host = document.querySelector('.canvas-host')!, canvas = host.querySelector('canvas')!, first = host.getBoundingClientRect();
     await new Promise<void>(resolve => requestAnimationFrame(() => resolve())); const last = host.getBoundingClientRect();
@@ -70,7 +74,7 @@ test.describe('Wall cleanup: reversible native snapshots and real access', () =>
       await pending(page, 'point'); await command(page, '#4000,0'); await command(page, 'Type'); await pending(page, 'keyword'); await command(page, 'Empty'); await pending(page, 'point'); await command(page, '');
       await command(page, 'WALL'); await command(page, 'Thickness'); await pending(page, 'distance'); await command(page, '200'); await command(page, '#2000,0'); await command(page, '#2000,2500'); await command(page, '');
       await command(page, 'COLUMN width=400 depth=400'); await pending(page, 'point'); await command(page, '#500,-200');
-      await clearSelection(page); await frame(page); await pixels(page, 'native'); const original = await state(page);
+      await clearSelection(page); await frame(page, phone); await pixels(page, 'native'); const original = await state(page);
       // Real desktop command-deck and touch architecture actions start the same native flow.
       if (phone) {
         const { sheet, action } = await architecture(page, 'Clean walls');

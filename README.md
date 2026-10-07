@@ -20,7 +20,7 @@ El estado real de cada función (Disponible, Experimental, Planeado) está en [d
 
 ## DWG
 
-FModel no lee ni escribe DWG y no simula compatibilidad: no hay una solución legal y fiable para una aplicación web. Intercambia mediante DXF. Detalle de lo que DXF conserva, transforma y no admite en [docs/dxf-compatibilidad.md](docs/dxf-compatibilidad.md).
+La versión pública de GitHub Pages admite `.fmodel`, `.fmodellib` y DXF; no incluye el lector DWG experimental. Convierte DWG a DXF antes de abrirlo. El desarrollo y las pruebas conservan la lectura experimental local, con las limitaciones verificadas y la revisión de distribución pendiente (`REL-001`, ruta B). FModel no escribe DWG. Detalle de lo que DXF conserva, transforma y no admite en [docs/dxf-compatibilidad.md](docs/dxf-compatibilidad.md).
 
 ## Desarrollo
 
@@ -41,7 +41,9 @@ pnpm verify
 | Script | Qué hace |
 |---|---|
 | `pnpm dev` | servidor de desarrollo |
-| `pnpm build` | tipos + compilación de producción en `dist/` |
+| `pnpm build` | tipos + compilación de desarrollo/experimental en `dist/` |
+| `FMODEL_DWG_ENABLED=false pnpm build` | compilación pública sin lector DWG JS/WASM (Pages) |
+| `pnpm check:public-dist` | rechaza referencias al lector DWG y su registro de archivos en todo `dist/`, incluidos mapas y PWA |
 | `pnpm test` | pruebas (Vitest) |
 | `pnpm lint` | oxlint con cero advertencias |
 | `pnpm check:layers` | verifica que las dependencias entre módulos respetan las capas |
@@ -66,4 +68,4 @@ FMODEL_DXF_OUT=/tmp/fmodel.dxf pnpm vitest run src/io/dxf && python scripts/audi
 
 ---
 
-**English.** FModel 2D CAD is a professional, local-first 2D CAD web app (Chrome, Safari, Edge; Spanish and English) with precision drafting, dynamic blocks, layouts with vector PDF/SVG output, external references, DXF import/export with conversion reports, audit tools and version comparison. DWG is not supported. Run `pnpm install && pnpm dev`; see `docs/` for architecture, tolerances, DXF compatibility and feature status.
+**English.** FModel 2D CAD is a professional, local-first 2D CAD web app (Chrome, Safari, Edge; Spanish and English) with precision drafting, dynamic blocks, layouts with vector PDF/SVG output, external references, DXF import/export with conversion reports, audit tools and version comparison. Public GitHub Pages excludes the experimental DWG reader; convert DWG to DXF. Development and tests retain experimental local reading. FModel does not write DWG; distribution/legal review remains open (REL-001, route B). Run `pnpm install && pnpm dev`; see `docs/` for architecture, tolerances, DXF compatibility and feature status.

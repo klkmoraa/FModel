@@ -42,7 +42,11 @@ jobs:
       - name: Build deployment artifact
         env:
           FMODEL_BASE: /${{ github.event.repository.name }}/
+          FMODEL_DWG_ENABLED: "false"
         run: pnpm build
+
+      - name: Verify public artifact before upload
+        run: pnpm check:public-dist
 
       - name: Configure Pages
         uses: actions/configure-pages@v5

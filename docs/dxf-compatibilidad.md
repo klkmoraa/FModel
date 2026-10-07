@@ -8,7 +8,9 @@ FModel lee y escribe DXF ASCII. El formato nativo sigue siendo `.fmodel` (versio
 
 ## DWG
 
-**Lectura (experimental).** `OPEN` y `LIBRARYIMPORT` aceptan `.dwg`. El lector integrado en WebAssembly se carga al primer uso dentro del Web Worker:
+**Pages público (ruta B de REL-001).** No incluye el lector experimental ni su JS/WASM: `OPEN`, `LIBRARYIMPORT` y la importación de inicio rechazan DWG y piden convertirlo a DXF. Se conservan `.fmodel`, `.fmodellib`, DXF, PDF y SVG. La decisión no cambia la licencia del proyecto ni cierra la revisión profesional/jurídica pendiente. / **Public Pages (REL-001 route B).** Excludes the experimental reader and its JS/WASM; open and library-import reject DWG and ask for DXF conversion. Native files, DXF, PDF and SVG remain. The project license is unchanged and professional/legal review remains pending.
+
+**Desarrollo y pruebas: lectura experimental.** `OPEN` y `LIBRARYIMPORT` aceptan `.dwg` con la capacidad activada por defecto. El lector integrado en WebAssembly se carga al primer uso dentro del Web Worker:
 
 1. el conversor integrado escribe un DXF, que pasa por el mismo analizador e importador que cualquier DXF (mismas conversiones y mismo informe, titulado «DWG»);
 2. se corrigen con los datos del propio DWG el estado de las capas y el bloque de representación de las tablas (`*T`, emparejado por orden de creación solo si el número coincide).

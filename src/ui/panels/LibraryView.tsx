@@ -1,3 +1,4 @@
+import { DWG_ENABLED } from '../../lib/capabilities';
 import { Download, FolderPlus, Library, MoveHorizontal, Pencil, Trash2, Upload } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { LibraryBlock } from '../../blocks/library';
@@ -151,7 +152,7 @@ export function LibraryView({ editor, query }: { editor: Editor; query: string }
             <div className="empty">
               {items.length
                 ? tr(lang, 'Ningún bloque coincide con el filtro.', 'No block matches the filter.')
-                : tr(lang, 'La biblioteca está vacía. Instala la biblioteca inicial (muebles estirables, puertas, vegetación…), importa un DXF, DWG o .fmodellib, o envía un bloque del dibujo con WBLOCK.', 'The library is empty. Install the starter library (stretchable furniture, doors, vegetation…), import a DXF, DWG or .fmodellib, or send a drawing block with WBLOCK.')}
+                : tr(lang, `La biblioteca está vacía. Instala la biblioteca inicial (muebles estirables, puertas, vegetación…), importa un ${DWG_ENABLED ? 'DXF, DWG o .fmodellib' : 'DXF o .fmodellib'}, o envía un bloque del dibujo con WBLOCK.`, `The library is empty. Install the starter library (stretchable furniture, doors, vegetation…), import a ${DWG_ENABLED ? 'DXF, DWG or .fmodellib' : 'DXF or .fmodellib'}, or send a drawing block with WBLOCK.`)}
             </div>
           )}
           {shown.length > visibleCount && (

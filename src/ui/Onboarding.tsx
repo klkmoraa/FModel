@@ -1,3 +1,4 @@
+import { DWG_ENABLED } from '../lib/capabilities';
 import { useRef, useState } from 'react';
 import type { Editor } from '../editor/editor';
 import { tr } from './controls';
@@ -33,7 +34,7 @@ const STEPS: Step[] = [
   },
   {
     title: ['Ayuda siempre a mano', 'Help at hand'],
-    body: ['F1 abre la ayuda con todos los comandos y el estado real de cada función. DXF se importa y exporta con informe de conversión; DWG se lee de forma experimental.', 'F1 opens help with every command and the real status of each feature. DXF imports and exports with a conversion report; DWG reading is experimental.'],
+    body: DWG_ENABLED ? ['F1 abre la ayuda con todos los comandos y el estado real de cada función. DXF se importa y exporta con informe de conversión; DWG se lee de forma experimental.', 'F1 opens help with every command and the real status of each feature. DXF imports and exports with a conversion report; DWG reading is experimental.'] : ['F1 abre la ayuda con todos los comandos y el estado real de cada función. DXF se importa y exporta con informe de conversión; para abrir DWG, conviértelo a DXF.', 'F1 opens help with every command and the real status of each feature. DXF imports and exports with a conversion report; to open DWG, convert it to DXF.'],
     keys: ['F1'],
   },
 ];

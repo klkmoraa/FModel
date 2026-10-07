@@ -40,8 +40,13 @@ jobs:
       - name: Cobertura
         run: pnpm test:coverage
 
-      - name: Compilación
+      - name: Compilación pública sin DWG
+        env:
+          FMODEL_DWG_ENABLED: "false"
         run: pnpm build
+
+      - name: Verificar artefacto público
+        run: pnpm check:public-dist
 
       - name: Instalar navegadores Playwright
         run: |
@@ -51,7 +56,9 @@ jobs:
             pnpm exec playwright install --with-deps chromium
           fi
 
-      - name: Pruebas E2E en navegador real
+      - name: Pruebas E2E en navegador real (artefacto público)
+        env:
+          FMODEL_PUBLIC_SMOKE: "1"
         run: |
           if [ "${{ github.ref }}" = "refs/heads/main" ]; then
             PLAYWRIGHT_WEBKIT=1 pnpm test:e2e

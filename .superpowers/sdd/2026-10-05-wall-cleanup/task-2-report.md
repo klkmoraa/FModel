@@ -58,3 +58,18 @@ Verification for this fix:
 - `git diff --check`: exit 0.
 
 No whole suite, Task 1 tests, browser, build, source beyond the two findings, remote writes, deployment or subagents. ARC-007 remains in progress pending controller re-review, exact-tree push, actual transversal GitHub CI and the six original PNG inspections. No new implementation blocker identified.
+
+## CI phone pixel framing fix
+
+FIXBASE: `fa70b4ff360dc9d5446b349c19ee207907e6deac`. Controller CI `37572266374` passed static checks, 1313 unit tests/128 files, coverage/build and 70/72 Chromium journeys. Both new phone journeys failed at preview pixels, consistently across retries; desktop journeys passed. This entry does not claim the combined final gate is complete.
+
+Read-only diagnosis inspected the original Day/Night PNGs and error contexts under `.superpowers/sdd/2026-10-05-wall-cleanup/ci-failure-37572266374/test-results/`. Exact failing paths:
+
+- `wallCleanup-Wall-cleanup-r-a2ef7-preview-cancel-restore-undo-chromium/test-failed-1.png` (Day), plus `-retry1` and `-retry2` counterparts.
+- `wallCleanup-Wall-cleanup-r-eb099-preview-cancel-restore-undo-chromium/test-failed-1.png` (Night), plus `-retry1` and `-retry2` counterparts.
+
+Original 390×844 images show valid purple T cleanup preview and the unchanged column. Source-backed view math explains the failure: ZOOM Extents pads 6000-wide geometry by 120 each side and fits with 32 CSS-pixel margins; another Out halves phone scale to `(390−64)/(6000+240)/2 = 0.0261218` px/unit. The clipped wall-face probe at `(700,−150)` lies only 50 world units / **1.306 pixels** from the legitimate column bottom at `y=−200`. Its 3×3 patch samples that unchanged outline. PIL read-only inspection of all six raw failures found identical per-theme values against their original background: column patch centered at screenshot `(135,481)` contrasts **171 Day / 181 Night**; even its center pixel contrasts **56 / 59**, so narrowing to one pixel would not solve the sampling contamination. The T-gap patch `(169,473)` contrasts only **2** in both themes; the retained exterior face remains visibly purple.
+
+The only test change is phone framing: retain native ZOOM Extents and omit the extra Out; desktop framing stays unchanged. Column-probe clearance doubles to **2.612 pixels**, while the whole original geometry still fits approximately screenshot `x=38..352`, `y=376..518`, clear of phone command controls. All actual scene/overlay probes, 3×3 sampling, `<10` / `>30` thresholds, polling timeout, source/group invariants, cancellation, restoration and undo/redo assertions remain unchanged. No product geometry/UI/source behavior changed.
+
+Checks: `pnpm exec playwright test e2e/wallCleanup.spec.ts --list` exited 0 and registered all four Chromium journeys; `git diff --check` exited 0. Focused read-only PIL inspection covered both themes and all three attempts each, with the exact values above. No local browser install/run, full product tests, subagents or remote writes. Actual combined final-SHA GitHub CI and original PNG inspection remain controller-owned and must prove the framing fix before ARC-007 closure.

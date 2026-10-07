@@ -24,7 +24,7 @@
 
 | Orden | ID | Prioridad | Tarea | Estado | Depende de | Documento |
 |---:|---|:---:|---|:---:|---|---|
-| 1 | REL-001 | P0 | Resolver distribución y licencia del lector DWG | Abierta | — | [Distribución](./07-distribucion-documentacion.md#rel-001--resolver-la-distribución-del-lector-dwg-gpl-30) |
+| 1 | REL-001 | P0 | Resolver distribución y licencia del lector DWG | En curso: ruta B técnica; revisión pendiente | — | [Distribución](./07-distribucion-documentacion.md#rel-001--resolver-la-distribución-del-lector-dwg-gpl-30) |
 | 2 | DAT-001 | P1 | No declarar guardado cuando se cancela el selector | Cerrada | — | [Integridad](./01-integridad-archivos.md#dat-001--distinguir-guardado-descarga-y-cancelación) |
 | 3 | DAT-002 | P1 | Portapapeles portable con dependencias | Cerrada | DAT-003 | [Integridad](./01-integridad-archivos.md#dat-002--hacer-portable-el-portapapeles-entre-dibujos) |
 | 4 | DAT-003 | P1 | Validar formatos y limitar recursos no confiables | Cerrada | — | [Integridad](./01-integridad-archivos.md#dat-003--validar-archivos-y-aplicar-límites-de-recursos) |

@@ -2,7 +2,7 @@
 
 ## REL-001 — Resolver la distribución del lector DWG GPL-3.0
 
-- [ ] **Estado:** Abierta
+- [>] **Estado:** En curso (2026-10-07); ruta B técnica seleccionada, revisión profesional/jurídica pendiente
 - **Prioridad:** P0 — bloquea una publicación jurídicamente clara
 - **Depende de:** —
 - **Bloquea:** REL-002, DOC-001, PERF-001
@@ -17,20 +17,20 @@
 **Decisión requerida:** elegir una de estas rutas con revisión jurídica cuando corresponda:
 
 - [ ] A. Distribuir FModel bajo términos compatibles con GPL-3.0, con código fuente correspondiente, avisos y textos de licencia.
-- [ ] B. Retirar LibreDWG del build público y ofrecer solo DXF.
+- [x] B. Retirar LibreDWG del build público y ofrecer solo DXF como intercambio CAD. Seleccionada el 2026-10-07 bajo la libertad de implementación delegada por el usuario para actualizar Pages; se conservan formatos nativos y salidas PDF/SVG. Sin cambio de licencia del proyecto.
 - [ ] C. Sustituir el lector por una alternativa con licencia aprobada y compatibilidad verificada.
 
 **Archivos previstos:** dependen de la decisión; como mínimo `package.json`, `src/io/dwg/`, comandos/manifest, documentación, avisos de terceros y workflows.
 
 **Criterios de aceptación:**
 
-- [ ] La decisión está documentada por el propietario del producto.
+- [x] Ruta B documentada bajo la autorización de implementación del propietario para actualizar Pages.
 - [ ] El artefacto publicado coincide con esa decisión; no basta ocultar el botón.
 - [ ] Licencias, atribuciones, código fuente correspondiente y avisos requeridos están accesibles según la ruta elegida.
-- [ ] CI comprueba que una dependencia prohibida no reaparezca o que los avisos requeridos existan.
+- [x] CI y Pages ejecutan `check:public-dist` sobre la compilación pública antes de preview/subida; comprueba JS, WASM, mapas, service worker y manifiesto.
 - [ ] Un profesional competente revisa la conclusión si el producto seguirá distribuyéndose públicamente.
 
-**Verificación:** inspección de `dist`, inventario de licencias y prueba de que OPEN/manifest/docs coinciden con la decisión.
+**Verificación técnica (2026-10-07):** pruebas focalizadas `publicFormats`, `publicDist` y `capabilities`; sustitución del lector y URL WASM en los grafos principal y worker; build `FMODEL_DWG_ENABLED=false` y guardia de `dist`. Smoke real público añadido a CI. El artefacto publicado y la revisión de licencias/atribuciones por profesional competente siguen pendientes; REL-001 no se declara cerrada.
 
 **Referencia informativa:** [GPLv3, especialmente la sección 6](https://www.gnu.org/licenses/gpl-3.0.html#section6) y [guía oficial de GNU sobre distribución de object code](https://www.gnu.org/licenses/quick-guide-gplv3.html). Esta tarea no sustituye asesoría legal.
 

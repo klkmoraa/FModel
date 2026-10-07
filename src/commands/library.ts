@@ -1,3 +1,5 @@
+import { DWG_ENABLED } from '../lib/capabilities';
+import { dwgUnavailableError } from '../lib/dwgUnavailable';
 import { requestUi } from '../app/services';
 import { installDynamicBlocks } from '../blocks/install';
 import type { LibraryBlock } from '../blocks/library';
@@ -47,6 +49,7 @@ export async function buildImportSession(file: { name: string; bytes: Uint8Array
     return { mode: 'import', source: { kind: 'dxf', file: file.name }, candidates, categories: cats, report };
   }
   if (ext === 'dwg') {
+    if (!DWG_ENABLED) throw dwgUnavailableError();
     const doc = createDocument({ title: file.name });
     const ctx = createContext(doc);
     installDynamicBlocks(ctx);
@@ -61,7 +64,7 @@ export async function buildImportSession(file: { name: string; bytes: Uint8Array
     const candidates = candidatesFromDocument(doc, ctx, cats, { file: file.name, thumb: (id) => thumb(doc, ctx, id) });
     return { mode: 'import', source: { kind: 'dwg', file: file.name }, candidates, categories: cats, report };
   }
-  throw new Error(`Formato no admitido: .${ext ?? '?'} (usa .dxf, .dwg o .fmodellib). / Unsupported format.`);
+  throw new Error(`Formato no admitido: .${ext ?? '?'} (usa ${DWG_ENABLED ? '.dxf, .dwg o .fmodellib' : '.dxf o .fmodellib'}). / Unsupported format; use ${DWG_ENABLED ? '.dxf, .dwg or .fmodellib' : '.dxf or .fmodellib'}.`);
 }
 
 const LIBRARYIMPORT: CommandDef = {
@@ -70,10 +73,10 @@ const LIBRARYIMPORT: CommandDef = {
   category: 'block',
   readOnly: true,
   label: L('Importar a la biblioteca', 'Import to library'),
-  description: L('Añade a la biblioteca los bloques de un DXF o DWG (o el dibujo entero como bloque) o de un archivo .fmodellib, con categoría y etiquetas.', 'Adds the blocks of a DXF or DWG (or the whole drawing as a block) or of a .fmodellib file to the library, with category and tags.'),
+  description: DWG_ENABLED ? L('Añade a la biblioteca los bloques de un DXF o DWG (o el dibujo entero como bloque) o de un archivo .fmodellib, con categoría y etiquetas.', 'Adds the blocks of a DXF or DWG (or the whole drawing as a block) or of a .fmodellib file to the library, with category and tags.') : L('Añade a la biblioteca los bloques de un DXF (o el dibujo entero como bloque) o de un archivo .fmodellib, con categoría y etiquetas.', 'Adds the blocks of a DXF (or the whole drawing as a block) or of a .fmodellib file to the library, with category and tags.'),
   icon: 'insert',
   async run(api) {
-    const f = await openFile({ 'application/octet-stream': ['.dxf', '.dwg', '.fmodellib'] }, 'DXF / DWG / FModel library');
+    const f = await openFile({ 'application/octet-stream': DWG_ENABLED ? ['.dxf', '.dwg', '.fmodellib'] : ['.dxf', '.fmodellib'] }, DWG_ENABLED ? 'DXF / DWG / FModel library' : 'DXF / FModel library');
     if (!f || api.signal.aborted) return;
     const categories = await loadCategories();
     throwIfCancelled(api.signal);
