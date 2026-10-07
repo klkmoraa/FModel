@@ -41,3 +41,20 @@ Earlier focused runner/IO run exposed a test-only comparison against the pre-und
 - Push/Pages and any REL-001 distribution decision belong to the controller. That publication decision did not block this implementation. Existing build warnings/licensing surface were not changed or exercised locally.
 
 No concrete implementation blocker remains for controller review/CI.
+
+## Fix round 1/5 — current source owner and geometry
+
+FIXBASE: `cab143db8b98e0e6b163e83eca4d8e187ac47f18`. Read `task-2-review.md` fully and addressed its two Important findings only.
+
+The strict model reader now requires each existing current MLINE's owner to match its validated stored owner; the command's current active-owner/layer/lock checks remain. Recovery also validates current finite coordinates, positive finite scale/linetype scale, finite order/lineweight, valid transparency/closed/justification, and finite native face/style-expanded geometry before preview or any writes. Valid current geometry/style edits remain permitted and old source geometry/properties are never written back.
+
+One grouped runner/model regression transfers a source and activates the transferred owner, and injects NaN coordinates, an infinite scalar and unrepresentable finite geometry. Each case rejects pure preparation, direct transactional recovery and the native restoration command while preserving all entity geometry/meta/visibility, outputs, groups, history and dirty state. Direct transaction rollback emits the existing version notification; runner rejection does not advance the document version. The existing saved/reopened moved-source fixture still passes.
+
+Verification for this fix:
+
+- `pnpm vitest run src/commands/behavior/wallCleanup.test.ts src/io/wallCleanup.test.ts`: exit 0, **6 tests / 2 files**, final run 2026-10-07 06:32:52 UTC, 2.13s. Initial new assertion incorrectly included the document's existing rollback notification in its no-write comparison; corrected only that assertion and reran the focused command successfully.
+- `pnpm typecheck`: exit 0.
+- `pnpm lint && pnpm check:layers`: exit 0, **710 imports** checked.
+- `git diff --check`: exit 0.
+
+No whole suite, Task 1 tests, browser, build, source beyond the two findings, remote writes, deployment or subagents. ARC-007 remains in progress pending controller re-review, exact-tree push, actual transversal GitHub CI and the six original PNG inspections. No new implementation blocker identified.

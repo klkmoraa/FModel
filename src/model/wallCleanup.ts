@@ -2,6 +2,8 @@ import type { CadDocument, Transaction } from '../document/document';
 import { newId } from '../document/ids';
 import type { Entity, Id, LineEntity, MLineEntity } from '../document/types';
 import type { CleanupSegment } from '../geometry/wallCleanup';
+import { wallFaces } from '../geometry/walls';
+import { mlineElements } from './kinds/polylines';
 
 const RECORD = 'fmodelWallCleanup';
 const SOURCE = 'fmodelWallCleanupSource';
@@ -41,6 +43,22 @@ function snapshotValue(text: string): Record<string, unknown> {
   try { value = JSON.parse(text); } catch { throw new WallCleanupRecordError(); }
   requireRecord(object(value)); return value;
 }
+function requireCurrentGeometry(doc: CadDocument, entity: MLineEntity): void {
+  requireRecord(Array.isArray(entity.vertices) && entity.vertices.length <= 5000 && entity.vertices.every(point) && typeof entity.closed === 'boolean' && ['top', 'zero', 'bottom'].includes(entity.justification));
+  requireRecord(Number.isFinite(entity.scale) && entity.scale > 0 && Number.isFinite(entity.order) && Number.isFinite(entity.linetypeScale) && entity.linetypeScale > 0 && Number.isFinite(entity.lineweight));
+  requireRecord(entity.transparency === 'ByLayer' || entity.transparency === 'ByBlock' || (typeof entity.transparency === 'number' && Number.isFinite(entity.transparency) && entity.transparency >= 0 && entity.transparency <= 90));
+  const style = doc.data.mlineStyles.get(entity.style);
+  requireRecord(style && Array.isArray(style.elements) && style.elements.length > 0 && style.elements.length <= 256 && style.elements.every(element => Number.isFinite(element.offset)));
+  try {
+    // Native path/face validation uses the central world tolerance. The actual
+    // current style is also expanded, allowing style edits but rejecting overflow.
+    wallFaces(entity);
+    for (const line of mlineElements(entity, style.elements.map(element => element.offset))) {
+      requireRecord(line.every(point));
+      for (let i = 1; i < line.length; i++) requireRecord(Number.isFinite(Math.hypot(line[i].x - line[i - 1].x, line[i].y - line[i - 1].y)));
+    }
+  } catch { throw new WallCleanupRecordError(); }
+}
 export function hasWallCleanup(entity: Entity | undefined): boolean {
   return !!entity?.meta && [RECORD, SOURCE, OUTPUT].some(key => entity.meta![key] !== undefined);
 }
@@ -70,6 +88,8 @@ export function readWallCleanupRecord(doc: CadDocument, anchorId: Id): WallClean
   for (const source of record.sources) {
     const entity = doc.entity(source.id); if (!entity) continue;
     requireRecord(entity.type === 'mline' && sameLink(entity.meta?.[SOURCE], entity.id, record));
+    requireRecord(entity.owner === snapshotValue(source.shape).owner);
+    requireCurrentGeometry(doc, entity);
   }
   return structuredClone(record);
 }

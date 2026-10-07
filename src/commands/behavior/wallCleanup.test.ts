@@ -2,7 +2,7 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import type { LineEntity, MLineEntity } from '../../document/types';
 import { createWallAssembly, readWallAssembly, readWallSource } from '../../model/wallAssembly';
 import { readComponentAssembly } from '../../model/componentAssembly';
-import { prepareWallRestoration, wallCleanupRecords } from '../../model/wallCleanup';
+import { prepareWallRestoration, restoreWallCleanup, wallCleanupRecords } from '../../model/wallCleanup';
 import { CommandHarness } from './harness';
 
 const p = (x: number, y = 0) => ({ x, y });
@@ -114,4 +114,22 @@ it('copied tags and corrupt references reject atomically; edited native geometry
   expect(h.runner.log.some(entry => /geometría actual|current geometry/.test(entry.text))).toBe(true); h.undo();
   h.doc.transact('corrupt source backlink', tx => tx.updateEntity(anchor, { meta: { ...edited.meta, fmodelWallCleanupSource: { version: 1, selfId: anchor, anchorId: 'foreign', batchId: ownRecord.batchId } } }));
   h.clearSelection(); before = state(); expect((await h.run('WALLRESTORE', ['All', ''])).ok).toBe(false); expect(state()).toEqual(before);
+});
+
+it('rejects transferred sources even in their active owner and malformed current geometry before preview or transactional recovery', async () => {
+  const { anchor, ids } = await fixture(); await clean(ids);
+  const source = h.doc.entity(anchor) as MLineEntity, records = wallCleanupRecords(h.doc), originalOwner = h.editor.space;
+  for (const change of ['owner', 'vertex', 'scalar', 'derived'] as const) {
+    h.doc.data.entities.set(anchor, { ...source, ...(change === 'owner' ? { owner: 'transferred-owner' } : change === 'vertex' ? { vertices: source.vertices.map((p, i) => ({ ...p, x: i ? NaN : p.x })) } : change === 'scalar' ? { scale: Infinity } : { scale: Number.MAX_VALUE }) });
+    if (change === 'owner') h.editor.space = 'transferred-owner';
+    h.clearSelection(); const before = state();
+    expect(() => prepareWallRestoration(h.doc, records)).toThrow();
+    expect(state()).toEqual(before);
+    expect(() => h.doc.transact('reject malformed restoration', tx => restoreWallCleanup(tx, records))).toThrow();
+    expect(state()).toEqual({ ...before, version: before.version + 1 }); // rollback emits the document's existing version notification
+    const beforeCommand = state();
+    expect((await h.run('WALLRESTORE', ['All', ''])).ok).toBe(false);
+    expect(state()).toEqual(beforeCommand); expect(h.editor.preview).toBeNull(); expect(h.doc.entity(anchor)!.visible).toBe(false);
+    h.doc.data.entities.set(anchor, source); h.editor.space = originalOwner;
+  }
 });
