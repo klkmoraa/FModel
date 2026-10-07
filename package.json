@@ -16,7 +16,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
+    "test:coverage": "vitest run --coverage --maxWorkers=2",
     "test:e2e": "playwright test",
     "lint": "oxlint --deny-warnings src",
     "check:layers": "node scripts/check-layers.mjs",
