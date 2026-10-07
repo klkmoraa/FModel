@@ -1,6 +1,6 @@
 # Limpieza reversible / Reversible cleanup
 
-ARC-007 en curso: pendiente CI real y revisión visual original. / ARC-007 in progress: actual CI and raw visual review pending.
+ARC-007 disponible y cerrado sólo para instantáneas explícitas T/X y recorte contra columnas nativas: [CI 37628277682](https://github.com/klkmoraa/FModel/actions/runs/37628277682) y [seis PNG originales aprobados](brandbook/wall-cleanup-qa.md). Publicación de Pages pendiente hasta confirmación del controlador. / ARC-007 available and closed only for explicit T/X and native-column face-cleanup snapshots: approved CI and six raw PNGs. Actual Pages publication remains pending controller confirmation.
 
 | Comando / Command | Flujo / Flow |
 |---|---|

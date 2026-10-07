@@ -69,7 +69,7 @@
 | 43 | ARC-005 | P2 | Eje físico y muro paralelo por distancia libre | Cerrado (dos resultados en muros rectos compatibles) | ARC-002, ARC-004 | [Geometría](./02-geometria-comandos.md#arc-005--eje-físico-y-muro-paralelo-por-distancia-libre) |
 | 44 | ARC-006 | P2 | Relleno de material de muros y columnas nativas | Cerrado (rellenos independientes) | ARC-002, ARC-003, ARC-004 | [Geometría](./02-geometria-comandos.md#arc-006--relleno-de-material-de-muros-y-columnas-nativas) |
 
-| 45 | ARC-007 | P2 | Limpieza reversible de encuentros y recorte contra columnas | En curso: implementación lista, CI/visual pendiente | ARC-002, ARC-003, ARC-004 | [Geometría](./02-geometria-comandos.md#arc-007--limpieza-reversible-de-encuentros-de-muros) |
+| 45 | ARC-007 | P2 | Limpieza reversible de encuentros y recorte contra columnas | Cerrada: instantánea T/X y columnas verificada | ARC-002, ARC-003, ARC-004 | [Geometría](./02-geometria-comandos.md#arc-007--limpieza-reversible-de-encuentros-de-muros) |
 
 ## Mapa de dependencias
 
