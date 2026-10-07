@@ -1,4 +1,5 @@
 import { Plus, Star, Trash2 } from 'lucide-react';
+import { COMPONENT_CATALOG } from '../../app/componentCatalog';
 import { isInsertableBlock } from '../../blocks/blockOps';
 import { useMemo, useState } from 'react';
 import { hatchDefaults } from '../../commands/draw';
@@ -107,6 +108,27 @@ export function ToolPalettesPanel({ editor }: { editor: Editor }) {
       byCat.set(c, [...(byCat.get(c) ?? []), b]);
     }
     return [
+      {
+        id: 'architecture',
+        name: { es: 'Arquitectura', en: 'Architecture' },
+        items: [
+          { kind: 'command', cmd: 'ARCHITECTURE', label: { es: 'Catálogo de piezas', en: 'Component catalogue' }, icon: 'room' },
+          ...COMPONENT_CATALOG.map(c => ({ kind: 'command' as const, cmd: c.command, label: c.label, icon: 'room' })),
+          { kind: 'command', cmd: 'COMPONENTEDIT', label: { es: 'Editar pieza', en: 'Edit component' }, icon: 'room' },
+          { kind: 'command', cmd: 'WALL', label: { es: 'Muro', en: 'Wall' }, icon: 'wall' },
+          { kind: 'command', cmd: 'WALLRECT', label: { es: 'Habitación', en: 'Room' }, icon: 'room' },
+          { kind: 'command', cmd: 'WALLCONVERT', label: { es: 'Convertir a muro', en: 'Convert to wall' }, icon: 'wall' },
+          { kind: 'command', cmd: 'WALLAXIS', label: { es: 'Eje de muro', en: 'Wall axis' }, icon: 'wall' },
+          { kind: 'command', cmd: 'WALLOFFSET', label: { es: 'Muro paralelo', en: 'Parallel wall' }, icon: 'wall' },
+          { kind: 'command', cmd: 'WALLFILL', label: { es: 'Rellenar muros', en: 'Fill walls' }, icon: 'hatch' },
+          { kind: 'command', cmd: 'WALLCLEAN', label: { es: 'Limpiar muros', en: 'Clean walls' }, icon: 'wall' },
+          { kind: 'command', cmd: 'WALLRESTORE', label: { es: 'Restaurar muros', en: 'Restore walls' }, icon: 'wall' },
+          { kind: 'command', cmd: 'WALLDOOR', label: { es: 'Puerta', en: 'Door' }, icon: 'door' },
+          { kind: 'command', cmd: 'WALLWINDOW', label: { es: 'Ventana', en: 'Window' }, icon: 'window' },
+          ...([['OPENINGMOVE', 'Mover hueco', 'Move opening'], ['OPENINGCOPY', 'Copiar hueco', 'Copy opening'], ['OPENINGEDIT', 'Editar hueco', 'Edit opening'], ['OPENINGMIRROR', 'Reflejar hueco', 'Mirror opening'], ['OPENINGDELETE', 'Borrar hueco', 'Delete opening'], ['WALLTHICKNESS', 'Espesor de muro', 'Wall thickness']] as const).map(([cmd, es, en]) => ({ kind: 'command' as const, cmd, label: { es, en }, icon: 'wall' })),
+          ...['100mm', '150mm', '200mm'].map(value => ({ kind: 'command' as const, cmd: 'WALL', args: [value], label: { es: `Muro ${value}`, en: `Wall ${value}` }, icon: 'wall' })),
+        ],
+      },
       {
         id: 'symbols',
         name: { es: 'Símbolos', en: 'Symbols' },

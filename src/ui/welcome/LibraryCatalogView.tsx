@@ -1,3 +1,4 @@
+import { DWG_ENABLED } from '../../lib/capabilities';
 import { useEffect, useMemo, useState } from 'react';
 import { BookOpen, Box, Download, FolderInput, Plus } from 'lucide-react';
 import type { Editor } from '../../editor/editor';
@@ -87,8 +88,8 @@ export function LibraryCatalogView({ editor, onOpenWorkspace, searchFilter = '' 
           <p>
             {tr(
               lang,
-              'Instala la biblioteca inicial —100 bloques de LibreCAD (GPL-2.0) y 12 muebles paramétricos de FModel— o importa tus propios bloques desde un DXF, DWG o .fmodellib.',
-              'Install the starter library —100 LibreCAD blocks (GPL-2.0) and 12 FModel parametric furniture pieces— or import your own blocks from a DXF, DWG or .fmodellib.',
+              `Instala la biblioteca inicial —100 bloques de LibreCAD (GPL-2.0) y 12 muebles paramétricos de FModel— o importa tus propios bloques desde un ${DWG_ENABLED ? 'DXF, DWG o .fmodellib' : 'DXF o .fmodellib'}.`,
+              `Install the starter library —100 LibreCAD blocks (GPL-2.0) and 12 FModel parametric furniture pieces— or import your own blocks from a ${DWG_ENABLED ? 'DXF, DWG or .fmodellib' : 'DXF or .fmodellib'}.`,
             )}
           </p>
           <div className="welcome-empty__actions">

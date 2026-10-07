@@ -12,6 +12,124 @@ export interface EvidenceRecord {
 }
 
 export const EVIDENCE_CATALOG: Record<string, EvidenceRecord> = {
+  'BEH-WALL-CLEANUP': {
+    kind: 'unit', testFile: 'src/commands/behavior/wallCleanup.test.ts', testName: 'previews a T + native column + door wall',
+    testCommand: 'pnpm vitest run src/commands/behavior/wallCleanup.test.ts', commands: ['WALLCLEAN', 'WALLRESTORE'],
+  },
+  'GEO-WALL-CLEANUP': {
+    kind: 'unit', testFile: 'src/geometry/wallCleanup.test.ts', testName: 'native wall face cleanup',
+    testCommand: 'pnpm vitest run src/geometry/wallCleanup.test.ts',
+  },
+  'IO-WALL-CLEANUP': {
+    kind: 'integration', testFile: 'src/io/wallCleanup.test.ts', testName: 'native roundtrip retains recovery',
+    testCommand: 'pnpm vitest run src/io/wallCleanup.test.ts',
+  },
+  'UI-WALL-CLEANUP': {
+    kind: 'integration', testFile: 'src/ui/panels/wallCleanupAccess.test.ts', testName: 'cleanup and restore native access in ES/EN',
+    testCommand: 'pnpm vitest run src/ui/panels/wallCleanupAccess.test.ts',
+  },
+  'E2E-WALL-CLEANUP': {
+    kind: 'e2e', testFile: 'e2e/wallCleanup.spec.ts', testName: 'Wall cleanup: reversible native snapshots and real access',
+    testCommand: 'pnpm exec playwright test e2e/wallCleanup.spec.ts',
+  },
+  'BEH-WALL-FILL': {
+    kind: 'unit', testFile: 'src/commands/behavior/wallFill.test.ts', testName: 'selected_material_and_dedup',
+    testCommand: 'pnpm vitest run src/commands/behavior/wallFill.test.ts', commands: ['WALLFILL'],
+  },
+  'GEO-WALL-FILL': {
+    kind: 'unit', testFile: 'src/geometry/wallFill.test.ts', testName: 'native material fill geometry',
+    testCommand: 'pnpm vitest run src/geometry/wallFill.test.ts',
+  },
+  'IO-WALL-FILL': {
+    kind: 'integration', testFile: 'src/io/wallFill.test.ts', testName: 'wall fill native and DXF roundtrip',
+    testCommand: 'pnpm vitest run src/io/wallFill.test.ts',
+  },
+  'UI-WALL-FILL': {
+    kind: 'integration', testFile: 'src/ui/panels/architecturePanel.test.ts', testName: 'wall fill action routes the native flow',
+    testCommand: 'pnpm vitest run src/ui/panels/architecturePanel.test.ts src/ui/panels/wallFillAccess.test.ts',
+  },
+  'E2E-WALL-FILL': {
+    kind: 'e2e', testFile: 'e2e/wallFill.spec.ts', testName: 'Architectural wall fill: material snapshots and native controls',
+    testCommand: 'pnpm exec playwright test e2e/wallFill.spec.ts',
+  },
+
+  'BEH-WALL-UTILITIES': {
+    kind: 'unit', testFile: 'src/commands/behavior/wallUtilities.test.ts', testName: 'extracts a full physical axis',
+    testCommand: 'pnpm vitest run src/commands/behavior/wallUtilities.test.ts', commands: ['WALLAXIS', 'WALLOFFSET'],
+  },
+  'GEO-WALL-UTILITIES': {
+    kind: 'unit', testFile: 'src/geometry/wallUtilities.test.ts', testName: 'physical wall axis',
+    testCommand: 'pnpm vitest run src/geometry/wallUtilities.test.ts',
+  },
+  'IO-WALL-UTILITIES': {
+    kind: 'integration', testFile: 'src/io/wallUtilities.test.ts', testName: 'wall utilities retain native standard geometry',
+    testCommand: 'pnpm vitest run src/io/wallUtilities.test.ts',
+  },
+  'UI-WALL-UTILITIES': {
+    kind: 'integration', testFile: 'src/ui/panels/architecturePanel.test.ts', testName: 'wall utility actions route through native prompts',
+    testCommand: 'pnpm vitest run src/ui/panels/architecturePanel.test.ts',
+  },
+  'E2E-WALL-UTILITIES': {
+    kind: 'e2e', testFile: 'e2e/wallUtilities.spec.ts', testName: 'Wall utilities: physical axis and clear gap',
+    testCommand: 'pnpm test:e2e -- e2e/wallUtilities.spec.ts',
+  },
+  'BEH-OPENINGS': {
+    kind: 'unit', testFile: 'src/commands/behavior/openingLifecycle.test.ts', testName: 'two doors, move repairs old gap',
+    testCommand: 'pnpm vitest run src/commands/behavior/openingLifecycle.test.ts',
+    commands: ['OPENINGMOVE', 'OPENINGCOPY', 'OPENINGEDIT', 'OPENINGMIRROR', 'OPENINGDELETE', 'WALLTHICKNESS'],
+  },
+  'GEO-OPENINGS': {
+    kind: 'unit', testFile: 'src/geometry/wallOpenings.test.ts', testName: 'wall opening geometry',
+    testCommand: 'pnpm vitest run src/geometry/wallOpenings.test.ts',
+  },
+  'IO-OPENINGS': {
+    kind: 'integration', testFile: 'src/io/wallAssembly.test.ts', testName: 'wall assembly interchange',
+    testCommand: 'pnpm vitest run src/io/wallAssembly.test.ts',
+  },
+  'UI-OPENINGS': {
+    kind: 'integration', testFile: 'src/ui/panels/architecturePanel.test.ts', testName: 'opening lifecycle actions start native commands',
+    testCommand: 'pnpm vitest run src/ui/panels/architecturePanel.test.ts src/render/openingPreview.test.ts',
+  },
+  'E2E-OPENINGS': {
+    kind: 'e2e', testFile: 'e2e/openingLifecycle.spec.ts', testName: 'Associated opening lifecycle: room geometry and controls',
+    testCommand: 'pnpm test:e2e -- e2e/openingLifecycle.spec.ts',
+  },
+  'UI-COMPONENTS': {
+    kind: 'integration', testFile: 'src/ui/panels/architecturePanel.test.ts', testName: 'invalid Place/Edit retains fields and errors without starting the real runner',
+    testCommand: 'pnpm vitest run src/ui/panels/architecturePanel.test.ts src/ui/panels/architectureForm.test.ts src/editor/workspaceChrome.test.ts src/commands/architecturePanel.test.ts',
+    commands: ['ARCHITECTURE'],
+  },
+  'E2E-COMPONENTS': {
+    kind: 'e2e', testFile: 'e2e/componentsJourneys.spec.ts', testName: 'Construction components: native panel journeys',
+    testCommand: 'pnpm test:e2e -- e2e/componentsJourneys.spec.ts',
+  },
+  'BEH-COMPONENTS': {
+    kind: 'unit', testFile: 'src/commands/behavior/components.test.ts', testName: 'construction command behavior',
+    testCommand: 'pnpm vitest run src/commands/behavior/components.test.ts',
+    commands: ['COLUMN', 'AXISGRID', 'STAIRPLAN', 'STAIRSECTION', 'ESCALATOR', 'LIFTPLAN', 'DOORELEVATION', 'DOORSECTION', 'WINDOWELEVATION', 'WINDOWSECTION', 'BAYWINDOWSECTION', 'CURTAINWALL', 'GLASSPARTITION', 'BANISTER', 'COMPONENTEDIT'],
+  },
+  'GEO-COMPONENTS': {
+    kind: 'unit', testFile: 'src/geometry/architecture/components.test.ts', testName: 'construction geometry',
+    testCommand: 'pnpm vitest run src/geometry/architecture/components.test.ts',
+  },
+  'IO-COMPONENTS': {
+    kind: 'integration', testFile: 'src/io/components.test.ts', testName: 'component native and DXF round trip',
+    testCommand: 'pnpm vitest run src/io/components.test.ts',
+  },
+  'BEH-ARCHITECTURE': {
+    kind: 'unit', testFile: 'src/commands/behavior/architecture.test.ts',
+    testName: 'Comportamiento de Comandos — Arquitectura (ARC-002)',
+    testCommand: 'pnpm vitest run src/commands/behavior/architecture.test.ts',
+    commands: ['WALL', 'WALLRECT', 'WALLCONVERT', 'WALLDOOR', 'WALLWINDOW'],
+  },
+  'GEO-WALLS': {
+    kind: 'unit', testFile: 'src/geometry/walls.test.ts', testName: 'wall geometry',
+    testCommand: 'pnpm vitest run src/geometry/walls.test.ts',
+  },
+  'IO-ARCHITECTURE': {
+    kind: 'integration', testFile: 'src/io/architecture.test.ts', testName: 'architecture native and DXF round trip',
+    testCommand: 'pnpm vitest run src/io/architecture.test.ts',
+  },
   'E2E-CRITICAL-JOURNEYS': {
     kind: 'e2e',
     testFile: 'e2e/criticalJourneys.spec.ts',

@@ -7,6 +7,7 @@ import { createDocument, DIMSTYLE_ISO_ID, entityDefaults, TEXTSTYLE_STANDARD_ID 
 import type { ArcEntity, CircleEntity, DimensionEntity, EllipseEntity, HatchEntity, InsertEntity, LayerRecord, LineEntity, LwPolylineEntity, MTextEntity, SplineEntity, TextEntity, ViewportEntity, WipeoutEntity } from '../../document/types';
 import { MODEL_SPACE_ID } from '../../document/types';
 import { createContext } from '../../model/context';
+import { hatchSegments } from '../../model/kinds/hatch';
 import { exportDxf } from './exportDxf';
 import { decodeDxfBytes, importDxfIntoDocument } from './importDxf';
 import { parseDxf } from './parser';
@@ -66,6 +67,48 @@ function richDocument() {
 }
 
 describe('DXF export', () => {
+  it.each([
+    { units: 'mm' as const, spacing: 100, angle: Math.PI / 4, double: false, origin: { x: 1250, y: 2300 }, size: 500 },
+    { units: 'mm' as const, spacing: 100, angle: Math.PI / 4, double: true, origin: { x: 1250, y: 2300 }, size: 500 },
+    { units: 'm' as const, spacing: 0.1, angle: Math.PI / 6, double: true, origin: { x: 1000000, y: 2000000 }, size: 0.6 },
+  ])('round-trips user hatch spacing and world phase ($units, $double)', ({ units, spacing, angle, double, origin, size }) => {
+    const doc = createDocument({ units });
+    let source!: HatchEntity;
+    doc.transact('seed', (tx) => {
+      source = tx.addEntity<HatchEntity>({
+        ...entityDefaults(doc), color: 'aci:3', lineweight: 35, visible: false,
+        type: 'hatch', origin, islandStyle: 'outer',
+        loops: [{ closed: true, vertices: [
+          { x: origin.x + spacing / 4, y: origin.y + spacing / 5 },
+          { x: origin.x + size, y: origin.y + spacing / 5 },
+          { x: origin.x + size, y: origin.y + size },
+          { x: origin.x + spacing / 4, y: origin.y + size },
+        ] }],
+        pattern: { type: 'user', name: '_USER', spacing, angle, scale: 1, double },
+      });
+    });
+    const { text } = exportDxf(doc, createContext(doc));
+    const back = createDocument();
+    const report = importDxfIntoDocument(back, text, { replace: true });
+    const hatch = back.entitiesOf(MODEL_SPACE_ID).find((e): e is HatchEntity => e.type === 'hatch')!;
+    expect(hatch.origin).toEqual(origin);
+    expect(hatch.pattern.spacing).toBeCloseTo(spacing, 9);
+    expect(hatch.pattern.angle).toBeCloseTo(angle, 12);
+    expect(hatch.pattern).toMatchObject({ type: 'user', double, scale: 1 });
+    expect(hatch.loops.map((l) => l.vertices.map(({ x, y }) => ({ x, y })))).toEqual(source.loops.map((l) => l.vertices));
+    expect(hatch).toMatchObject({ color: source.color, lineweight: 35, visible: false, islandStyle: 'outer', owner: source.owner, layer: source.layer });
+    const expected = hatchSegments(source);
+    const actual = hatchSegments(hatch);
+    expect(expected.tooDense).toBe(false);
+    expect(expected.segments.length).toBeGreaterThan(3);
+    expect(actual.segments).toHaveLength(expected.segments.length);
+    actual.segments.forEach((segment, i) => segment.forEach((p, j) => {
+      expect(p.x).toBeCloseTo(expected.segments[i][j].x, 7);
+      expect(p.y).toBeCloseTo(expected.segments[i][j].y, 7);
+    }));
+    expect(report.transformed['HATCH (patrón de usuario)']).toBeUndefined();
+  });
+
   it('writes a structurally complete R2010 file with unique handles', () => {
     const { doc, ctx } = richDocument();
     const { text, report } = exportDxf(doc, ctx);

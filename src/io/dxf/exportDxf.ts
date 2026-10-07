@@ -142,6 +142,16 @@ export function exportDxf(doc: CadDocument, ctx: ModelContext): { text: string; 
   const ok = (t: string) => (report.exported[t] = (report.exported[t] ?? 0) + 1);
   const transformed = (t: string, reason: string) => ((report.transformed[t] ??= { count: 0, reason }).count++);
   const ignored = (t: string, reason: string) => ((report.ignored[t] ??= { count: 0, reason }).count++);
+  if ([...data.entities.values()].some(entity => entity.meta?.fmodelWallCleanup !== undefined || entity.meta?.fmodelWallCleanupOutput !== undefined)) {
+    report.warnings.push('DXF conserva caras LINE y fuentes invisibles (código 60), pero pierde la recuperación de limpieza. Guarda en .fmodel para restaurar muros. / DXF keeps LINE faces and invisible sources (code 60), but loses cleanup recovery. Save as .fmodel to restore walls.');
+  }
+  for (const entity of data.entities.values()) if (entity.meta?.fmodelComponent !== undefined) {
+    transformed('FMODELCOMPONENT', 'La geometría y los textos se conservan; se pierde la edición paramétrica nativa. / Geometry and text survive; native parametric editing is lost.');
+  }
+  for (const entity of data.entities.values()) if (entity.meta?.fmodelWallAssembly !== undefined) {
+    transformed('FMODELWALLASSEMBLY', 'La geometría de muros y huecos se conserva, pero se pierde la asociación editable de los huecos. / Wall and openings geometry survives, but editable opening associations are lost.');
+    report.warnings.push('DXF pierde la asociación editable entre muro y huecos; guarda en .fmodel para conservarla. / DXF loses editable wall and openings associations; save as .fmodel to preserve them.');
+  }
 
   // ------------------------------------------------------------------ handles fijos
   const T = { VPORT: H.next(), LTYPE: H.next(), LAYER: H.next(), STYLE: H.next(), VIEW: H.next(), UCS: H.next(), APPID: H.next(), DIMSTYLE: H.next(), BLOCK_RECORD: H.next() };

@@ -1,3 +1,4 @@
+import { DWG_ENABLED } from '../../lib/capabilities';
 import { Play } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { FEATURES, STATUS_LABEL } from '../../app/features';
@@ -163,7 +164,7 @@ export function HelpDialog({ editor, onClose, initialTab }: { editor: Editor; on
             <strong>FModel 2D CAD</strong> — {tr(lang, 'CAD 2D profesional en el navegador, parte de FusionStructure.', 'Professional 2D CAD in the browser, part of FusionStructure.')}
           </p>
           <p style={{ margin: 0 }}>{tr(lang, 'Local-first: los dibujos, versiones y autoguardados se quedan en este navegador; nada se envía a servidores.', 'Local-first: drawings, versions and autosaves stay in this browser; nothing is sent to servers.')}</p>
-          <p style={{ margin: 0 }}>{tr(lang, 'Formatos: .fmodel nativo (sin pérdidas), DXF R12–R2018 de entrada y R2010 de salida con informe de conversión, PDF vectorial, SVG y lectura experimental de DWG.', 'Formats: native .fmodel (lossless), DXF R12–R2018 input and R2010 output with conversion report, vector PDF, SVG and experimental DWG reading.')}</p>
+          <p style={{ margin: 0 }}>{DWG_ENABLED ? tr(lang, 'Formatos: .fmodel nativo (sin pérdidas), DXF R12–R2018 de entrada y R2010 de salida con informe de conversión, PDF vectorial, SVG y lectura experimental de DWG.', 'Formats: native .fmodel (lossless), DXF R12–R2018 input and R2010 output with conversion report, vector PDF, SVG and experimental DWG reading.') : tr(lang, 'Formatos: .fmodel nativo (sin pérdidas), biblioteca .fmodellib, DXF R12–R2018 de entrada y R2010 de salida con informe de conversión, PDF vectorial y SVG. Para abrir DWG, conviértelo a DXF.', 'Formats: native .fmodel (lossless), .fmodellib library, DXF R12–R2018 input and R2010 output with conversion report, vector PDF and SVG. To open DWG, convert it to DXF.')}</p>
           <p style={{ margin: 0 }}>{tr(lang, 'Alcance estrictamente 2D: sin BIM, IFC, sólidos, mallas ni render 3D.', 'Strictly 2D scope: no BIM, IFC, solids, meshes or 3D rendering.')}</p>
         </div>
       )}

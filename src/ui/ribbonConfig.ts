@@ -34,6 +34,7 @@ export const RIBBON: RibbonTab[] = [
       {
         label: { es: 'Dibujo', en: 'Draw' },
         tools: [
+          t('WALL', 'wall', 'Muro', 'Wall', 'lg'),
           t('LINE', 'line', 'Línea', 'Line', 'lg'),
           t('PLINE', 'pline', 'Polilínea', 'Polyline', 'lg'),
           t('CIRCLE', 'circle', 'Círculo', 'Circle', 'lg'),
@@ -82,6 +83,16 @@ export const RIBBON: RibbonTab[] = [
         label: { es: 'Utilidades', en: 'Utilities' },
         tools: [t('DIST', 'measure', 'Medir', 'Measure'), t('MASSPROP', 'massprop', 'Propiedades de masa', 'Mass properties'), t('QSELECT', 'qselect', 'Selección rápida', 'Quick select'), t('ZOOM', 'zoomextents', 'Extensión', 'Extents', 'sm', ['E'])],
       },
+    ],
+  },
+  {
+    id: 'architecture',
+    label: { es: 'Arquitectura', en: 'Architecture' },
+    groups: [
+      { label: { es: 'Piezas de construcción', en: 'Construction components' }, tools: [t('ARCHITECTURE', 'room', 'Catálogo de piezas', 'Component catalogue', 'lg'), t('COLUMN', 'room', 'Columna', 'Column'), t('AXISGRID', 'grid', 'Retícula', 'Axis grid'), t('STAIRPLAN', 'room', 'Escalera en planta', 'Stair plan'), t('WINDOWELEVATION', 'window', 'Ventana en alzado', 'Window elevation'), t('COMPONENTEDIT', 'room', 'Editar pieza', 'Edit component')] },
+      { label: { es: 'Muros', en: 'Walls' }, tools: [t('WALL', 'wall', 'Muro', 'Wall', 'lg'), t('WALLRECT', 'room', 'Habitación', 'Room', 'lg'), t('WALLCONVERT', 'wall', 'Convertir a muro', 'Convert to wall'), t('WALLAXIS', 'wall', 'Eje de muro', 'Wall axis'), t('WALLOFFSET', 'wall', 'Muro paralelo', 'Parallel wall'), t('WALLFILL', 'hatch', 'Rellenar muros', 'Fill walls'), t('WALLCLEAN', 'wall', 'Limpiar muros', 'Clean walls'), t('WALLRESTORE', 'wall', 'Restaurar muros', 'Restore walls')] },
+      { label: { es: 'Huecos', en: 'Openings' }, tools: [t('WALLDOOR', 'door', 'Puerta', 'Door', 'lg'), t('WALLWINDOW', 'window', 'Ventana', 'Window', 'lg'), t('OPENINGMOVE', 'wall', 'Mover hueco', 'Move opening'), t('OPENINGCOPY', 'wall', 'Copiar hueco', 'Copy opening'), t('OPENINGEDIT', 'wall', 'Editar hueco', 'Edit opening'), t('OPENINGMIRROR', 'wall', 'Reflejar hueco', 'Mirror opening'), t('OPENINGDELETE', 'wall', 'Borrar hueco', 'Delete opening'), t('WALLTHICKNESS', 'wall', 'Espesor de muro', 'Wall thickness')] },
+      { label: { es: 'Espesores', en: 'Thicknesses' }, tools: [t('WALL', 'wall', '100 mm', '100 mm', 'sm', ['100mm']), t('WALL', 'wall', '150 mm', '150 mm', 'sm', ['150mm']), t('WALL', 'wall', '200 mm', '200 mm', 'sm', ['200mm'])] },
     ],
   },
   {

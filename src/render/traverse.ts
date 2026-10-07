@@ -59,6 +59,8 @@ export interface TraverseEnv {
   plotting: boolean;
   plotStyle: 'color' | 'monochrome' | 'grayscale';
   hidden?: ReadonlySet<Id>;
+  /** Temporary onscreen replacement, distinct from user visibility and plotting. */
+  previewExcluded?: ReadonlySet<Id>;
   isolated?: ReadonlySet<Id> | null;
   viewport: ViewportEntity | null;
   /** factor para patrones de línea (1/escala de viewport con PSLTSCALE) */
@@ -263,7 +265,7 @@ export function visibleEntities(env: TraverseEnv, owner: Id, index: SpatialIndex
     }
     list.sort((a, b) => a.order - b.order);
   } else list = doc.entitiesOf(owner);
-  return list.filter((e) => entityVisible(doc, e, { hidden: env.hidden, isolated: env.isolated, viewport: env.viewport, plotting: env.plotting }));
+  return list.filter((e) => !env.previewExcluded?.has(e.id) && entityVisible(doc, e, { hidden: env.hidden, isolated: env.isolated, viewport: env.viewport, plotting: env.plotting }));
 }
 
 export function drawSpace(sink: DrawSink, env: TraverseEnv, owner: Id, index: SpatialIndex | null, box: BBox | null) {

@@ -1,3 +1,5 @@
+import { DWG_ENABLED } from '../lib/capabilities';
+import { dwgUnavailableError } from '../lib/dwgUnavailable';
 import type { HealthReport } from '../audit/health';
 import { analyzeDrawing } from '../audit/health';
 import { installDynamicBlocks } from '../blocks/install';
@@ -39,6 +41,7 @@ export const HEAVY_OPS = {
   },
   /** Traduce un DWG a la estructura intermedia del DXF con LibreDWG (carga diferida). */
   async parseDwg(payload: { bytes: Uint8Array }): Promise<DxfFile> {
+    if (!DWG_ENABLED) throw dwgUnavailableError();
     const [{ readDwgFile }, { default: wasmFile }] = await Promise.all([import('../io/dwg/readDwg'), import('../io/dwg/wasmUrl')]);
     return readDwgFile(payload.bytes, { wasmFile });
   },

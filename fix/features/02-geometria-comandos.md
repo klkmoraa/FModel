@@ -127,3 +127,58 @@
 - [x] Los comandos interactivos prueban Esc/cancelación sin cambios residuales.
 
 **Verificación:** `pnpm vitest run src/commands src/app/features.test.ts`, `pnpm check:features` y la suite completa (63 archivos/582 pruebas) pasan.
+
+
+## ARC-002 — Muros y huecos arquitectónicos 2D
+
+- [x] **Estado: Cerrado (núcleo 2D)** — 2026-10-03; responsable: Codex. CI real y capturas revisadas por el controlador: [ejecución 37022156512](https://github.com/klkmoraa/FModel/actions/runs/37022156512), 50/50 Chromium E2E y 966 pruebas; escritorio Día/Noche 1280×720 y teléfono 390×844 con preset/cancelación sin desbordamiento. Evidencia conservada en `walls-qa.md`; no supone paridad amplia con YQARCH.
+- **Prioridad:** P2. ID ARC-002 para conservar ARC-001 histórico (división de módulos, categoría calidad).
+- **Alcance:** WALL/MURO, WALLRECT/HABITACION, WALLCONVERT/CONVERTIRMURO, WALLDOOR/PUERTA y WALLWINDOW/VENTANA; pestaña y paleta Arquitectura, presets físicos y ayuda bilingüe.
+- **Contrato:** entidades MLINE nativas de dos caras y tapas rectas; hueco geométrico con símbolos estándar; CommandApi y undo/redo atómico; sin nueva versión de archivo ni red.
+- **Evidencia automática:** `src/geometry/walls.test.ts`, `src/commands/behavior/architecture.test.ts`, `src/io/architecture.test.ts`, catálogo BEH-ARCHITECTURE/GEO-WALLS/IO-ARCHITECTURE.
+- **Guía:** [Muros y huecos](../../docs/arquitectura-muros.md). [Plan](../../docs/plans/2026-10-02-architecture-tools.md).
+- **Cierre:** tipos/lint/capas/catálogo/pruebas/cobertura/build y navegador de esa CI aprobados; capturas reales de muros y ficha de marca actualizadas. Huecos no asociativos y demás límites documentados permanecen explícitos.
+
+## ARC-003 — Componentes de construcción 2D y edición paramétrica
+
+- [x] **Estado: Cerrado (14 familias 2D)** — inicio 2026-10-02; cierre 2026-10-03; responsable: Codex. Núcleo nativo y panel Arquitectura verificados; [CI 37097760918](https://github.com/klkmoraa/FModel/actions/runs/37097760918), 1100/1100 pruebas y 56/56 recorridos Chromium, incluidas seis rutas de componentes y 14 capturas Día/Noche/escritorio/teléfono revisadas por el controlador. [Ficha QA](../../docs/brandbook/components-qa.md). No implica paridad general con YQARCH ni el ciclo de vida de huecos asociados.
+- **Prioridad:** P2. Alcance: las 14 familias de la especificación de construcción, comandos canónicos y `COMPONENTEDIT`; sin cambiar el formato nativo ni ampliar DWG.
+- **Contrato:** constructores puros con curvas nativas, roles estables y máximo 2000 primitivas; argumentos dimensionales nativos/físicos, radianes internos y grados en comandos; grupos seleccionables y validación de pertenencia/metadatos antes de editar. Una confirmación corresponde a un paso de undo/redo.
+- **Evidencia:** BEH-COMPONENTS, GEO-COMPONENTS, IO-COMPONENTS, UI-COMPONENTS y E2E-COMPONENTS; suites de catálogo/modelo adicionales. Seis recorridos reales (mm/m × Día/Noche; teléfono × Día/Noche) y 14 capturas originales aprobadas. Retícula, escalera curva y ventana editada sobreviven a formato nativo/DXF; DXF pierde parámetros y lo indica en el informe.
+- **Guía:** [Componentes](../../docs/arquitectura-componentes.md). [Especificación](../../docs/superpowers/specs/2026-10-02-construction-components-design.md).
+- **Cierre:** completado para las catorce familias 2D y su edición/panel nativos; no se amplía DWG ni se afirma paridad de otros módulos.
+
+## ARC-004 — Ciclo de huecos asociados y espesor de muro
+
+- [x] **Estado: Cerrado (muros rectos compatibles)** — 2026-10-03; [CI 37131723475](https://github.com/klkmoraa/FModel/actions/runs/37131723475): 1169/1169 pruebas y 60/60 recorridos Chromium, incluidos cuatro nuevos con píxeles de escena/overlay, y [seis capturas originales aprobadas](../../docs/brandbook/openings-qa.md).
+- **Prioridad:** P2; dependencia ARC-002. `WALLDOOR`/`WALLWINDOW` generan grupos nativos asociados; `OPENINGMOVE`, `OPENINGCOPY`, `OPENINGEDIT`, `OPENINGMIRROR`, `OPENINGDELETE`, `WALLTHICKNESS` y alias españoles son comandos atómicos con vista previa de sustitución.
+- **Límites:** sólo muros compatibles de dos caras ±0.5 y segmentos rectos. No redes T/X, recorte de columnas, curvas o huecos en esquinas; máximos de 500 vértices, 200 huecos y 2000 primitivas. El DXF pierde la asociación editable; no se infieren grupos legados incompletos.
+- **Evidencia:** `src/geometry/wallOpenings.test.ts`, `src/model/wallAssembly.test.ts`, `src/commands/behavior/openingLifecycle.test.ts`, `src/render/openingPreview.test.ts`, `src/io/wallAssembly.test.ts`, `src/ui/panels/architecturePanel.test.ts`; recorrido `e2e/openingLifecycle.spec.ts` aprobado en CI real Día/Noche/escritorio/teléfono y seis capturas revisadas. Catálogo BEH/GEO/IO/UI/E2E-OPENINGS.
+- **Guía:** [Muros y huecos](../../docs/arquitectura-muros.md), [diseño](../../docs/superpowers/specs/2026-10-02-opening-lifecycle-design.md).
+
+## ARC-005 — Eje físico y muro paralelo por distancia libre
+
+- [x] **Estado: Cerrado (dos resultados en muros rectos compatibles)** — 2026-10-04. [CI 37169139770](https://github.com/klkmoraa/FModel/actions/runs/37169139770): 1204 pruebas/119 archivos y 64 recorridos Chromium, incluidos cuatro de ARC-005 con aserciones de geometría, píxeles reales y foco telefónico; [seis originales aprobados](../../docs/brandbook/wall-utilities-qa.md) Día/Noche/escritorio/teléfono.
+- **Alcance:** `WALLAXIS`/`EJEMURO` extrae el eje físico completo como polilínea independiente; `WALLOFFSET`/`PARALELAMURO` crea un muro paralelo vacío por distancia libre entre caras, con espesor y lado ajustables. El muro origen y sus huecos asociados permanecen intactos. No se registran WWA/WWO como alias.
+- **Límites:** recorridos rectos compatibles de dos caras ±0.5; hasta 500 vértices para eje y 200 para paralelo. Sin redes T/X, ejes inferidos de líneas sueltas, curvas, recorte de columnas, huecos de esquina ni rellenos. No se amplía DWG. `.fmodel` conserva entidades/grupos y DXF conserva geometría estándar; la asociación de huecos del origen sigue perdiéndose con la advertencia existente.
+- **Evidencia:** pruebas `src/geometry/wallUtilities.test.ts`, `src/commands/behavior/wallUtilities.test.ts`, `src/io/wallUtilities.test.ts`, `src/ui/panels/architecturePanel.test.ts`; `e2e/wallUtilities.spec.ts` aprobado en CI real con foco y píxeles de escena/overlay, seis originales y hashes revisados. Catálogo GEO/BEH/IO/UI/E2E-WALL-UTILITIES. Permanece un Minor del productor: sin regresión negativa separada de contención de anillo cerrado sin cruce; el código sí comprueba la condición.
+- **Guía:** [Muros](../../docs/arquitectura-muros.md), [diseño](../../docs/superpowers/specs/2026-10-03-wall-utilities-design.md).
+
+
+## ARC-006 — Relleno de material de muros y columnas nativas
+
+- [x] **Estado: Cerrado (rellenos independientes)** — 2026-10-05. Fuente congelada en `9f556c1011d20e3232aba1ae7e80fcd066903335`, revisión fuente/spec/calidad aprobada; [CI 37254420973](https://github.com/klkmoraa/FModel/actions/runs/37254420973), job `111588362981`: **1297 pruebas/124 archivos y 68 recorridos Chromium**, incluidos cuatro nuevos escritorio/teléfono táctil × Día/Noche; [seis PNG originales aprobados con procedencia y SHA-256](../../docs/brandbook/wall-fill-qa.md).
+- **Alcance:** `WALLFILL`/`RELLENARMUROS`; snapshots HATCH estándar Sólido/Rayado por fragmentos de muros compatibles y contornos mundiales de las cinco variantes de columna nativa. Deduplicación por origen, huecos/habitaciones vacíos, propiedades gráficas heredadas sin tags de identidad ni asociación futura; una confirmación/undo. WWF no es alias.
+- **Límites:** máximo 100 orígenes, 5000 puntos de origen, 10000 vértices y 1000 HATCH; Rayado hasta 12000 líneas proyectadas, 10000 aristas teseladas y 2000000 productos línea×arista sumados. Defaults físicos 100 mm (0.1 m; sin unidad 100), ángulo 45°. Lote íntegro validado antes de escribir; Esc y cambios intercalados descartan. Sin relleno de símbolos, entidades sueltas, otros componentes, redes T/X ni ampliación de DWG/formato nativo.
+- **Evidencia ejecutada:** catálogo BEH/GEO/IO/UI/E2E-WALL-FILL; geometría de material y runner, nativo/DXF con patrón de usuario real y círculo bulge, acciones bilingües y teléfono. Los cuatro recorridos de `e2e/wallFill.spec.ts` comprueban material `5730000 + 90000π`, deduplicación de varios miembros del mismo origen, invariantes de fuente, píxeles cuantitativos Sólido/Rayado y vacíos, foco telefónico, undo/redo y cancelación. El rayado se verifica después de retirar todo el Sólido; las seis capturas muestran geometría sólida y acciones, con revisión original del controlador.
+- **Guía:** [Muros y relleno independiente](../../docs/arquitectura-muros.md). Se conservan el Minor previo de cobertura de contención de anillo cerrado sin cruce y el texto compartido del panel que atribuye columnas a Eje/Paralelo (éstos siguen siendo sólo para muros), diferidos a revisión final del plan maestro; las advertencias previas de build permanecen documentadas. Sin cambios en el productor aprobado. El cierre acredita sólo este resultado, no paridad general YQARCH ni cierre del plan maestro.
+
+
+## ARC-007 — Limpieza reversible de encuentros de muros
+
+- [x] **Estado: Cerrada** — alcance aceptado el 2026-10-07, Codex.
+- **Alcance:** WALLCLEAN/WALLRESTORE: caras limpias en T/X y recorte contra columnas nativas, instantánea con recuperación de originales para editar. No actualización automática ni muros curvos.
+- **Aceptación:** [CI 37628277682](https://github.com/klkmoraa/FModel/actions/runs/37628277682): 1325 pruebas/131 archivos en ejecución normal y cobertura, puertas estáticas, build público/guard de 189 archivos y 73 recorridos Chromium; los cuatro nuevos escritorio/teléfono Día/Noche pasaron. [Seis PNG originales y procedencia aprobados](../../docs/brandbook/wall-cleanup-qa.md). Fuente remota `ac8e21efde9cfe7865108c4a25b32340847aad92`, equivalente exacta a `dce61241a99618ce2c7e70770698a33b8fbf93a4`, árbol `8632c32210986f5762558273eab869669129afeb`.
+- **Diseño:** [Limpieza reversible](../../docs/superpowers/specs/2026-10-05-wall-cleanup-design.md).
+- **Resultado:** comandos reversibles, registros propios recíprocos por fragmento, recuperación Todos aunque se borren/desagrupen salidas, persistencia nativa y aviso DXF, guardas restaurar→editar→limpiar y acceso real ES/EN en cinta/paleta/Arquitectura. Se conservan fuentes editadas y salidas modificadas/ambiguas; no se sobrescriben ediciones. CI prueba preview/cancel/cleanup/restore/undo y foco nativo en teléfono. Sin paridad general YQARCH: redes automáticas/nuevos vecinos, curvas, huecos de esquina, líneas sueltas y demás módulos maestros siguen pendientes.
+- **Publicación:** ruta B delegada de REL-001 excluye el lector DWG experimental del artefacto público real; nativo/DXF públicos, lector por defecto conservado en desarrollo y sin cambio de licencia. [QA de artefacto y smoke público](../../docs/brandbook/public-formats-qa.md). Cierre profesional/legal completo de REL-001 pendiente. Publicación de Pages pendiente hasta confirmación del controlador, que conserva la puerta CI del árbol final.

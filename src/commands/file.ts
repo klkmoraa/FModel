@@ -1,3 +1,5 @@
+import { DWG_ENABLED } from '../lib/capabilities';
+import { dwgUnavailableError } from '../lib/dwgUnavailable';
 import { getServices, requestUi } from '../app/services';
 import { createDocumentData } from '../document/defaults';
 import { fromNativeFile, readPackage, writeDebugJson, writePackage } from '../io/native';
@@ -74,6 +76,7 @@ export async function openBytes(api: CommandApi, name: string, bytes: Uint8Array
     return true;
   }
   if (lower.endsWith('.dwg')) {
+    if (!DWG_ENABLED) throw dwgUnavailableError();
     api.info(L('Leyendo DWG con LibreDWG en segundo plano (la primera vez descarga el lector, ~10 MB)…', 'Reading DWG with LibreDWG in the background (first use downloads the reader, ~10 MB)…'));
     try {
       const { data, report } = await taskManager.runTask(
@@ -113,10 +116,12 @@ const OPEN: CommandDef = {
   category: 'file',
   readOnly: true,
   label: L('Abrir', 'Open'),
-  description: L('Abre un dibujo .fmodel, JSON de FModel, DXF o DWG (lectura experimental).', 'Opens a .fmodel drawing, FModel JSON, DXF or DWG (experimental reading).'),
+  description: DWG_ENABLED ? L('Abre un dibujo .fmodel, JSON de FModel, DXF o DWG (lectura experimental).', 'Opens a .fmodel drawing, FModel JSON, DXF or DWG (experimental reading).') : L('Abre un dibujo .fmodel, JSON de FModel o DXF.', 'Opens a .fmodel drawing, FModel JSON or DXF.'),
   async run(api) {
     if (!(await confirmDiscard(api))) return;
-    const f = await openFile({ ...FMODEL_ACCEPT, 'application/dxf': ['.dxf'], 'application/acad': ['.dwg'] }, 'FModel / DXF / DWG');
+    const accept: Record<string, string[]> = { ...FMODEL_ACCEPT, 'application/dxf': ['.dxf'] };
+    if (DWG_ENABLED) accept['application/acad'] = ['.dwg'];
+    const f = await openFile(accept, DWG_ENABLED ? 'FModel / DXF / DWG' : 'FModel / DXF');
     if (!f) return;
     const opened = await openBytes(api, f.name, f.bytes);
     if (opened) getServices().fileHandle = f.name.toLowerCase().endsWith('.fmodel') ? (f.handle ?? null) : null;

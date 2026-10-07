@@ -2,7 +2,7 @@ import type { Plugin } from 'vite';
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath, URL } from 'node:url';
 import { computeCacheVersion, serviceWorkerSource } from './src/pwa/serviceWorker.ts';
 
@@ -37,18 +37,45 @@ function serviceWorker(): Plugin {
 
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string };
 
+const dwgSetting = process.env.FMODEL_DWG_ENABLED;
+if (dwgSetting !== undefined && dwgSetting !== 'true' && dwgSetting !== 'false') {
+  throw new Error('FMODEL_DWG_ENABLED must be true or false');
+}
+const dwgEnabled = dwgSetting !== 'false';
+
+/** Applied independently to the main and worker graphs, before dependency resolution. */
+function publicDwgSubstitutions(): Plugin {
+  const readers = new Map([
+    [fileURLToPath(new URL('./src/io/dwg/readDwg', import.meta.url)), fileURLToPath(new URL('./src/io/dwg/unavailableReader.ts', import.meta.url))],
+    [fileURLToPath(new URL('./src/io/dwg/wasmUrl', import.meta.url)), fileURLToPath(new URL('./src/io/dwg/unavailableWasm.ts', import.meta.url))],
+  ]);
+  return {
+    name: 'fmodel-public-dwg-substitutions',
+    enforce: 'pre',
+    resolveId(source, importer) {
+      const id = source.startsWith('.') && importer ? resolve(dirname(importer), source) : source;
+      return readers.get(id.replace(/\.ts$/, '')) ?? null;
+    },
+  };
+}
+
 export default defineConfig({
   base: process.env.FMODEL_BASE ?? '/',
   // versión visible en la interfaz sin importar package.json desde el código de la aplicación
-  define: { __APP_VERSION__: JSON.stringify(pkg.version) },
-  plugins: [react(), serviceWorker()],
+  define: { __APP_VERSION__: JSON.stringify(pkg.version), __DWG_ENABLED__: dwgEnabled },
+  plugins: [react(), serviceWorker(), ...(!dwgEnabled ? [publicDwgSubstitutions()] : [])],
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },
-  worker: { format: 'es' },
+  worker: {
+    format: 'es',
+    plugins: () => !dwgEnabled ? [publicDwgSubstitutions()] : [],
+    rolldownOptions: { output: { sourcemapExcludeSources: !dwgEnabled } },
+  },
   build: {
     target: 'es2022',
     sourcemap: true,
+    rolldownOptions: { output: { sourcemapExcludeSources: !dwgEnabled } },
     chunkSizeWarningLimit: 2500,
   },
   test: {

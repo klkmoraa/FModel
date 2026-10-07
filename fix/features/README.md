@@ -24,7 +24,7 @@
 
 | Orden | ID | Prioridad | Tarea | Estado | Depende de | Documento |
 |---:|---|:---:|---|:---:|---|---|
-| 1 | REL-001 | P0 | Resolver distribución y licencia del lector DWG | Abierta | — | [Distribución](./07-distribucion-documentacion.md#rel-001--resolver-la-distribución-del-lector-dwg-gpl-30) |
+| 1 | REL-001 | P0 | Resolver distribución y licencia del lector DWG | En curso: ruta B técnica; revisión pendiente | — | [Distribución](./07-distribucion-documentacion.md#rel-001--resolver-la-distribución-del-lector-dwg-gpl-30) |
 | 2 | DAT-001 | P1 | No declarar guardado cuando se cancela el selector | Cerrada | — | [Integridad](./01-integridad-archivos.md#dat-001--distinguir-guardado-descarga-y-cancelación) |
 | 3 | DAT-002 | P1 | Portapapeles portable con dependencias | Cerrada | DAT-003 | [Integridad](./01-integridad-archivos.md#dat-002--hacer-portable-el-portapapeles-entre-dibujos) |
 | 4 | DAT-003 | P1 | Validar formatos y limitar recursos no confiables | Cerrada | — | [Integridad](./01-integridad-archivos.md#dat-003--validar-archivos-y-aplicar-límites-de-recursos) |
@@ -63,6 +63,13 @@
 | 37 | UI-006 | P2 | Unificar la mesa en teléfono y tableta con la de escritorio | Cerrada | UI-004, UI-005 | [Interfaz](./04-interfaz-accesibilidad.md#ui-006--unificar-la-mesa-en-teléfono-y-tableta-con-la-de-escritorio) |
 | 38 | UI-007 | P2 | Priorizar el uso vertical del teléfono | Cerrada | UI-006 | [Interfaz](./04-interfaz-accesibilidad.md#ui-007--priorizar-el-uso-vertical-del-teléfono) |
 | 39 | UI-008 | P3 | Retirar la tarjeta «Lienzo vacío» de la mesa | Cerrada | UI-005 | [Interfaz](./04-interfaz-accesibilidad.md#ui-008--retirar-la-tarjeta-lienzo-vacío-de-la-mesa) |
+| 40 | ARC-002 | P2 | Muros y huecos arquitectónicos 2D | Cerrado (núcleo 2D) | — | [Geometría](./02-geometria-comandos.md#arc-002--muros-y-huecos-arquitectónicos-2d) |
+| 41 | ARC-003 | P2 | Componentes de construcción 2D y edición paramétrica | Cerrado (14 familias 2D) | — | [Geometría](./02-geometria-comandos.md#arc-003--componentes-de-construcción-2d-y-edición-paramétrica) |
+| 42 | ARC-004 | P2 | Ciclo de huecos asociados y espesor de muro | Cerrado (muros rectos compatibles) | ARC-002 | [Geometría](./02-geometria-comandos.md#arc-004--ciclo-de-huecos-asociados-y-espesor-de-muro) |
+| 43 | ARC-005 | P2 | Eje físico y muro paralelo por distancia libre | Cerrado (dos resultados en muros rectos compatibles) | ARC-002, ARC-004 | [Geometría](./02-geometria-comandos.md#arc-005--eje-físico-y-muro-paralelo-por-distancia-libre) |
+| 44 | ARC-006 | P2 | Relleno de material de muros y columnas nativas | Cerrado (rellenos independientes) | ARC-002, ARC-003, ARC-004 | [Geometría](./02-geometria-comandos.md#arc-006--relleno-de-material-de-muros-y-columnas-nativas) |
+
+| 45 | ARC-007 | P2 | Limpieza reversible de encuentros y recorte contra columnas | Cerrada: instantánea T/X y columnas verificada | ARC-002, ARC-003, ARC-004 | [Geometría](./02-geometria-comandos.md#arc-007--limpieza-reversible-de-encuentros-de-muros) |
 
 ## Mapa de dependencias
 

@@ -322,7 +322,16 @@ export const mlineKind: EntityKind<MLineEntity> = {
     const i = Number(g.split(':')[1]);
     return { ...e, vertices: e.vertices.map((p, j) => (j === i ? to : p)) };
   },
-  explode: (e, ctx) => explodeSegments(e, mlineKind.curves(e, ctx)),
+  explode: (e, ctx) => {
+    const curves = mlineKind.curves(e, ctx);
+    const style = ctx.doc.data.mlineStyles.get(e.style);
+    const polys = mlineElements(e, style?.elements.map(el => el.offset) ?? [0.5, -0.5]);
+    if (!e.closed && polys.length > 1) {
+      if (style?.startCap === 'line') curves.push({ kind: 'line', a: polys[0][0], b: polys[polys.length - 1][0] });
+      if (style?.endCap === 'line') curves.push({ kind: 'line', a: polys[0][polys[0].length - 1], b: polys[polys.length - 1][polys[polys.length - 1].length - 1] });
+    }
+    return explodeSegments(e, curves);
+  },
 };
 
 export function loopsCurves(loops: Loop[]): Curve[] {

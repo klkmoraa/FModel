@@ -68,7 +68,7 @@ export interface WindowState {
   dragging: boolean;
 }
 
-export type EditorEvent = 'doc' | 'view' | 'overlay' | 'selection' | 'command' | 'prefs' | 'space';
+export type EditorEvent = 'doc' | 'view' | 'overlay' | 'selection' | 'command' | 'prefs' | 'space' | 'scene';
 
 export interface GripEditContext {
   refs: { entityId: Id; gripId: string; p: Vec2 }[];
@@ -96,6 +96,7 @@ export class Editor {
     /** estado de autoría del Editor de bloques (estado de visibilidad mostrado) */
   blockEditState: { currentVisibility: string | null } = { currentVisibility: null };
   preview: PreviewSpec | null = null;
+  previewExcluded: ReadonlySet<Id> = new Set();
   hidden = new Set<Id>();
   isolated: Set<Id> | null = null;
   hover: HoverState = { screen: { x: 0, y: 0 }, world: { x: 0, y: 0 }, resolved: null, entityId: null, grip: null, inside: false };
@@ -123,7 +124,7 @@ export class Editor {
   private listeners = new Map<EditorEvent, Set<() => void>>();
   private panning: { screen: Vec2 } | null = null;
   private downAt: { screen: Vec2; time: number; button: number } | null = null;
-  versions: Record<EditorEvent, number> = { doc: 0, view: 0, overlay: 0, selection: 0, command: 0, prefs: 0, space: 0 };
+  versions: Record<EditorEvent, number> = { doc: 0, view: 0, overlay: 0, selection: 0, command: 0, prefs: 0, space: 0, scene: 0 };
 
   constructor(public doc: CadDocument, prefs?: Preferences) {
     this.prefs = prefs ?? loadPreferences();
@@ -145,7 +146,7 @@ export class Editor {
         this.blockEdit = null;
         this.blockEditState = { currentVisibility: null };
         this.compare = null;
-        this.preview = null;
+        this.setPreview(null);
         this.hidden.clear();
         this.isolated = null;
         this.window = null;
@@ -524,6 +525,13 @@ export class Editor {
   // ------------------------------------------------------------------ vista previa y comandos
 
   setPreview(p: PreviewSpec | null) {
+    // Bound ephemeral exclusion; a corrupt command preview cannot hide the entire drawing.
+    const ids = p?.hideIds ?? [];
+    const next = new Set(ids.slice(0, 2000));
+    if (next.size !== this.previewExcluded.size || [...next].some(id => !this.previewExcluded.has(id))) {
+      this.previewExcluded = next;
+      this.emit('scene');
+    }
     this.preview = p;
     this.emit('overlay');
   }
@@ -623,9 +631,9 @@ export class Editor {
     const p = this.hover.resolved?.p ?? this.hover.world;
     if (req?.preview) {
       try {
-        this.preview = req.preview(p);
+        this.setPreview(req.preview(p));
       } catch (err) {
-        if (!(err instanceof CancelError)) this.preview = null;
+        if (!(err instanceof CancelError)) this.setPreview(null);
       }
     }
   }

@@ -8,7 +8,9 @@ FModel lee y escribe DXF ASCII. El formato nativo sigue siendo `.fmodel` (versio
 
 ## DWG
 
-**Lectura (experimental).** `OPEN` y `LIBRARYIMPORT` aceptan `.dwg`. El lector integrado en WebAssembly se carga al primer uso dentro del Web Worker:
+**Pages público (ruta B de REL-001).** No incluye el lector experimental ni su JS/WASM: `OPEN`, `LIBRARYIMPORT` y la importación de inicio rechazan DWG y piden convertirlo a DXF. Se conservan `.fmodel`, `.fmodellib`, DXF, PDF y SVG. La decisión no cambia la licencia del proyecto ni cierra la revisión profesional/jurídica pendiente. / **Public Pages (REL-001 route B).** Excludes the experimental reader and its JS/WASM; open and library-import reject DWG and ask for DXF conversion. Native files, DXF, PDF and SVG remain. The project license is unchanged and professional/legal review remains pending.
+
+**Desarrollo y pruebas: lectura experimental.** `OPEN` y `LIBRARYIMPORT` aceptan `.dwg` con la capacidad activada por defecto. El lector integrado en WebAssembly se carga al primer uso dentro del Web Worker:
 
 1. el conversor integrado escribe un DXF, que pasa por el mismo analizador e importador que cualquier DXF (mismas conversiones y mismo informe, titulado «DWG»);
 2. se corrigen con los datos del propio DWG el estado de las capas y el bloque de representación de las tablas (`*T`, emparejado por orden de creación solo si el número coincide).
@@ -20,6 +22,8 @@ Limitaciones: versiones anteriores a R13 o muy recientes pueden fallar; los par�
 **Escritura.** FModel no escribe DWG: exporta DXF.
 
 ## Exportación (FModel → DXF)
+
+**Limpieza reversible de muros (ARC-007 en curso):** exporta caras limpias como `LINE`; símbolos y columnas permanecen, y fuentes MLINE sustituidas conservan invisibilidad mediante código 60. No reaparecen como caras visibles. DXF pierde los registros de recuperación de limpieza; el informe exige guardar `.fmodel` para conservar Restaurar muros, además de los avisos existentes de asociación de huecos/parámetros. `.fmodel` conserva IDs, grupos y meta sin versión nueva; registros corruptos se rechazan al usarlos. / **Reversible wall cleanup (ARC-007 in progress):** exports clean `LINE` faces, keeps symbols/columns and retains invisible source MLINE geometry via code 60. DXF loses cleanup recovery records; its report advises `.fmodel` for Restore walls, alongside existing opening-association/parameter warnings. Native retains IDs/groups/meta without a new version and rejects corrupt records at use.
 
 ### Se conserva
 
@@ -56,7 +60,7 @@ Limitaciones: versiones anteriores a R13 o muy recientes pueden fallar; los par�
 |---|---|---|
 | Bloque dinámico (cada estado usado) | bloque estático `Nombre_Vn` para otros programas, más datos propios FModel (XRECORD en `FMODEL_DYNAMIC_BLOCKS` y XDATA `FMODEL` en cada `INSERT`) | DXF no tiene parámetros ni acciones; al reimportar en FModel vuelven parámetros, acciones, restricciones y estados |
 | Matriz asociativa | objetos individuales | sin equivalente asociativo portable |
-| Multilínea | líneas y arcos | los estilos `MLINE` no se conservan |
+| Multilínea | líneas y arcos; tapas rectas incluidas | los estilos `MLINE` no se conservan; muros de arquitectura se descomponen en sus caras y tapas. Hoja, jambas y marcos son `LINE`; arco de puerta es `ARC` de 90° / Architecture walls decompose to faces and straight caps; door leaves, jambs and frames are `LINE`, door swings are 90° `ARC`. Native wall/opening association and editable parameters are lost (`FMODELWALLASSEMBLY` transformation and bilingual warning); geometría de huecos asociados exportada como fragmentos y símbolos, sin edición asociada al reimportar / associated opening geometry exports as fragments and symbols, without editable association on reimport |
 | Tabla | líneas y textos | `ACAD_TABLE` no se genera |
 | Directriz múltiple | líneas, rellenos y textos | `MULTILEADER` requiere datos de contexto propietarios |
 | Región | `LWPOLYLINE` cerradas | `REGION` requiere datos ACIS |
