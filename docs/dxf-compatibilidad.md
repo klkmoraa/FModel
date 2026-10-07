@@ -21,6 +21,8 @@ Limitaciones: versiones anteriores a R13 o muy recientes pueden fallar; los par�
 
 ## Exportación (FModel → DXF)
 
+**Limpieza reversible de muros (ARC-007 en curso):** exporta caras limpias como `LINE`; símbolos y columnas permanecen, y fuentes MLINE sustituidas conservan invisibilidad mediante código 60. No reaparecen como caras visibles. DXF pierde los registros de recuperación de limpieza; el informe exige guardar `.fmodel` para conservar Restaurar muros, además de los avisos existentes de asociación de huecos/parámetros. `.fmodel` conserva IDs, grupos y meta sin versión nueva; registros corruptos se rechazan al usarlos. / **Reversible wall cleanup (ARC-007 in progress):** exports clean `LINE` faces, keeps symbols/columns and retains invisible source MLINE geometry via code 60. DXF loses cleanup recovery records; its report advises `.fmodel` for Restore walls, alongside existing opening-association/parameter warnings. Native retains IDs/groups/meta without a new version and rejects corrupt records at use.
+
 ### Se conserva
 
 | FModel | DXF | Notas |

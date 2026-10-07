@@ -12,6 +12,26 @@ export interface EvidenceRecord {
 }
 
 export const EVIDENCE_CATALOG: Record<string, EvidenceRecord> = {
+  'BEH-WALL-CLEANUP': {
+    kind: 'unit', testFile: 'src/commands/behavior/wallCleanup.test.ts', testName: 'previews a T + native column + door wall',
+    testCommand: 'pnpm vitest run src/commands/behavior/wallCleanup.test.ts', commands: ['WALLCLEAN', 'WALLRESTORE'],
+  },
+  'GEO-WALL-CLEANUP': {
+    kind: 'unit', testFile: 'src/geometry/wallCleanup.test.ts', testName: 'native wall face cleanup',
+    testCommand: 'pnpm vitest run src/geometry/wallCleanup.test.ts',
+  },
+  'IO-WALL-CLEANUP': {
+    kind: 'integration', testFile: 'src/io/wallCleanup.test.ts', testName: 'native roundtrip retains recovery',
+    testCommand: 'pnpm vitest run src/io/wallCleanup.test.ts',
+  },
+  'UI-WALL-CLEANUP': {
+    kind: 'integration', testFile: 'src/ui/panels/wallCleanupAccess.test.ts', testName: 'cleanup and restore native access in ES/EN',
+    testCommand: 'pnpm vitest run src/ui/panels/wallCleanupAccess.test.ts',
+  },
+  'E2E-WALL-CLEANUP': {
+    kind: 'e2e', testFile: 'e2e/wallCleanup.spec.ts', testName: 'Wall cleanup: reversible native snapshots and real access',
+    testCommand: 'pnpm exec playwright test e2e/wallCleanup.spec.ts',
+  },
   'BEH-WALL-FILL': {
     kind: 'unit', testFile: 'src/commands/behavior/wallFill.test.ts', testName: 'selected_material_and_dedup',
     testCommand: 'pnpm vitest run src/commands/behavior/wallFill.test.ts', commands: ['WALLFILL'],

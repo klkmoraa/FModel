@@ -5,12 +5,24 @@ import { buildWallAssembly, type WallOpeningSpec } from '../geometry/wallOpening
 import { nearEqual } from '../geometry/tolerance';
 import type { WallPath } from '../geometry/walls';
 import { isWallStyle } from './wallStyle';
+import { hasWallCleanup } from './wallCleanup';
 
 export interface WallAssemblySource extends WallPath { style: Id; owner: Id }
 export interface WallAssembly { source: WallAssemblySource; groupId: Id; anchorId: Id; roles: ReadonlyMap<string, Id>; members: Id[]; openings: WallOpeningSpec[] }
 export class WallAssemblyError extends Error {
-  readonly messageI18n = { es: 'Grupo de muro incompleto o modificado; restaura el grupo nativo antes de editar sus huecos.', en: 'Wall group is incomplete or modified; restore the native group before editing its openings.' };
-  constructor() { super('Invalid or modified wall assembly'); }
+  readonly messageI18n;
+  constructor(cleaned = false) {
+    super('Invalid or modified wall assembly');
+    this.messageI18n = cleaned
+      ? { es: 'Restaura primero con RESTAURARMUROS (Todos si no hay salidas), edita el muro y vuelve a limpiar.', en: 'Restore first with WALLRESTORE (All if outputs are missing), edit the wall and clean again.' }
+      : { es: 'Grupo de muro incompleto o modificado; restaura el grupo nativo antes de editar sus huecos.', en: 'Wall group is incomplete or modified; restore the native group before editing its openings.' };
+  }
+}
+export function requireUncleanedWall(doc: CadDocument, memberId: Id): void {
+  const selected = doc.entity(memberId);
+  if (hasWallCleanup(selected)) throw new WallAssemblyError(true);
+  const tag = selected?.meta?.fmodelWallMember as { groupId?: Id } | undefined;
+  if (tag?.groupId && doc.data.groups.get(tag.groupId)?.members.some(id => hasWallCleanup(doc.entity(id)))) throw new WallAssemblyError(true);
 }
 interface MemberTag { version: 1; groupId: Id; anchorId: Id; role: string; openingId?: string }
 interface AssemblyTag { version: 1; groupId: Id; source: WallAssemblySource; openings: WallOpeningSpec[] }
@@ -63,6 +75,7 @@ function roleGeometry(source: WallAssemblySource, openings: WallOpeningSpec[]): 
 }
 /** Validates structural ownership, exact native group roles and current geometry. Properties remain editable. */
 export function readWallAssembly(doc: CadDocument, memberId: Id): WallAssembly {
+  requireUncleanedWall(doc, memberId);
   const selected = doc.entity(memberId), tag = memberTag(selected), group = doc.data.groups.get(tag.groupId), anchor = doc.entity(tag.anchorId);
   requireAssembly(selected && group && group.id === tag.groupId && group.selectable === true && typeof group.name === 'string' && typeof group.description === 'string');
   requireAssembly(Array.isArray(group.members) && group.members[0] === tag.anchorId && group.members.includes(memberId));
@@ -90,6 +103,7 @@ export function readWallAssembly(doc: CadDocument, memberId: Id): WallAssembly {
 }
 /** Resolves a compatible independent wall or any validated associated fragment/symbol. No editability policy. */
 export function readWallSource(doc: CadDocument, memberId: Id): { source: WallAssemblySource; anchorId: Id; assembly: WallAssembly | null } {
+  requireUncleanedWall(doc, memberId);
   const entity = doc.entity(memberId);
   requireAssembly(entity);
   if (entity.meta?.fmodelWallMember !== undefined || entity.meta?.fmodelWallAssembly !== undefined) {

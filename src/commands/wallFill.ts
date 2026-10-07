@@ -4,7 +4,7 @@ import { WallUtilityError } from '../geometry/wallUtilities';
 import { ComponentError } from '../geometry/architecture/schema';
 import { TOL } from '../geometry/tolerance';
 import { readComponentAssembly } from '../model/componentAssembly';
-import { readWallSource, WallAssemblyError } from '../model/wallAssembly';
+import { readWallSource, requireUncleanedWall, WallAssemblyError } from '../model/wallAssembly';
 import { hatchBox, hatchPolygons } from '../model/hatchPatterns';
 import { insertEntity, physicalSize, wallProperties } from './architectureHelpers';
 import { K, L, fail } from './helpers';
@@ -26,6 +26,7 @@ function domain<T>(fn: () => T): T {
   }
 }
 function selectable(api: CommandApi, ids: readonly Id[]) {
+  domain(() => { for (const id of ids) requireUncleanedWall(api.editor.doc, id); });
   for (const id of ids) if (api.editor.doc.entity(id)?.owner !== api.editor.inputOwner || !api.editor.isSelectable(id)) fail(unavailable.es, unavailable.en);
 }
 function clean(anchor: Entity) {

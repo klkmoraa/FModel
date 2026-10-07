@@ -6,6 +6,8 @@ import { WALLDOOR, WALLWINDOW } from './architectureOpenings';
 import { OPENING_LIFECYCLE } from './openingLifecycle';
 import { WALL_UTILITIES } from './wallUtilities';
 import { WALL_FILL } from './wallFill';
+import { WALL_CLEANUP_COMMANDS } from './wallCleanup';
+import { requireUncleanedWall, WallAssemblyError } from '../model/wallAssembly';
 
 const HELP = L('Punto inicial; Espesor en unidades del dibujo y Justificación Centro/Izquierda/Derecha. Puntos siguientes, desHacer, Cerrar o Intro para terminar. 150 mm por defecto (0.15 m); presets WALL 100mm/150mm/200mm. Sin unidad: 150 unidades numéricas. Sólo tramos rectos; une esquinas del mismo recorrido, no objetos independientes.', 'Start point; Thickness in drawing units and Center/Left/Right Justification. Next points, Undo, Close or Enter to finish. Default 150 mm (0.15 m); presets WALL 100mm/150mm/200mm. Unitless: 150 numeric units. Straight segments only; joins corners of the same path, not independent objects.');
 export const WALL: CommandDef = {
@@ -67,6 +69,10 @@ export const WALLCONVERT: CommandDef = {
   description: L('Convierte líneas y polilíneas rectas seleccionadas, conservando el original por defecto.', 'Convert selected lines and straight polylines, keeping originals by default.'),
   help: L('Preselecciona o selecciona líneas/polilíneas rectas; Intro conserva originales, Reemplazar los elimina. Espesor y Justificación antes de confirmar. Rechaza curvas, suavizados y recorridos degenerados. Conserva capas, espacio y propiedades. Medidas en unidades del dibujo; 150 mm por defecto (sin unidad: 150).', 'Preselect or select lines/straight polylines; Enter keeps originals, Replace removes them. Thickness and Justification before confirmation. Rejects curves, smoothing and degenerate paths. Preserves layers, space and properties. Measurements in drawing units; default 150 mm (unitless: 150).'),
   async run(api, args) {
+    for (const id of api.editor.selection.list) {
+      try { requireUncleanedWall(api.editor.doc, id); }
+      catch (error) { if (error instanceof WallAssemblyError) fail(error.messageI18n.es, error.messageI18n.en); throw error; }
+    }
     const ids = await api.getSelection({ prompt: L('Selecciona líneas y polilíneas rectas', 'Select lines and straight polylines'), types: ['line', 'lwpolyline', 'polyline2d'] });
     if (!ids.length) return;
     const state = { scale: wallThickness(api, args), justification: 'zero' as MLineEntity['justification'] };
@@ -78,6 +84,8 @@ export const WALLCONVERT: CommandDef = {
       else await changeWallOption(api, r.key, state);
     }
     const walls: Entity[] = ids.map(id => {
+      try { requireUncleanedWall(api.editor.doc, id); }
+      catch (error) { if (error instanceof WallAssemblyError) fail(error.messageI18n.es, error.messageI18n.en); throw error; }
       const e = api.editor.doc.entity(id)!;
       if (!e || !api.editor.isSelectable(id, ['line', 'lwpolyline', 'polyline2d'])) fail('No se puede convertir un objeto bloqueado u oculto.', 'A locked or hidden entity cannot be converted.');
       if (e.type !== 'line' && e.type !== 'lwpolyline' && e.type !== 'polyline2d') fail('Objeto incompatible.', 'Incompatible entity.');
@@ -96,4 +104,4 @@ export const WALLCONVERT: CommandDef = {
     });
   },
 };
-export const ARCHITECTURE_COMMANDS: CommandDef[] = [WALL, WALLRECT, WALLCONVERT, WALLDOOR, WALLWINDOW, ...OPENING_LIFECYCLE, ...WALL_UTILITIES, WALL_FILL];
+export const ARCHITECTURE_COMMANDS: CommandDef[] = [WALL, WALLRECT, WALLCONVERT, WALLDOOR, WALLWINDOW, ...OPENING_LIFECYCLE, ...WALL_UTILITIES, WALL_FILL, ...WALL_CLEANUP_COMMANDS];

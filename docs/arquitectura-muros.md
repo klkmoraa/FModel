@@ -1,5 +1,7 @@
 # Muros y huecos 2D / 2D walls and openings
 
+[Limpieza y restauración reversible de encuentros T/X y columnas (ARC-007 en curso) / Reversible T/X and column cleanup/restoration (ARC-007 in progress)](wall-cleanup-guide.md).
+
 ## Español
 
 En Herramientas → Arquitectura (también en la hoja de herramientas del teléfono), abre Muro, Habitación, Convertir a muro, Puerta o Ventana. Muro también está en Inicio y la paleta Arquitectura incluye los mismos comandos y presets. Todos los accesos ejecutan los comandos registrados.
@@ -22,7 +24,7 @@ Los muros son multilíneas nativas (`MLineEntity`) con dos offsets ±0.5, espeso
 
 Eje de muro calcula el punto medio de las caras reales, también con justificación Izquierda/Derecha y fuente asociada cortada por huecos; el resultado es una polilínea estándar sin relación paramétrica futura. Muro paralelo desplaza ese eje al lado elegido para dejar una distancia libre real de 1000 mm por defecto (1 m en documentos métricos; 1000 unidades numéricas sin unidad). Espesor inicial igual al original; los valores escritos se interpretan en unidades del dibujo. El resultado es una multilínea independiente vacía: no copia huecos ni asociación. Se rechazan lados ambiguos sobre el eje, cruces, colapsos, solapes y recorridos que no permiten mantener la distancia libre global. Máximo 500 vértices para eje y 200 para paralelo; sólo recorridos rectos compatibles, sin inferir ejes de líneas sueltas ni redes T/X. Originales, grupos y propiedades gráficas permanecen intactos; un resultado confirmado es un paso deshacible. `.fmodel` conserva los objetos; DXF conserva su geometría, mientras la asociación preexistente de huecos del origen sigue advirtiendo pérdida editable. WWA/WWO son referencias de YQARCH, no alias registrados.
 
-Este alcance de ARC-005 fue verificado en [CI 37169139770](https://github.com/klkmoraa/FModel/actions/runs/37169139770) con 1204 pruebas y 64 recorridos Chromium; [seis capturas originales](brandbook/wall-utilities-qa.md) Día/Noche/escritorio/teléfono fueron aprobadas. Redes T/X, columnas, curvas, huecos de esquina y rellenos permanecen pendientes; el cierre no afirma paridad general con YQARCH.
+Este alcance de ARC-005 fue verificado en [CI 37169139770](https://github.com/klkmoraa/FModel/actions/runs/37169139770) con 1204 pruebas y 64 recorridos Chromium; [seis capturas originales](brandbook/wall-utilities-qa.md) Día/Noche/escritorio/teléfono fueron aprobadas. Eje/Paralelo siguen siendo sólo para muros: Rellenar añade material independiente (ARC-006); Limpiar/Restaurar añade encuentros T/X y recorte contra columnas como instantánea explícita (ARC-007 en curso). Curvas, huecos de esquina y actualización automática de red siguen pendientes; el cierre no afirma paridad general con YQARCH.
 
 Las esquinas unidas son las del mismo recorrido. No hay unión automática entre objetos independientes. Conversión conserva espacio, capa y propiedades fuente; Reemplazar conserva también el ID original; rechaza bulges y suavizados, sin aproximar curvas.
 

@@ -1,6 +1,6 @@
 # Wall junction cleanup Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Limpiar encuentros T/X y recortar muros contra columnas con restauración nativa.
 **Architecture:** Núcleo puro de segmentos visibles; instantánea LINE con originales ocultos y recuperación validada. Comandos nativos compartidos por toda la UI.
@@ -30,10 +30,10 @@
 - Consume WallPath y Vec2 existentes.
 - Produce export type CleanupWall = { key: string; path: WallPath; startCap: boolean; endCap: boolean }; export type CleanupColumn = { kind: 'polygon'; vertices: Vec2[] } | { kind: 'circle'; center: Vec2; radius: number }; export type CleanupSegment = { sourceKey: string; start: Vec2; end: Vec2 }; export function cleanWallFaces(walls: readonly CleanupWall[], columns: readonly CleanupColumn[]): CleanupSegment[]; export class WallCleanupError extends Error con mensaje ES/EN.
 - sourceKey asigna cada segmento a un fragmento nativo para heredar propiedades. Caps corresponden a estilos existentes. Límites exactos y geometría del Spec vinculantes.
-- [ ] Añadir pruebas focalizadas: T horizontal (0,0)→(6000,0), espesor 300; vertical (3000,0)→(3000,3000), espesor 200; desaparece cara y=150 entre x=2900..3100. X extiende vertical a y=-3000, desaparecen ambas caras horizontales en ese intervalo; no duplicados. Variante top/bottom desigual.
-- [ ] Añadir casos agrupados de caras coincidentes, fragmentos con hueco 900 intacto, columna rectangular y círculo centro(3000,0) radio500: cortes de cara y=150 en x=3000±sqrt(500²−150²); geometría equivalente escalada 0.001 y trasladada a UTM; no finitos/colapsos/budgets rechazan.
-- [ ] Ejecutar sólo archivo nuevo para rojo significativo, implementar cleanWallFaces con validación previa, unión de material/frontera y recorte analítico manteniendo propiedades mediante sourceKey.
-- [ ] Ejecutar archivo focalizado y pnpm typecheck, registrar resultados exactos y commit. No suite completa ni navegador en esta tarea.
+- [x] Añadir pruebas focalizadas: T horizontal (0,0)→(6000,0), espesor 300; vertical (3000,0)→(3000,3000), espesor 200; desaparece cara y=150 entre x=2900..3100. X extiende vertical a y=-3000, desaparecen ambas caras horizontales en ese intervalo; no duplicados. Variante top/bottom desigual.
+- [x] Añadir casos agrupados de caras coincidentes, fragmentos con hueco 900 intacto, columna rectangular y círculo centro(3000,0) radio500: cortes de cara y=150 en x=3000±sqrt(500²−150²); geometría equivalente escalada 0.001 y trasladada a UTM; no finitos/colapsos/budgets rechazan.
+- [x] Ejecutar sólo archivo nuevo para rojo significativo, implementar cleanWallFaces con validación previa, unión de material/frontera y recorte analítico manteniendo propiedades mediante sourceKey.
+- [x] Ejecutar archivo focalizado y pnpm typecheck, registrar resultados exactos y commit. No suite completa ni navegador en esta tarea.
 
 ### Task 2: Comandos reversibles, persistencia y acceso
 **Files:** crear src/model/wallCleanup.ts, src/commands/wallCleanup.ts, src/commands/behavior/wallCleanup.test.ts, src/io/wallCleanup.test.ts, e2e/wallCleanup.spec.ts; modificar src/commands/architecture.ts, src/model/wallAssembly.ts (guardas accionables sin debilitar validación), src/commands/wallFill.ts/wallUtilities.ts/architectureOpenings.ts según guardas comunes; src/ui/panels/ArchitecturePanel.tsx, src/ui/ribbonConfig.ts, src/ui/panels/ToolPalettesPanel.tsx, src/io/dxf/exportDxf.ts; src/app/features.ts y docs/FEATURES.md generado, docs/arquitectura-muros.md, docs/dxf-compatibilidad.md, docs/yqarch/cobertura.csv/README.md, fix/features/README.md/02-geometria-comandos.md, docs/brandbook/wall-cleanup-qa.md tras evidencia.

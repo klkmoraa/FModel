@@ -178,5 +178,7 @@
 
 - [>] **Estado: En curso** — 2026-10-05, Codex.
 - **Alcance:** WALLCLEAN/WALLRESTORE: caras limpias en T/X y recorte contra columnas nativas, instantánea con recuperación de originales para editar. No actualización automática ni muros curvos.
-- **Aceptación pendiente:** geometría/unidades, propiedad y recuperación segura, undo/redo/cancelación, persistencia/DXF y acceso real ES/EN escritorio/teléfono Día/Noche.
+- **Aceptación pendiente:** puerta transversal CI del SHA final y revisión de capturas originales escritorio/teléfono Día/Noche. No se declara ARC-007 cerrado ni paridad YQARCH.
 - **Diseño:** [Limpieza reversible](../../docs/superpowers/specs/2026-10-05-wall-cleanup-design.md).
+- **Avance:** núcleo geométrico `41ecf6f` + corrección `5a37987`; 9 pruebas focalizadas y tipos pasan, revisión independiente aprobada. Task 2 implementa comandos reversibles, registros propios recíprocos por fragmento, recuperación Todos, persistencia nativa y aviso DXF, guardas restaurar→editar→limpiar y acceso real ES/EN en cinta/paleta/Arquitectura. Pruebas focalizadas del runner, IO y UI; cuatro recorridos trace-off añadidos para CI, sin ejecutar navegador local. [QA pendiente](../../docs/brandbook/wall-cleanup-qa.md).
+- **Publicación:** la petición de actualizar GitHub Pages requiere resolver primero la decisión del propietario registrada en REL-001 sobre el lector DWG experimental. Código de arquitectura conservado en PR #6; no se cambia `main` ni se publica mientras se resuelve.
