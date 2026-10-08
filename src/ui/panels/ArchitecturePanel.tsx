@@ -72,7 +72,7 @@ export function ArchitecturePanel({ editor, onStart }: { editor: Editor; onStart
         ['WALLDOOR', 'Puerta', 'Door'], ['WALLWINDOW', 'Ventana', 'Window'],
         ['OPENINGMOVE', 'Mover hueco', 'Move opening'], ['OPENINGCOPY', 'Copiar hueco', 'Copy opening'],
         ['OPENINGEDIT', 'Editar hueco', 'Edit opening'], ['OPENINGMIRROR', 'Reflejar hueco', 'Mirror opening'],
-        ['OPENINGDELETE', 'Borrar hueco', 'Delete opening'], ['WALLTHICKNESS', 'Espesor de muro', 'Wall thickness'],
+        ['OPENINGDELETE', 'Borrar hueco', 'Delete opening'], ['OPENINGSCHEDULE', 'Cuadro de huecos', 'Opening schedule'], ['WALLTHICKNESS', 'Espesor de muro', 'Wall thickness'],
       ] as const).map(([command, es, en]) => <button key={command} type="button" className="btn" onClick={() => {
         void editor.command(command); const canvas = ref.current?.ownerDocument.querySelector<HTMLElement>('.canvas-host');
         onStart?.(); requestAnimationFrame(() => canvas?.focus());

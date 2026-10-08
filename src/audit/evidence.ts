@@ -12,6 +12,14 @@ export interface EvidenceRecord {
 }
 
 export const EVIDENCE_CATALOG: Record<string, EvidenceRecord> = {
+  'UI-OPENING-SCHEDULE': {
+    kind: 'integration', testFile: 'src/ui/panels/openingScheduleAccess.test.ts', testName: 'opening schedule native access',
+    testCommand: 'pnpm vitest run src/ui/panels/openingScheduleAccess.test.ts', commands: ['OPENINGSCHEDULE'],
+  },
+  'BEH-OPENING-SCHEDULE': {
+    kind: 'unit', testFile: 'src/commands/behavior/openingSchedule.test.ts', testName: 'opening schedule groups once per assembly',
+    testCommand: 'pnpm vitest run src/commands/behavior/openingSchedule.test.ts', commands: ['OPENINGSCHEDULE'],
+  },
   'BEH-WALL-CLEANUP': {
     kind: 'unit', testFile: 'src/commands/behavior/wallCleanup.test.ts', testName: 'previews a T + native column + door wall',
     testCommand: 'pnpm vitest run src/commands/behavior/wallCleanup.test.ts', commands: ['WALLCLEAN', 'WALLRESTORE'],

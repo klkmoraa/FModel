@@ -182,3 +182,11 @@
 - **Diseño:** [Limpieza reversible](../../docs/superpowers/specs/2026-10-05-wall-cleanup-design.md).
 - **Resultado:** comandos reversibles, registros propios recíprocos por fragmento, recuperación Todos aunque se borren/desagrupen salidas, persistencia nativa y aviso DXF, guardas restaurar→editar→limpiar y acceso real ES/EN en cinta/paleta/Arquitectura. Se conservan fuentes editadas y salidas modificadas/ambiguas; no se sobrescriben ediciones. CI prueba preview/cancel/cleanup/restore/undo y foco nativo en teléfono. Sin paridad general YQARCH: redes automáticas/nuevos vecinos, curvas, huecos de esquina, líneas sueltas y demás módulos maestros siguen pendientes.
 - **Publicación:** ruta B delegada de REL-001 excluye el lector DWG experimental del artefacto público real; nativo/DXF públicos, lector por defecto conservado en desarrollo y sin cambio de licencia. [QA de artefacto y smoke público](../../docs/brandbook/public-formats-qa.md). Cierre profesional/legal completo de REL-001 pendiente. Publicación de Pages pendiente hasta confirmación del controlador, que conserva la puerta CI del árbol final.
+
+## ARC-008 — Cuadro de huecos asociados
+
+- [>] **Estado: En curso** — 2026-10-08; Codex, sin agentes por petición del usuario.
+- **Alcance implementado:** `OPENINGSCHEDULE` / `CUADROHUECOS`; tabla editable por tipo/ancho/cantidad del espacio actual, claves P/V/H y medidas en unidades del dibujo. Muros asociados validados y deduplicados; máximo 100 muros/1000 huecos. Panel, cinta y paleta ES/EN; preview sin mutación, cancelación, snapshot vigente y undo/redo atómico de tabla/estilo.
+- **Evidencia local:** siete pruebas nuevas de comando e interfaz, veinte regresiones existentes del ciclo de huecos; nativo/DXF, tipos, lint focalizado, capas, catálogo y compilación pública sin DWG. No se ejecutaron suite completa ni cobertura locales por petición del usuario.
+- **Pendiente:** comprobación visual real Día/Noche/teléfono y CI del PR; Chromium no pudo descargarse (ZIP inválido). La función permanece Experimental. Sin alturas inferidas, actualización automática, bloques ni clasificación de huecos corredizos como puerta/ventana.
+- **Diseño y registro:** [ARC-008](../../docs/plans/2026-10-08-opening-schedule.md). No cierra el módulo maestro de estadísticas ni paridad YQARCH.

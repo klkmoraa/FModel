@@ -70,6 +70,7 @@
 | 44 | ARC-006 | P2 | Relleno de material de muros y columnas nativas | Cerrado (rellenos independientes) | ARC-002, ARC-003, ARC-004 | [Geometría](./02-geometria-comandos.md#arc-006--relleno-de-material-de-muros-y-columnas-nativas) |
 
 | 45 | ARC-007 | P2 | Limpieza reversible de encuentros y recorte contra columnas | Cerrada: instantánea T/X y columnas verificada | ARC-002, ARC-003, ARC-004 | [Geometría](./02-geometria-comandos.md#arc-007--limpieza-reversible-de-encuentros-de-muros) |
+| 46 | ARC-008 | P2 | Cuadro de huecos asociados por tipo y ancho | En curso: núcleo e interfaz implementados; visual pendiente | ARC-004 | [Geometría](./02-geometria-comandos.md#arc-008--cuadro-de-huecos-asociados) |
 
 ## Mapa de dependencias
 
