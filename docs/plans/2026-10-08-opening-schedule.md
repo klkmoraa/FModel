@@ -25,3 +25,11 @@ Decisión de ejecución: sin agentes ni suite completa/cobertura locales, por pe
 ## Pendiente para cerrar ARC-008
 
 Revisar capturas reales Día/Noche y teléfono, y confirmar el resultado de CI del PR. La función queda Experimental y la tarea En curso mientras falte esa evidencia.
+
+## Continuación — ARC-009, exportación CSV
+
+- CI previa de ARC-008 [37828626031](https://github.com/klkmoraa/FModel/actions/runs/37828626031) pasó sobre `06f338cc`; no prueba todavía el CSV ni el recorrido visual nuevo.
+- `TABLECSV` / `EXPORTARTABLACSV` exporta la tabla seleccionada, incluso bloqueada, sin cambiar dibujo, historial ni estado de guardado. Usa el guardado/descarga existente y respeta cancelación y error de escritura.
+- Exporta texto plano de celdas MTEXT, UTF-8 con BOM, comillas escapadas, separador coma y finales CRLF; celdas combinadas cubiertas vacías. Neutraliza prefijos de fórmula en celdas editadas. Límites: 2002 filas, 200 columnas y 2 millones de caracteres antes de construir la salida.
+- Misma acción en Arquitectura, cinta y paleta ES/EN. CSV refleja el contenido actual de la tabla; no recalcula el muro ni elimina texto editado por la persona.
+- Seis pruebas focalizadas nuevas de CSV y trece pruebas locales del bloque pasan; tipos y lint focalizado. Dos recorridos nuevos en navegador preparan capturas escritorio/teléfono en Día/Noche y comprueban descarga real; pendientes de CI y revisión original de capturas.

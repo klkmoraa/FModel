@@ -16,13 +16,15 @@ it.each([['es', 'Arquitectura', 'Cuadro de huecos'], ['en', 'Architecture', 'Ope
   const host = document.createElement('div'), canvas = document.createElement('div'); canvas.className = 'canvas-host'; canvas.tabIndex = 0; document.body.append(host, canvas);
   const root = createRoot(host);
   const click = async (name: string) => { await act(async () => [...host.querySelectorAll<HTMLButtonElement>('button')].find(b => b.textContent === name)!.click()); };
-  const verify = async () => { expect(editor.runner.active?.def.name).toBe('OPENINGSCHEDULE'); expect(editor.runner.pending?.req.kind).toBe('point'); await act(async () => editor.key('Escape')); expect(editor.runner.busy).toBe(false); expect([...h.doc.data.entities.values()].some(e => e.type === 'table')).toBe(false); };
+  const verify = async (command = 'OPENINGSCHEDULE', kind = 'point') => { expect(editor.runner.active?.def.name).toBe(command); expect(editor.runner.pending?.req.kind).toBe(kind); await act(async () => editor.key('Escape')); expect(editor.runner.busy).toBe(false); expect([...h.doc.data.entities.values()].some(e => e.type === 'table')).toBe(false); };
   try {
-    await act(async () => root.render(createElement(ArchitecturePanel, { editor }))); await click(label); await verify();
+    await act(async () => root.render(createElement(ArchitecturePanel, { editor }))); await click(label); await verify(); await click(lang === 'es' ? 'Exportar tabla CSV' : 'Export table CSV'); await verify('TABLECSV', 'entity');
     await act(async () => root.render(createElement(Ribbon, { editor, onUi: () => {} })));
-    await act(async () => [...host.querySelectorAll<HTMLElement>('[role="tab"]')].find(e => e.textContent === tab)!.click()); await click(label); await verify();
+    await act(async () => [...host.querySelectorAll<HTMLElement>('[role="tab"]')].find(e => e.textContent === tab)!.click()); await click(label); await verify(); await click(lang === 'es' ? 'Exportar tabla CSV' : 'Export table CSV'); await verify('TABLECSV', 'entity');
     await act(async () => root.render(createElement(ToolPalettesPanel, { editor })));
     await act(async () => [...host.querySelectorAll<HTMLElement>('[role="tab"]')].find(e => e.textContent === tab)!.click());
     await act(async () => host.querySelector<HTMLElement>(`.palette-tile[title="${label}"]`)!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))); await verify();
+    const csvLabel = lang === 'es' ? 'Exportar tabla CSV' : 'Export table CSV';
+    await act(async () => host.querySelector<HTMLElement>(`.palette-tile[title="${csvLabel}"]`)!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))); await verify('TABLECSV', 'entity');
   } finally { await act(async () => { editor.key('Escape'); root.unmount(); }); host.remove(); canvas.remove(); }
 });

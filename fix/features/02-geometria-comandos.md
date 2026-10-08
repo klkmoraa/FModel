@@ -190,3 +190,12 @@
 - **Evidencia local:** siete pruebas nuevas de comando e interfaz, veinte regresiones existentes del ciclo de huecos; nativo/DXF, tipos, lint focalizado, capas, catálogo y compilación pública sin DWG. No se ejecutaron suite completa ni cobertura locales por petición del usuario.
 - **Pendiente:** comprobación visual real Día/Noche/teléfono y CI del PR; Chromium no pudo descargarse (ZIP inválido). La función permanece Experimental. Sin alturas inferidas, actualización automática, bloques ni clasificación de huecos corredizos como puerta/ventana.
 - **Diseño y registro:** [ARC-008](../../docs/plans/2026-10-08-opening-schedule.md). No cierra el módulo maestro de estadísticas ni paridad YQARCH.
+
+## ARC-009 — Exportar cuadros y tablas a CSV
+
+- [>] **Estado: En curso** — 2026-10-08; Codex, sin agentes.
+- **Alcance:** `TABLECSV` / `EXPORTARTABLACSV`; CSV del texto actual de cualquier tabla nativa mediante guardado/descarga existente. UTF-8/BOM, comillas/saltos escapados, celdas cubiertas vacías y prefijos de fórmula neutralizados. Máximo 2002 filas, 200 columnas y 2 millones de caracteres. No modifica el dibujo ni recalcula huecos.
+- **Evidencia local:** seis pruebas nuevas de CSV (salida, texto, límites, éxito/cancelación/error real de escritura); las trece pruebas focalizadas del bloque pasan. Acceso ES/EN desde panel/cinta/paleta ampliado; tipos/lint/capas/catálogo/build público focalizados.
+- **Pendiente:** dos recorridos nuevos de navegador y revisión de las cuatro capturas originales escritorio/teléfono Día/Noche. La función permanece Experimental hasta confirmar esa evidencia.
+- **CI previa:** [37828626031](https://github.com/klkmoraa/FModel/actions/runs/37828626031) pasó para ARC-008 en `06f338cc`; no se atribuye al CSV nuevo.
+- **Diseño y registro:** [Cuadro y CSV](../../docs/plans/2026-10-08-opening-schedule.md). Continúa el módulo 5; no lo declara completo.

@@ -12,9 +12,18 @@ export interface EvidenceRecord {
 }
 
 export const EVIDENCE_CATALOG: Record<string, EvidenceRecord> = {
+  'IO-TABLE-CSV': {
+    kind: 'unit', testFile: 'src/io/tableCsv.test.ts', testName: 'exports UTF-8 Excel CSV', testCommand: 'pnpm vitest run src/io/tableCsv.test.ts',
+  },
+  'BEH-TABLE-CSV': {
+    kind: 'unit', testFile: 'src/commands/behavior/tableCsv.test.ts', testName: 'exports the actual selected table', testCommand: 'pnpm vitest run src/commands/behavior/tableCsv.test.ts', commands: ['TABLECSV'],
+  },
+  'E2E-OPENING-SCHEDULE': {
+    kind: 'e2e', testFile: 'e2e/openingSchedule.spec.ts', testName: 'opening schedule real placement and CSV in Day/Night', testCommand: 'pnpm exec playwright test e2e/openingSchedule.spec.ts',
+  },
   'UI-OPENING-SCHEDULE': {
     kind: 'integration', testFile: 'src/ui/panels/openingScheduleAccess.test.ts', testName: 'opening schedule native access',
-    testCommand: 'pnpm vitest run src/ui/panels/openingScheduleAccess.test.ts', commands: ['OPENINGSCHEDULE'],
+    testCommand: 'pnpm vitest run src/ui/panels/openingScheduleAccess.test.ts', commands: ['OPENINGSCHEDULE', 'TABLECSV'],
   },
   'BEH-OPENING-SCHEDULE': {
     kind: 'unit', testFile: 'src/commands/behavior/openingSchedule.test.ts', testName: 'opening schedule groups once per assembly',

@@ -71,6 +71,7 @@
 
 | 45 | ARC-007 | P2 | Limpieza reversible de encuentros y recorte contra columnas | Cerrada: instantánea T/X y columnas verificada | ARC-002, ARC-003, ARC-004 | [Geometría](./02-geometria-comandos.md#arc-007--limpieza-reversible-de-encuentros-de-muros) |
 | 46 | ARC-008 | P2 | Cuadro de huecos asociados por tipo y ancho | En curso: núcleo e interfaz implementados; visual pendiente | ARC-004 | [Geometría](./02-geometria-comandos.md#arc-008--cuadro-de-huecos-asociados) |
+| 47 | ARC-009 | P2 | Exportar cuadros y tablas a CSV | En curso: exportación implementada; visual pendiente | ARC-008 | [Geometría](./02-geometria-comandos.md#arc-009--exportar-cuadros-y-tablas-a-csv) |
 
 ## Mapa de dependencias
 

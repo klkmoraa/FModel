@@ -1,3 +1,4 @@
+import { TABLECSV } from './tableCsv';
 import { OPENINGSCHEDULE } from './openingSchedule';
 import { COMPONENT_COMMANDS } from './components';
 import { ARCHITECTURE_PANEL } from './architecturePanel';
@@ -28,7 +29,7 @@ export function registerAllCommands() {
   done = true;
   registerCommands(DRAW_COMMANDS);
   registerCommands(ARCHITECTURE_COMMANDS);
-  registerCommands([OPENINGSCHEDULE]);
+  registerCommands([OPENINGSCHEDULE, TABLECSV]);
   registerCommands(COMPONENT_COMMANDS);
   registerCommands([ARCHITECTURE_PANEL]);
   registerCommands(VIEW_COMMANDS);
