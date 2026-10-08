@@ -18,13 +18,13 @@ Continuación del módulo 5 del diseño YQARCH nativo sobre `main` c60421c6, tra
 1. Registro del comando y cinco pruebas focalizadas; fase inicial falla por comando inexistente.
 2. Implementación y acceso en tres superficies; dos pruebas DOM ejercitan botones/teclado reales ES/EN.
 3. Verificación focalizada: siete pruebas nuevas, veinte regresiones existentes del ciclo de huecos, tipos, lint de archivos modificados, capas, catálogo y compilación pública sin DWG. Nativo/DXF comprobados en las pruebas del comando.
-4. Revisión visual en navegador pendiente: Chromium no se instaló; el archivo descargado por Playwright no era un ZIP válido. No se declara esa comprobación realizada.
+4. Chromium local no pudo instalarse (ZIP inválido); los recorridos se ejecutaron en CI. La revisión visual final está registrada debajo.
 
 Decisión de ejecución: sin agentes ni suite completa/cobertura locales, por petición expresa del usuario de revisión acotada y mínimo de pruebas. El workflow de PR conserva sus verificaciones existentes. Revisión de fuente por el implementador, sin afirmar revisión independiente.
 
-## Pendiente para cerrar ARC-008
+## Cierre acotado de ARC-008/009
 
-Revisar capturas reales Día/Noche y teléfono, y confirmar el resultado de CI del PR. La función queda Experimental y la tarea En curso mientras falte esa evidencia.
+[CI 37834084772](https://github.com/klkmoraa/FModel/actions/runs/37834084772) pasó sobre `e8dd4ee59517e82465ba5f17a1b862ddd23a64d3`. Dos recorridos nuevos y cuatro capturas originales escritorio/teléfono Día/Noche revisadas en la [ficha QA](../brandbook/opening-schedule-qa.md). Ambas tareas están cerradas y disponibles en su alcance de instantáneas y CSV. El commit posterior registra evidencia, guía y estado; no modifica comandos/render/recorridos. PR #7 listo para revisión, sin integrar ni desplegar.
 
 ## Continuación — ARC-009, exportación CSV
 
@@ -32,4 +32,4 @@ Revisar capturas reales Día/Noche y teléfono, y confirmar el resultado de CI d
 - `TABLECSV` / `EXPORTARTABLACSV` exporta la tabla seleccionada, incluso bloqueada, sin cambiar dibujo, historial ni estado de guardado. Usa el guardado/descarga existente y respeta cancelación y error de escritura.
 - Exporta texto plano de celdas MTEXT, UTF-8 con BOM, comillas escapadas, separador coma y finales CRLF; celdas combinadas cubiertas vacías. Neutraliza prefijos de fórmula en celdas editadas. Límites: 2002 filas, 200 columnas y 2 millones de caracteres antes de construir la salida.
 - Misma acción en Arquitectura, cinta y paleta ES/EN. CSV refleja el contenido actual de la tabla; no recalcula el muro ni elimina texto editado por la persona.
-- Seis pruebas focalizadas nuevas de CSV y trece pruebas locales del bloque pasan; tipos y lint focalizado. Dos recorridos nuevos en navegador preparan capturas escritorio/teléfono en Día/Noche y comprueban descarga real; pendientes de CI y revisión original de capturas.
+- Seis pruebas focalizadas nuevas de CSV y trece pruebas locales del bloque pasan; tipos y lint focalizado. Dos recorridos nuevos en navegador comprueban descarga real; CI aprobada y cuatro originales escritorio/teléfono Día/Noche revisados.

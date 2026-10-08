@@ -2,6 +2,14 @@
 
 [Limpieza y restauración reversible de encuentros T/X y columnas (ARC-007 disponible) / Reversible T/X and column cleanup/restoration (ARC-007 available)](wall-cleanup-guide.md).
 
+## Cuadro de huecos y CSV / Opening schedule and CSV
+
+Desde Arquitectura, cinta o paleta, ejecuta `OPENINGSCHEDULE` / `CUADROHUECOS` y coloca la tabla con un punto; Esc o Intro antes de colocar cancela. Cuenta los huecos asociados validados del espacio actual, incluidas capas ocultas/bloqueadas, por tipo y ancho. No infiere símbolos sueltos ni alturas; corredizo/vacío se muestran como huecos sin asignarles uso puerta/ventana. Máximo 100 muros y 1000 huecos. Restaura muros limpiados antes de generar el cuadro. / Run the command through Architecture, ribbon or palette and place the table with a point; Esc or Enter before placement cancels. It groups validated current-space associated openings, including hidden/locked layers, by type and width. No loose-symbol or height inference; sliding/empty types remain openings without an inferred door/window use. At most 100 walls and 1000 openings; restore cleaned walls first.
+
+El cuadro es una TABLE independiente editable: deshacer/rehacer actúa en un paso y conserva los muros. Después de editar huecos, genera el cuadro de nuevo; las claves P/V/H pertenecen a esa instantánea. `.fmodel` conserva la tabla; DXF la descompone en líneas/texto con el aviso existente. / The schedule is an independent editable TABLE with one-step undo/redo and unchanged source walls. Generate it again after editing openings; P/V/H codes belong to that snapshot. Native files retain the table; DXF decomposes it into lines/text with the existing warning.
+
+`TABLECSV` / `EXPORTARTABLACSV` selecciona cualquier tabla nativa, incluso bloqueada, y guarda o descarga su texto actual para Excel, sin modificar el dibujo ni recalcular huecos. UTF-8 con BOM, separador coma, comillas y saltos escapados; las celdas combinadas cubiertas quedan vacías y los prefijos de fórmula se neutralizan. Máximo 2002 filas, 200 columnas y 2 millones de caracteres. Cancelar el selector de archivo termina sin indicar éxito; un error de escritura se muestra como error. / Select any native table, including a locked table, to save/download its current text for spreadsheets, without drawing changes or an opening recount. UTF-8 BOM, comma delimiter, escaped quotes/newlines, blank covered merged cells and neutralized formula prefixes. At most 2002 rows, 200 columns and 2 million characters. Cancelling the file picker reports no success; write failures report an error.
+
 ## Español
 
 En Herramientas → Arquitectura (también en la hoja de herramientas del teléfono), abre Muro, Habitación, Convertir a muro, Puerta o Ventana. Muro también está en Inicio y la paleta Arquitectura incluye los mismos comandos y presets. Todos los accesos ejecutan los comandos registrados.
