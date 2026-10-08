@@ -48,7 +48,8 @@ for (const phone of [false, true]) test.describe(phone ? 'phone schedule' : 'des
     expect(table.cells[3].map((c: any) => c.text)).toEqual(['V-01', 'Fixed window', '1200', '1']);
     expect((await state(page)).entities.filter(e => e.id !== table.id)).toEqual(before);
     // Close the desktop dock so screenshots show the table unobstructed.
-    if (!phone) { const close = page.locator('.panel--architecture').getByRole('button', { name: /Close|Cerrar/ }); if (await close.isVisible()) await close.click(); }
+    if (!phone) await page.getByRole('button', { name: 'Close panel', exact: true }).click();
+    await expect(page.locator('.panel--architecture')).toHaveCount(0);
     await command(page, 'ZOOM'); await command(page, 'Window'); await command(page, '#-10,5010'); await command(page, '#170,4945');
     for (const theme of ['dia', 'noche'] as const) {
       await page.evaluate(theme => (window as any).fmodel.editor.setPrefs({ theme }), theme);
