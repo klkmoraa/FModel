@@ -64,6 +64,13 @@ SHA-256 `f061d79b4b1106f005cd2a953535695991ae9842ebc26dcded72e86ad8daec4e`.
 
 ## Revisión y alcance / Review and scope
 
+Publicación posterior autorizada: la [primera CI](https://github.com/klkmoraa/FModel/actions/runs/37887939988)
+pasó 1371 pruebas y falló únicamente por una expectativa antigua del texto de
+ayuda en `wallCleanupAccess.test.ts`. Se actualizó la comprobación a la instrucción
+vigente de restaurar la limpieza antigua antes de editar, en ES/EN; su prueba
+focalizada pasó. / The first publication CI exposed one stale help-text assertion;
+the focused bilingual cleanup-access check was updated and passed.
+
 Revisión independiente exigida por executing-plans: corregidos relleno con isla
 interior, vínculos de LAYOUT COPY, visibilidad de nuevos fragmentos, snapshots
 al fusionar capas y referencias de grupos al borrar muro. Regresiones reprodujeron

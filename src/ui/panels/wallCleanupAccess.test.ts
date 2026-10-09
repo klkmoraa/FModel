@@ -30,7 +30,7 @@ it('cleanup and restore native access in ES/EN ribbon, keyboard palette and focu
         expect(editor.runner.active?.def.name).toBe(command); await act(async () => editor.key('Escape'));
         await act(async () => root.render(createElement(PanelSheet, { editor, panel: 'architecture', onPanel: () => {}, onClose: () => root.render(null), onUi: () => {} })));
         const text = host.querySelector('[role="group"] [class="panel__hint"]')?.textContent;
-        if (lang === 'en') expect(host.textContent).toContain('Axis and Parallel: select walls only.');
+        expect(host.textContent).toContain(lang === 'es' ? 'para la limpieza antigua usa Restaurar antes de editar.' : 'restore old cleanup before editing.');
         expect(text).toBeTruthy();
         await act(async () => [...host.querySelectorAll<HTMLButtonElement>('button')].find(e => e.textContent === label)!.click());
         expect(editor.runner.active?.def.name).toBe(command); expect(host.querySelector('[role="dialog"]')).toBeNull();
