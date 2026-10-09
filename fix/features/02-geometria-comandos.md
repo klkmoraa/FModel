@@ -182,3 +182,20 @@
 - **Diseño:** [Limpieza reversible](../../docs/superpowers/specs/2026-10-05-wall-cleanup-design.md).
 - **Resultado:** comandos reversibles, registros propios recíprocos por fragmento, recuperación Todos aunque se borren/desagrupen salidas, persistencia nativa y aviso DXF, guardas restaurar→editar→limpiar y acceso real ES/EN en cinta/paleta/Arquitectura. Se conservan fuentes editadas y salidas modificadas/ambiguas; no se sobrescriben ediciones. CI prueba preview/cancel/cleanup/restore/undo y foco nativo en teléfono. Sin paridad general YQARCH: redes automáticas/nuevos vecinos, curvas, huecos de esquina, líneas sueltas y demás módulos maestros siguen pendientes.
 - **Publicación:** ruta B delegada de REL-001 excluye el lector DWG experimental del artefacto público real; nativo/DXF públicos, lector por defecto conservado en desarrollo y sin cambio de licencia. [QA de artefacto y smoke público](../../docs/brandbook/public-formats-qa.md). Cierre profesional/legal completo de REL-001 pendiente. Publicación de Pages pendiente hasta confirmación del controlador, que conserva la puerta CI del árbol final.
+
+## ARC-008 — Cuadro de huecos asociados
+
+- [x] **Estado: Cerrado (tabla independiente por tipo/ancho)** — 2026-10-08; Codex, sin agentes por petición del usuario.
+- **Alcance implementado:** `OPENINGSCHEDULE` / `CUADROHUECOS`; tabla editable por tipo/ancho/cantidad del espacio actual, claves P/V/H y medidas en unidades del dibujo. Muros asociados validados y deduplicados; máximo 100 muros/1000 huecos. Panel, cinta y paleta ES/EN; preview sin mutación, cancelación, snapshot vigente y undo/redo atómico de tabla/estilo.
+- **Evidencia local:** siete pruebas nuevas de comando e interfaz, veinte regresiones existentes del ciclo de huecos; nativo/DXF, tipos, lint focalizado, capas, catálogo y compilación pública sin DWG. No se ejecutaron suite completa ni cobertura locales por petición del usuario.
+- **Evidencia visual:** [CI 37834084772](https://github.com/klkmoraa/FModel/actions/runs/37834084772) pasó; [cuatro originales revisados](../../docs/brandbook/opening-schedule-qa.md), escritorio/teléfono Día/Noche. Chromium se ejecutó en CI; no localmente. Disponible en este alcance. Sin alturas inferidas, actualización automática, bloques ni clasificación de huecos corredizos como puerta/ventana.
+- **Diseño y registro:** [ARC-008](../../docs/plans/2026-10-08-opening-schedule.md). No cierra el módulo maestro de estadísticas ni paridad YQARCH.
+
+## ARC-009 — Exportar cuadros y tablas a CSV
+
+- [x] **Estado: Cerrado (CSV de tablas nativas)** — 2026-10-08; Codex, sin agentes.
+- **Alcance:** `TABLECSV` / `EXPORTARTABLACSV`; CSV del texto actual de cualquier tabla nativa mediante guardado/descarga existente. UTF-8/BOM, comillas/saltos escapados, celdas cubiertas vacías y prefijos de fórmula neutralizados. Máximo 2002 filas, 200 columnas y 2 millones de caracteres. No modifica el dibujo ni recalcula huecos.
+- **Evidencia local:** seis pruebas nuevas de CSV (salida, texto, límites, éxito/cancelación/error real de escritura); las trece pruebas focalizadas del bloque pasan. Acceso ES/EN desde panel/cinta/paleta ampliado; tipos/lint/capas/catálogo/build público focalizados.
+- **Evidencia visual y descarga:** [CI 37834084772](https://github.com/klkmoraa/FModel/actions/runs/37834084772), dos recorridos nuevos aprobados y [cuatro capturas originales revisadas](../../docs/brandbook/opening-schedule-qa.md), escritorio/teléfono Día/Noche. Disponible en este alcance.
+- **CI previa:** [37828626031](https://github.com/klkmoraa/FModel/actions/runs/37828626031) pasó para ARC-008 en `06f338cc`; no se atribuye al CSV nuevo.
+- **Diseño y registro:** [Cuadro y CSV](../../docs/plans/2026-10-08-opening-schedule.md). Continúa el módulo 5; no lo declara completo.
