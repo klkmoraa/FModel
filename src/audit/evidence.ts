@@ -12,6 +12,13 @@ export interface EvidenceRecord {
 }
 
 export const EVIDENCE_CATALOG: Record<string, EvidenceRecord> = {
+  'E2E-ARCHITECTURAL-PRODUCTION': {kind:'e2e',testFile:'e2e/architecturalProduction.spec.ts',testName:'architectural production live plan and multi-page PDF in Day/Night',testCommand:'pnpm exec playwright test e2e/architecturalProduction.spec.ts --project=chromium'},
+  'BEH-PLAN-DIMENSIONS': {kind:'unit',testFile:'src/commands/behavior/architecturalProduction.test.ts',testName:'creates native dimensions',testCommand:'pnpm vitest run src/commands/behavior/architecturalProduction.test.ts',commands:['WALLDIM']},
+  'BEH-ROOMS': {kind:'unit',testFile:'src/commands/behavior/rooms.test.ts',testName:'room quantities',testCommand:'pnpm vitest run src/commands/behavior/rooms.test.ts',commands:['ROOMDATA','ROOMSCHEDULE','MATERIALSCHEDULE']},
+  'BEH-WALL-NETWORK': {kind:'unit',testFile:'src/commands/behavior/wallNetwork.test.ts',testName:'live T junction',testCommand:'pnpm vitest run src/commands/behavior/wallNetwork.test.ts',commands:['WALLAUTO','WALLMOVE','WALLERASE']},
+  'BEH-SHEETSET': {kind:'integration',testFile:'src/commands/behavior/sheetSet.test.ts',testName:'creates unique sheets',testCommand:'pnpm vitest run src/commands/behavior/sheetSet.test.ts',commands:['SHEETSET']},
+  'IO-ARCHITECTURAL-PRODUCTION': {kind:'integration',testFile:'src/io/architecturalProduction.test.ts',testName:'round-trips v6 dimensions',testCommand:'pnpm vitest run src/io/architecturalProduction.test.ts'},
+  'UI-ARCHITECTURAL-PRODUCTION': {kind:'integration',testFile:'src/ui/panels/architecturalProductionAccess.test.ts',testName:'architectural production native access',testCommand:'pnpm vitest run src/ui/panels/architecturalProductionAccess.test.ts'},
   'MODEL-OPENING-ANNOTATIONS': {
     kind: 'unit', testFile: 'src/model/openingAnnotations.test.ts', testName: 'updates opening keys, counts, positions and additions atomically', testCommand: 'pnpm vitest run src/model/openingAnnotations.test.ts',
   },
@@ -19,7 +26,7 @@ export const EVIDENCE_CATALOG: Record<string, EvidenceRecord> = {
     kind: 'unit', testFile: 'src/commands/behavior/openingTags.test.ts', testName: 'confirms physical opening tags', testCommand: 'pnpm vitest run src/commands/behavior/openingTags.test.ts', commands: ['OPENINGTAGS', 'OPENINGSCHEDULE'],
   },
   'IO-OPENING-ANNOTATIONS': {
-    kind: 'integration', testFile: 'src/io/openingAnnotations.test.ts', testName: 'retains opening associations in native v5', testCommand: 'pnpm vitest run src/io/openingAnnotations.test.ts',
+    kind: 'integration', testFile: 'src/io/openingAnnotations.test.ts', testName: 'retains opening associations in native format', testCommand: 'pnpm vitest run src/io/openingAnnotations.test.ts',
   },
   'IO-TABLE-CSV': {
     kind: 'unit', testFile: 'src/io/tableCsv.test.ts', testName: 'exports UTF-8 Excel CSV', testCommand: 'pnpm vitest run src/io/tableCsv.test.ts',

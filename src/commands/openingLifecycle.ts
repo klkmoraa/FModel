@@ -3,6 +3,7 @@ import { newId } from '../document/ids';
 import { buildWallAssembly, WallOpeningError, type WallOpeningSpec } from '../geometry/wallOpenings';
 import { dot, dist, sub, scale, add, type Vec2 } from '../geometry/vec';
 import { TOL } from '../geometry/tolerance';
+import { liveWallSource, liveWallOutputs } from '../model/liveWallSource';
 import { readWallOpening, readWallSource, createWallAssembly, updateWallAssembly, WallAssemblyError, type WallAssemblySource, type WallAssembly } from '../model/wallAssembly';
 import { K, L, fail } from './helpers';
 import { physicalSize } from './architectureHelpers';
@@ -11,10 +12,14 @@ import { CommandError, type CommandApi, type CommandDef, type PreviewSpec } from
 const unavailable = L('Selecciona un miembro editable de un muro compatible; el grupo completo debe estar visible y desbloqueado.', 'Select an editable member of a compatible wall; the entire group must be visible and unlocked.');
 const explicit = L('Selecciona una jamba, hoja, arco o marco del hueco; un fragmento de muro no identifica un hueco.', 'Select an opening jamb, leaf, arc or frame; a wall fragment does not identify an opening.');
 const TYPES = ['single', 'double', 'sliding', 'fixed', 'empty'] as const;
-function checked(api: CommandApi, id: Id) {
+export function checked(api: CommandApi, id: Id) {
   try {
     const value = readWallSource(api.editor.doc, id);
-    for (const member of value.assembly?.members ?? [id]) if (api.editor.doc.entity(member)?.owner !== api.editor.inputOwner || !api.editor.isSelectable(member)) fail(unavailable.es, unavailable.en);
+    for (const member of value.assembly?.members ?? [value.anchorId]) {
+      const e=api.editor.doc.entity(member),layer=e&&api.editor.doc.data.layers.get(e.layer);
+      const hiddenSource=e?.type==='mline'&&liveWallSource(api.editor.doc,member)===member&&layer?.on&&!layer.frozen&&!layer.locked&&!e.locked;
+      if(e?.owner!==api.editor.inputOwner||(!api.editor.isSelectable(member)&&!hiddenSource))fail(unavailable.es,unavailable.en);
+    }
     return value;
   } catch (error) { if (error instanceof WallAssemblyError) fail(error.messageI18n.es, error.messageI18n.en); throw error; }
 }
@@ -45,8 +50,8 @@ function preview(api: CommandApi, source: WallAssemblySource, openings: WallOpen
     ...geometry.fragments.map(f => ({ key: f.key, type: 'mline', vertices: f.vertices, closed: f.closed, scale: source.scale, justification: source.justification, style: source.style })),
     ...geometry.symbols.map(s => s),
   ];
-  const entities = shape.map((part, i) => ({ ...principal, ...part, id: (i === 0 ? anchorId : assembly?.roles.get(part.key)) ?? `preview-${i}`, order: principal.order + i / 1000, owner: source.owner } as Entity));
-  return { entities, hideIds: assembly?.members ?? [anchorId] };
+  const entities = shape.map((part, i) => ({ ...principal, ...part, visible:true, id: (i === 0 ? anchorId : assembly?.roles.get(part.key)) ?? `preview-${i}`, order: principal.order + i / 1000, owner: source.owner } as Entity));
+  return { entities, hideIds: [...(assembly?.members??[anchorId]),...liveWallOutputs(api.editor.doc,anchorId)] };
 }
 function safePreview(api: CommandApi, source: WallAssemblySource, openings: WallOpeningSpec[], assembly: WallAssembly | null, anchorId: Id): PreviewSpec | null {
   try { return preview(api, source, openings, assembly, anchorId); }

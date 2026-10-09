@@ -1,4 +1,5 @@
 import { TABLECSV } from './tableCsv';
+import { ARCHITECTURAL_PRODUCTION_COMMANDS } from './architecturalProduction';
 import { OPENINGSCHEDULE } from './openingSchedule';
 import { OPENINGTAGS } from './openingTags';
 import { COMPONENT_COMMANDS } from './components';
@@ -31,6 +32,7 @@ export function registerAllCommands() {
   registerCommands(DRAW_COMMANDS);
   registerCommands(ARCHITECTURE_COMMANDS);
   registerCommands([OPENINGSCHEDULE, OPENINGTAGS, TABLECSV]);
+  registerCommands(ARCHITECTURAL_PRODUCTION_COMMANDS);
   registerCommands(COMPONENT_COMMANDS);
   registerCommands([ARCHITECTURE_PANEL]);
   registerCommands(VIEW_COMMANDS);

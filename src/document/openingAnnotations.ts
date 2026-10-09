@@ -1,4 +1,5 @@
 import type { DocumentData, Entity } from './types';
+import { detachProductionLinks } from './architectureAutomation';
 
 const record = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value);
 const id = (value: unknown) => typeof value === 'string' && value.trim().length > 0 && value.length <= 128;
@@ -13,6 +14,7 @@ export function validOpeningAnnotations(entity: Record<string, unknown>): boolea
   return true;
 }
 export function detachOpeningAnnotation<E extends Entity>(entity: E): E {
+  entity = detachProductionLinks(entity);
   if (entity.type === 'table' && entity.openingSchedule !== undefined) { const { openingSchedule: _link, ...rest } = entity; return rest as E; }
   if (entity.type === 'text' && entity.openingTag !== undefined) { const { openingTag: _link, ...rest } = entity; return rest as E; }
   return entity;

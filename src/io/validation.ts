@@ -2,6 +2,7 @@ import type { DocumentSettings, DynamicBlockDefinition, DynamicInstanceState, En
 import { arrayExpansionWithinLimit, arrayInstanceCount } from '../document/arrayLimits';
 import { INPUT_LIMITS } from './limits';
 import { validOpeningAnnotations } from '../document/openingAnnotations';
+import { validArchitectureAutomation, validRoomAnnotations } from '../document/architectureAutomation';
 
 export const ENTITY_TYPES: ReadonlySet<string> = new Set([
   'point', 'line', 'ray', 'xline', 'circle', 'arc', 'ellipse', 'lwpolyline', 'polyline2d', 'spline', 'mline', 'region', 'hatch', 'text', 'mtext', 'leader', 'mleader', 'table', 'wipeout', 'image', 'pdfunderlay', 'insert', 'attdef', 'dimension', 'viewport', 'array', 'centermark',
@@ -528,7 +529,7 @@ export function assertDocumentRecord(collection: string, value: unknown): void {
         (value.view === undefined || (isRecord(value.view) && isVec2(value.view.center) && isFiniteNumber(value.view.scale) && value.view.scale > 0));
       break;
     case 'groups':
-      valid = validNamedRecord(value) && typeof value.description === 'string' && isIdArray(value.members) && isBoolean(value.selectable);
+      valid = validNamedRecord(value) && typeof value.description === 'string' && isIdArray(value.members) && isBoolean(value.selectable) && (value.automation===undefined || validArchitectureAutomation(value.automation));
       break;
     case 'views':
       valid = validNamedRecord(value) && isNonEmptyString(value.space) && isVec2(value.center) && isFiniteNumber(value.height) && value.height > 0 &&
@@ -577,7 +578,7 @@ export function assertEntityRecord(value: unknown): asserts value is Entity {
     return fail('El archivo contiene una entidad inválida.', 'The file contains an invalid entity.');
   }
   const entity = value;
-  if (typeof entity.type !== 'string' || !ENTITY_TYPES.has(entity.type) || !hasEntityBase(entity) || !validOpeningAnnotations(entity)) {
+  if (typeof entity.type !== 'string' || !ENTITY_TYPES.has(entity.type) || !hasEntityBase(entity) || !validOpeningAnnotations(entity) || !validRoomAnnotations(entity)) {
     fail('El archivo contiene una entidad inválida.', 'The file contains an invalid entity.');
   }
   let valid = false;

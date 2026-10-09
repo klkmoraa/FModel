@@ -51,6 +51,8 @@ export interface EntityBase {
   annotative?: boolean;
   /** Metadatos libres de usuario / integraciones. */
   meta?: Record<string, unknown>;
+  /** Explicit room finish data, measured from this native closed boundary. */
+  room?: RoomData;
 }
 
 export interface PointEntity extends EntityBase {
@@ -178,6 +180,7 @@ export type TextHAlign = 'left' | 'center' | 'right' | 'aligned' | 'middle' | 'f
 export type TextVAlign = 'baseline' | 'bottom' | 'middle' | 'top';
 
 export interface TextEntity extends EntityBase {
+  roomLabel?: RoomLabelLink;
   type: 'text';
   openingTag?: OpeningTagLink;
   position: Vec2;
@@ -270,6 +273,7 @@ export interface TableCell {
 }
 
 export interface TableEntity extends EntityBase {
+  roomSchedule?: RoomScheduleLink;
   type: 'table';
   openingSchedule?: OpeningScheduleLink;
   /** Esquina superior izquierda */
@@ -1033,7 +1037,24 @@ export interface GroupRecord {
   description: string;
   members: Id[];
   selectable: boolean;
+  automation?: ArchitectureAutomation;
 }
+
+export interface RoomData { version: 1; name: string; floorMaterial: string; wallMaterial: string; height: number }
+export interface RoomScheduleLink { version: 1; language: 'es' | 'en'; mode: 'rooms' | 'materials'; status?: 'review' }
+export interface RoomLabelLink { version: 1; sourceId: Id; base: Vec2; language: 'es'|'en' }
+interface AutomationBase {
+  version: 1; owner: Id; language: 'es' | 'en'; status?: 'review';
+  outputs: Record<string, Id>; snapshots: Record<Id, string>;
+}
+export interface WallDimensionsAutomation extends AutomationBase {
+  kind: 'wall-dimensions'; sources: Id[]; offset: number; height: number; style: Id; layer: Id; bases: Record<Id, Vec2>;
+}
+export interface WallNetworkAutomation extends AutomationBase {
+  kind: 'wall-network'; fill: 'none' | 'solid' | 'user'; spacing: number; angle: number;
+  hidden: Record<Id, boolean>; sourceForOutput: Record<Id, Id>;
+}
+export type ArchitectureAutomation = WallDimensionsAutomation | WallNetworkAutomation;
 
 export interface NamedView {
   id: Id;

@@ -21,9 +21,9 @@ async function fixture() {
   return { h, table, tag };
 }
 
-it('retains opening associations in native v5 and rejects malformed links', async () => {
+it('retains opening associations in native format and rejects malformed links', async () => {
   const { h, table, tag } = await fixture();
-  expect(FORMAT_VERSION).toBe(5);
+  expect(FORMAT_VERSION).toBe(6);
   const file = toNativeFile(h.doc.data, h.doc.id);
   const loaded = fromNativeFile(file);
   expect(loaded.data.entities.get(table.id)).toEqual(h.doc.entity(table.id));
@@ -68,7 +68,7 @@ it('migrates v4 annotations as independent and rejects future versions', async (
   expect((loaded.data.entities.get(table.id) as any).openingSchedule).toBeUndefined();
   expect((loaded.data.entities.get(tag.id) as any).openingTag).toBeUndefined();
   expect((loaded.data.entities.get(tag.id) as any).text).toBe('P-01');
-  expect(() => fromNativeFile({ ...file, version: 6 })).toThrow(/más reciente/);
+  expect(() => fromNativeFile({ ...file, version: FORMAT_VERSION+1 })).toThrow(/más reciente/);
 });
 
 it('detaches broken native references with a warning and keeps visible text', async () => {

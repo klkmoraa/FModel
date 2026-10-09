@@ -6,6 +6,8 @@ import { nearEqual } from '../geometry/tolerance';
 import type { WallPath } from '../geometry/walls';
 import { isWallStyle } from './wallStyle';
 import { hasWallCleanup } from './wallCleanup';
+import { liveWallSource, liveWallVisibility } from './liveWallSource';
+import { add, type Vec2 } from '../geometry/vec';
 
 export interface WallAssemblySource extends WallPath { style: Id; owner: Id }
 export interface WallAssembly { source: WallAssemblySource; groupId: Id; anchorId: Id; roles: ReadonlyMap<string, Id>; members: Id[]; openings: WallOpeningSpec[] }
@@ -103,6 +105,7 @@ export function readWallAssembly(doc: CadDocument, memberId: Id): WallAssembly {
 }
 /** Resolves a compatible independent wall or any validated associated fragment/symbol. No editability policy. */
 export function readWallSource(doc: CadDocument, memberId: Id): { source: WallAssemblySource; anchorId: Id; assembly: WallAssembly | null } {
+  memberId=liveWallSource(doc,memberId)??memberId;
   requireUncleanedWall(doc, memberId);
   const entity = doc.entity(memberId);
   requireAssembly(entity);
@@ -160,14 +163,14 @@ function reconcile(tx: Transaction, anchor: Entity, source: WallAssemblySource, 
   if (!openings.length) {
     if (!before) return null;
     removeRoles(tx, new Set(before.members.filter(id => id !== anchor.id)), before.groupId);
-    tx.put('entities', { ...properties(anchor), ...source, id: anchor.id, order: anchor.order, type: 'mline', meta: cleanMetadata(anchor.meta) });
+    tx.put('entities', { ...properties(anchor), ...source, room:anchor.room, id: anchor.id, order: anchor.order, type: 'mline', meta: cleanMetadata(anchor.meta) });
     tx.remove('groups', before.groupId);
     return null;
   }
   const groupId = before?.groupId ?? newId('wall'), ids = primitives.map((p, i) => i === 0 ? anchor.id : before?.roles.get(p.key) ?? newId());
   for (let i = 0; i < primitives.length; i++) {
     const primitive = primitives[i], previous = tx.doc.entity(ids[i]), base = properties(previous ?? anchor);
-    const entity = { ...base, ...primitive.shape, id: ids[i], meta: metadata(base.meta, source, openings, groupId, anchor.id, primitive, i === 0) };
+    const entity = { ...base, ...primitive.shape, ...(!previous&&liveWallVisibility(tx.doc,anchor.id)!==undefined?{visible:liveWallVisibility(tx.doc,anchor.id)}:{}), ...(i===0 ? {room:anchor.room}:{}), id: ids[i], meta: metadata(base.meta, source, openings, groupId, anchor.id, primitive, i === 0) };
     if (previous) tx.put('entities', { ...entity, order: previous.order } as unknown as Entity);
     else tx.addEntity(entity as never);
   }
@@ -194,4 +197,14 @@ export function updateWallAssembly(tx: Transaction, memberId: Id, source: WallAs
   requireAssembly(geometryMatches({ ...source, scale: before.source.scale }, before.source));
   const primitives = roleGeometry(source, openings);
   return reconcile(tx, tx.doc.entity(before.anchorId)!, cloneSource(source), openings, primitives, before);
+}
+/** Native translation retains the complete source and opening roles, unlike moving one primitive. */
+export function relocateWall(tx:Transaction,memberId:Id,delta:Vec2):void {
+  const wall=readWallSource(tx.doc,memberId),source={...wall.source,vertices:wall.source.vertices.map(p=>add(p,delta))};validateSource(tx.doc,source);
+  if(wall.assembly)reconcile(tx,tx.doc.entity(wall.anchorId)!,source,wall.assembly.openings,roleGeometry(source,wall.assembly.openings),wall.assembly);
+  else tx.updateEntity<MLineEntity>(wall.anchorId,{vertices:source.vertices});
+}
+export function eraseNativeWall(tx:Transaction,memberId:Id):void {
+  const wall=readWallSource(tx.doc,memberId);removeRoles(tx,new Set(wall.assembly?.members??[wall.anchorId]),wall.assembly?.groupId??'');
+  if(wall.assembly)tx.remove('groups',wall.assembly.groupId);
 }

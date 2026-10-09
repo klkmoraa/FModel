@@ -23,6 +23,7 @@ export function findUnused(doc: CadDocument): PurgeItem[] {
   const usedTbs = new Set<Id>([s.currentTableStyle]);
   const usedMlns = new Set<Id>([s.currentMLineStyle]);
   if (s.currentLinetype !== 'ByLayer' && s.currentLinetype !== 'ByBlock') usedLt.add(s.currentLinetype);
+  for(const g of d.groups.values())if(g.automation?.kind==='wall-dimensions'){usedLayers.add(g.automation.layer);usedDs.add(g.automation.style);}
   for (const e of d.entities.values()) {
     usedLayers.add(e.layer);
     if (e.type === 'table' && e.openingSchedule?.tags) {
@@ -56,7 +57,7 @@ export function findUnused(doc: CadDocument): PurgeItem[] {
   for (const t of d.tableStyles.values()) if (!usedTbs.has(t.id) && t.name !== 'Standard') push('tableStyles', t.id, t.name);
   for (const t of d.mlineStyles.values()) if (!usedMlns.has(t.id) && t.name !== 'Standard') push('mlineStyles', t.id, t.name);
   for (const b of d.blocks.values()) if (!bu.get(b.id) && b.kind !== 'xref' && !b.favorite) push('blocks', b.id, b.name);
-  for (const g of d.groups.values()) if (!g.members.some((m) => d.entities.has(m))) push('groups', g.id, g.name);
+  for (const g of d.groups.values()) if (!g.automation && !g.members.some((m) => d.entities.has(m))) push('groups', g.id, g.name);
   return items;
 }
 

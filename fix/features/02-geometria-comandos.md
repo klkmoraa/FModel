@@ -206,3 +206,29 @@
 - **Alcance aprobado:** etiquetas P/V/H por hueco y cuadro vinculado por tipo/ancho/cantidad, actualizados en una transacción; guardar/reabrir en nativo v5; copias independientes y DXF conservan contenido visible.
 - **Diseño/plan:** `docs/superpowers/specs/2026-10-08-opening-annotations-design.md`, `docs/superpowers/plans/2026-10-08-opening-annotations.md`.
 - **Evidencia:** 15 pruebas de asociaciones/comando, 5 de cuadro, 47 de nativo y 2 de acceso aprobadas; tipos, lint focalizado, capas, catálogo y build público aprobados. Un recorrido real Chromium de actualización/undo/cancelación y capturas Día/Noche inspeccionadas: `docs/brandbook/opening-annotations-qa.md`. Revisión independiente, con correcciones de bloques, capas/estilos y reparación nativa. Sin suite completa ni cobertura. Commit y push autorizados posteriormente por el usuario.
+
+## ARC-011 — Cotas arquitectónicas asociativas
+
+- [x] **Estado: Cerrado (muros y contornos rectos)** — 2026-10-09; Codex.
+- **Alcance:** `WALLDIM` / `COTASPLANO`, cadena por jambas/extremos y total, cara interior de muro cerrado; fuentes seleccionadas, IDs y separación manual conservados, preview/cancelación, actualización y undo atómicos. Fuentes inválidas conservan última geometría y muestran Revisar.
+- **Evidencia:** 4 pruebas de comando mm/m, fuentes/huecos, cancelación, edición manual y error/undo; persistencia v6/migración/reparación focalizada. [Recorrido y originales Día/Noche](../../docs/brandbook/architectural-production-qa.md) aprobados. Sin cotas curvas ni inferencia de ejes.
+
+## ARC-012 — Habitaciones y cuadros
+
+- [x] **Estado: Cerrado (contornos simples rectos)** — 2026-10-09; Codex.
+- **Alcance:** `ROOMDATA`, `ROOMSCHEDULE`, `MATERIALSCHEDULE`; nombre/acabados/altura explícitos, área interior/perímetro, muro bruto = perímetro × altura, unidades físicas o sin unidades. TEXT/TABLE vinculados con actualización y undo; copias independientes. Máximo 100 habitaciones, sin islas ni deducciones inferidas de huecos.
+- **Evidencia:** 4 pruebas de cantidades mm/m, cambios de datos/geometría, persistencia, cancelación/contorno inválido y LAYOUT COPY independiente. [Cuadros Día/Noche y ficha QA](../../docs/brandbook/architectural-production-qa.md) revisados; accesos ES/EN focalizados.
+
+## ARC-013 — Muros automáticos
+
+- [x] **Estado: Cerrado (red nativa recta acotada)** — 2026-10-09; Codex.
+- **Alcance:** `WALLAUTO`, `WALLMOVE`, `WALLERASE`; red del espacio con vecinos nuevos, T/X/columnas, HATCH sólido/rayado, fuentes ocultas recuperables, edición nativa de huecos desde caras/símbolos y movimiento/borrado del conjunto. Desactivar recupera fuentes y conserva salidas editadas; error conserva último resultado. Restaurar primero WALLCLEAN antiguo.
+- **Evidencia:** 4 pruebas de red, comandos reales de huecos/movimiento/borrado, vecinos/undo/persistencia, cancelación, islas de muro cerrado, fuentes ocultas y fusión de capas. Revisión independiente corrigió conservación de fuentes/snapshots/grupos; [recorrido Día/Noche](../../docs/brandbook/architectural-production-qa.md) aprobado. Máximo 100 fragmentos/columnas y 5000 puntos; no abre huecos curvos/de esquina.
+
+## ARC-014 — Hojas desde marcos
+
+- [x] **Estado: Cerrado (A3/A4 horizontal desde marcos alineados)** — 2026-10-09; Codex.
+- **Alcance:** `SHEETSET` / `HOJASDESDEMARCOS`; marcos rectangulares de Modelo, encaje completo, escala física, borde/cajetín, nombres únicos y viewport bloqueado; hasta 50 presentaciones nativas en un paso. `PUBLISH` existente descarga PDF multipágina. Las hojas no se regeneran al editar el marco.
+- **Evidencia:** 3 pruebas mm/m, escala/encaje, error/cancelación/undo y PDF de dos páginas. [Recorrido de descarga y hojas Día/Noche](../../docs/brandbook/architectural-production-qa.md) aprobado, con PDF real conservado.
+
+Especificación/plan compartidos: `docs/superpowers/specs/2026-10-09-architectural-production-design.md`, `docs/superpowers/plans/2026-10-09-architectural-production.md`. [Guía de uso y límites](../../docs/produccion-arquitectonica.md). Tipos, capas, lint, catálogo, build público y comprobaciones focalizadas aprobados. Revisión independiente final sin defectos importantes pendientes. Sin suite completa, cobertura ni nuevo commit/push/publicación; los cierres corresponden al alcance implementado, sin declarar paridad general con YQARCH.

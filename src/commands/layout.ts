@@ -6,6 +6,7 @@ import { dist } from '../geometry/vec';
 import { defaultPageSetup, entityDefaults, LAYER0_ID, paperExtents, STANDARD_SCALES, TEXTSTYLE_STANDARD_ID, unitConversion } from '../document/defaults';
 import { insertBlock } from '../blocks/blockOps';
 import { newId } from '../document/ids';
+import { detachOpeningAnnotation } from '../document/openingAnnotations';
 import type { AttdefEntity, Entity, Id, LayoutRecord, LineEntity, LwPolylineEntity, TextEntity, ViewportEntity } from '../document/types';
 import { MODEL_SPACE_ID } from '../document/types';
 import { kindOf } from '../model/registry';
@@ -379,7 +380,7 @@ const LAYOUT: CommandDef = {
         api.apply('LAYOUT COPY', (tx) => {
           tx.add('layouts', { ...structuredClone(src), id, name, tabOrder: src.tabOrder + 0.5 });
           for (const e of doc.entitiesOf(src.id)) {
-            const { id: _i, order: _o, ...rest } = structuredClone(e);
+            const { id: _i, order: _o, ...rest } = structuredClone(detachOpeningAnnotation(e));
             tx.addEntity({ ...rest, owner: id } as never);
           }
         });

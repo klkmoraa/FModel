@@ -136,4 +136,14 @@ Las instancias pasan a ser instancias de la definición dinámica con los valore
 | `OLE2FRAME`, `ACAD_PROXY_ENTITY` | objetos propietarios |
 | Cotas de tipo desconocido, sombreados con contorno ilegible, inserciones de bloques inexistentes | se listan en el informe con su causa |
 
-Cuadros/etiquetas vinculados (ARC-010): DXF conserva la geometría y los textos mediante las rutas TABLE/TEXT existentes; no conserva `openingSchedule`/`openingTag` ni la actualización automática. El informe lo advierte. Guardar en `.fmodel` v5 conserva vínculos. / Linked schedules/tags retain geometry/text in DXF; native automatic associations are lost with a report warning.
+Cuadros/etiquetas vinculados (ARC-010): DXF conserva la geometría y los textos mediante las rutas TABLE/TEXT existentes; no conserva `openingSchedule`/`openingTag` ni la actualización automática. El informe lo advierte. Guardar en `.fmodel` conserva vínculos. / Linked schedules/tags retain geometry/text in DXF; native automatic associations are lost with a report warning.
+
+Producción arquitectónica (ARC-011..014): cotas, textos, cuadros, caras/rellenos y
+presentaciones siguen las rutas nativas DIMENSION/TEXT/TABLE/LINE/HATCH/VIEWPORT.
+DXF pierde datos de habitación, asociaciones de áreas/materiales y configuración
+de cotas/red. Las fuentes de muro ocultas conservan su visibilidad exportada;
+DXF no incluye el mecanismo de recuperación/actualización de `.fmodel` v6.
+El informe advierte de esta pérdida. / Architectural production keeps static
+dimensions, text, tables, faces, fills and layouts through existing entity paths.
+Room data and dimension/network associations are lost with a report warning;
+hidden wall sources retain exported visibility without native recovery/update data.

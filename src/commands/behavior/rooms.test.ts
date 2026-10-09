@@ -1,0 +1,62 @@
+import { expect, it, vi } from 'vitest';
+import { CommandHarness } from './harness';
+import { fromNativeFile, toNativeFile } from '../../io/native';
+import { Editor } from '../../editor/editor';
+import { CadDocument } from '../../document/document';
+import type { TableEntity, TextEntity } from '../../document/types';
+it.each(['mm', 'm'] as const)('room quantities in %s stay live, survive storage and undo together', async (units) => {
+  const h = new CommandHarness(), f = units === 'mm' ? 1000 : 1;
+  h.doc.transact('units', tx => tx.setSettings({ units }));
+  await h.run('RECTANG', [{ x: 0, y: 0 }, { x: 4 * f, y: 3 * f }]);
+  const source = [...h.doc.data.entities.values()][0];
+  h.select(source.id);
+  expect((await h.run('ROOMDATA', ['Sala', 'Loseta', 'Pintura', String(2.5 * f), ''])).ok).toBe(true);
+  expect((await h.run('ROOMSCHEDULE', [{ x: 5 * f, y: 0 }])).ok).toBe(true);
+  expect((await h.run('MATERIALSCHEDULE', [{ x: 5 * f, y: -2 * f }])).ok).toBe(true);
+  const tables = () => [...h.doc.data.entities.values()].filter((e): e is TableEntity => e.type === 'table');
+  expect(tables()[0].cells[2].map(c => c.text)).toEqual(['Sala', '12.00', '14.00', '2.50', 'Loseta', 'Pintura']);
+  expect(tables()[1].cells.slice(2).map(r => r.map(c => c.text))).toEqual([['Loseta', 'Floor', '12.00'], ['Pintura', 'Wall · gross', '35.00']]);
+  const ids = tables().map(t => t.id), before = new Map(h.doc.data.entities);
+  h.select(source.id);
+  await h.run('ROOMDATA', ['Estancia', 'Madera', 'Cal', String(3 * f), '']);
+  expect(tables().map(t => t.id)).toEqual(ids);
+  expect(tables()[0].cells[2][0].text).toBe('Estancia');
+  h.undo();
+  expect(h.doc.data.entities).toEqual(before);
+  const reopened = new CommandHarness(new Editor(new CadDocument(fromNativeFile(toNativeFile(h.doc.data, h.doc.id)).data)));
+  reopened.doc.transact('stretch contour', tx => {
+    const e = reopened.doc.entity(source.id)!; if (e.type === 'lwpolyline')
+      tx.updateEntity(e.id, { vertices: e.vertices.map(v => ({ ...v, x: v.x * 2 })) });
+  });
+  const label = [...reopened.doc.data.entities.values()].find((e): e is TextEntity => e.type === 'text' && !!e.roomLabel)!;
+  expect(label.text).toContain('24.00 m²');
+});
+it('rejects crossed/open boundaries and cancels room metadata without writes', async () => {
+  const h = new CommandHarness();
+  await h.run('RECTANG', [{ x: 0, y: 0 }, { x: 4000, y: 3000 }]);
+  const e = [...h.doc.data.entities.values()][0];
+  h.select(e.id);
+  const before = new Map(h.doc.data.entities), run = h.runner.execute('ROOMDATA');
+  await vi.waitFor(() => expect(h.runner.pending?.req.kind).toBe('string'));
+  h.runner.cancel();
+  await run;
+  expect(h.doc.data.entities).toEqual(before);
+  h.doc.transact('cross', tx => tx.updateEntity(e.id, { vertices: [{ x: 0, y: 0 }, { x: 4000, y: 3000 }, { x: 0, y: 3000 }, { x: 4000, y: 0 }] } as never));
+  h.select(e.id);
+  expect((await h.run('ROOMDATA', [])).ok).toBe(false);
+  expect(h.doc.entity(e.id)?.room).toBeUndefined();
+});
+it('layout copies keep fixed room content and do not follow the original room', async () => {
+  const h = new CommandHarness(), layout = [...h.doc.data.layouts.values()][0];
+  h.editor.setSpace(layout.id);
+  await h.run('RECTANG', [{ x: 0, y: 0 }, { x: 4000, y: 3000 }]);
+  const source = [...h.doc.data.entities.values()][0];
+  h.select(source.id);
+  await h.run('ROOMDATA', ['Sala', 'Loseta', 'Pintura', '2700', '']);
+  await h.run('ROOMSCHEDULE', [{ x: 5000, y: 0 }]);
+  await h.run('LAYOUT', ['Copy', layout.id, 'Copia']);
+  const copy = [...h.doc.data.layouts.values()].find(l => l.name === 'Copia')!, entities = h.doc.entitiesOf(copy.id);
+  expect(entities.every(e => !e.room && !(e.type === 'text' && e.roomLabel) && !(e.type === 'table' && e.roomSchedule))).toBe(true);
+  h.doc.transact('rename original', tx => tx.updateEntity(source.id, { room: { ...source.room!, version: 1, name: 'Estancia', floorMaterial: 'Loseta', wallMaterial: 'Pintura', height: 2700 } }));
+  expect(h.doc.entitiesOf(copy.id)).toEqual(entities);
+});

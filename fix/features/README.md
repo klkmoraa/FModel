@@ -74,6 +74,11 @@
 | 47 | ARC-009 | P2 | Exportar cuadros y tablas a CSV | Cerrado (CSV de tablas nativas) | ARC-008 | [Geometría](./02-geometria-comandos.md#arc-009--exportar-cuadros-y-tablas-a-csv) |
 | 48 | ARC-010 | P2 | Etiquetas y cuadro de huecos con actualización automática | Cerrado (2026-10-08) | ARC-008, ARC-009 | [Geometría](./02-geometria-comandos.md#arc-010--etiquetas-y-cuadro-de-huecos-automáticos) |
 
+| 49 | ARC-011 | P2 | Cotas arquitectónicas asociativas | Cerrado (2026-10-09) | ARC-010 | [Geometría](./02-geometria-comandos.md#arc-011--cotas-arquitectónicas-asociativas) |
+| 50 | ARC-012 | P2 | Habitaciones y cuadros de áreas/materiales | Cerrado (2026-10-09) | ARC-011 | [Geometría](./02-geometria-comandos.md#arc-012--habitaciones-y-cuadros) |
+| 51 | ARC-013 | P2 | Encuentros y rellenos con actualización automática | Cerrado (2026-10-09) | ARC-011 | [Geometría](./02-geometria-comandos.md#arc-013--muros-automáticos) |
+| 52 | ARC-014 | P2 | Hojas desde marcos a escala | Cerrado (2026-10-09) | — | [Geometría](./02-geometria-comandos.md#arc-014--hojas-desde-marcos) |
+
 ## Mapa de dependencias
 
 ```text

@@ -33,6 +33,9 @@ import { installDrawingConstraints } from '../constraints/drawing';
 import { installCenterMarks } from '../annotation/centerMarks';
 import { installDimensionBreaks } from '../annotation/dimBreaks';
 import { installOpeningAnnotations } from '../model/openingAnnotations';
+import { installArchitecturalDimensions } from '../model/architecturalDimensions';
+import { installRooms } from '../model/rooms';
+import { installWallNetwork } from '../model/wallNetwork';
 import { detachOpeningAnnotation } from '../document/openingAnnotations';
 import { ViewTransform } from '../view/viewTransform';
 import type { Preferences } from './preferences';
@@ -139,6 +142,9 @@ export class Editor {
     installCenterMarks(doc);
     installDimensionBreaks(doc, this.ctx);
     installOpeningAnnotations(doc);
+    installArchitecturalDimensions(doc);
+    installRooms(doc);
+    installWallNetwork(doc);
     doc.subscribe((e) => {
       if (e.source === 'load') {
         this.selection.clear();

@@ -19,6 +19,7 @@ export function validateLayerName(doc: CadDocument, name: string, exceptId?: Id)
 
 export function layerUsage(doc: CadDocument): Map<Id, number> {
   const m = new Map<Id, number>();
+  for(const g of doc.data.groups.values())if(g.automation?.kind==='wall-dimensions')m.set(g.automation.layer,(m.get(g.automation.layer)??0)+1);
   for (const e of doc.data.entities.values()) {
     m.set(e.layer, (m.get(e.layer) ?? 0) + 1);
     if (e.type === 'table' && e.openingSchedule?.tags) {
@@ -70,6 +71,15 @@ export function canDeleteLayer(doc: CadDocument, id: Id): { ok: true } | { ok: f
 /** Fusiona capas en una destino moviendo sus objetos (LAYMRG). */
 export function mergeLayers(tx: Transaction, doc: CadDocument, sources: Id[], target: Id): number {
   let n = 0;
+  for(const g of doc.data.groups.values())if(g.automation){
+    const a=g.automation,snapshots={...a.snapshots};
+    for(const [id,text] of Object.entries(snapshots)){
+      if(text!==JSON.stringify(doc.entity(id)))continue;
+      try{const snapshot=JSON.parse(text) as Record<string,unknown>;if(snapshot&&typeof snapshot==='object'&&!Array.isArray(snapshot)&&sources.includes(snapshot.layer as string))snapshots[id]=JSON.stringify({...snapshot,layer:target});}catch{/* Untrusted snapshots are never used to reconstruct geometry. */}
+    }
+    const automation={...a,snapshots,...(a.kind==='wall-dimensions'&&sources.includes(a.layer)?{layer:target}:{})};
+    if(JSON.stringify(automation)!==JSON.stringify(a))tx.update('groups',g.id,{automation});
+  }
   for (const e of doc.data.entities.values()) {
     if (sources.includes(e.layer)) {
       tx.updateEntity(e.id, { layer: target });

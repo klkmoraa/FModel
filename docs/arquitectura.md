@@ -81,6 +81,27 @@ El reactor del editor, al confirmar cada transacción: retira las restricciones 
 
 Vitest cubre geometría, contornos, modelo, edición, asociatividad, autoría de bloques e historial, salida vectorial, DXF (estructura e ida y vuelta), referencias externas, auditoría y comparación, y el cableado de la interfaz (cada comando citado en la cinta, los atajos y la matriz de funciones existe; no hay alias duplicados).
 
+## Producción arquitectónica asociativa
+
+`GroupRecord.automation` guarda configuración versionada de lotes de cotas y
+redes de muros: propietario, fuentes, claves/IDs estables, contenido generado y
+visibilidad original. `room`, `roomLabel` y `roomSchedule` son campos opcionales
+tipados; no dependen de React. Los reactores de `model/architecturalDimensions`,
+`model/rooms` y `model/wallNetwork` participan en la transacción del cambio de
+origen. Comparan snapshots antes de sustituir o retirar salidas, conservan
+desplazamientos manuales y mantienen el último resultado ante una fuente inválida
+con aviso visible. Las caras automáticas resuelven una fuente oculta únicamente
+con referencias y snapshots válidos; mover/borrar el muro usa su conjunto nativo.
+
+El formato nativo **v6** valida estructura antes de cargar y repara referencias
+rotas sin eliminar contenido visible. Migra v5 conservando las asociaciones de
+huecos; las versiones futuras se rechazan. Las copias desasocian metadatos nuevos,
+incluido LAYOUT COPY. Purga protege capas/estilos usados por configuración y
+fusionar capas remapea sólo snapshots intactos. DXF informa de la pérdida de
+automatización y conserva la representación fija. `SHEETSET` crea presentaciones,
+viewports bloqueados y cajetines nativos; `PUBLISH` usa la exportación explícita
+existente. Límites, comandos y cantidades: [guía](produccion-arquitectonica.md).
+
 ## Biblioteca de bloques
 
 - **Almacenamiento** (`blocks/libraryStore.ts` sobre `storage/idb.ts`, versión 2): almacenes `library` (un bloque empaquetado por registro, con categoría, etiquetas, origen y miniatura) y `libraryCategories` (dos niveles). Cada cambio es una sola transacción. La primera vez se siembran las categorías iniciales y se migra la biblioteca antigua de `localStorage`, cuya clave solo se borra tras escribir con éxito.
