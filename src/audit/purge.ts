@@ -25,6 +25,10 @@ export function findUnused(doc: CadDocument): PurgeItem[] {
   if (s.currentLinetype !== 'ByLayer' && s.currentLinetype !== 'ByBlock') usedLt.add(s.currentLinetype);
   for (const e of d.entities.values()) {
     usedLayers.add(e.layer);
+    if (e.type === 'table' && e.openingSchedule?.tags) {
+      usedLayers.add(e.openingSchedule.tags.layer);
+      usedTs.add(e.openingSchedule.tags.style);
+    }
     if (e.linetype !== 'ByLayer' && e.linetype !== 'ByBlock') usedLt.add(e.linetype);
     const style = (e as { style?: Id }).style;
     if (style) {

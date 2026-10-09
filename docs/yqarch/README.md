@@ -60,3 +60,5 @@ La suma es499incluyendo22 lanzadores. Un módulo puede reunir categorías de ori
 | Resto de resultados 2D | Seguir [diseño general](../superpowers/specs/2026-10-02-yqarch-native-design.md), con evidencia por módulo. |
 
 MOVE/COPY/ERASE no sustituyen una operación que repara el muro; una biblioteca no equivale a un generador de escaleras; QDIM no prueba acotación arquitectónica automática; una tabla de atributos no completa los cuadros de materiales/huecos. La implementación y las pruebas determinan disponibilidad, nunca la presencia de un nombre.
+
+ARC-010: `OPENINGTAGS`/`ETIQUETASHUECOS` y `OPENINGSCHEDULE` mantienen claves P/V/H y recuento/posición de huecos asociados automáticamente; nativo v5. Este alcance no completa actualización de redes de muros, materiales/áreas, cotas arquitectónicas, interiores/detalles, huecos curvos/de esquina ni otras automatizaciones. / Automatic associated-opening tags/schedules only; broader YQARCH parity remains outstanding.

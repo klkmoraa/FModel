@@ -1,6 +1,7 @@
 import type { CadDocument } from '../document/document';
 import { LAYER0_ID } from '../document/defaults';
 import { newId } from '../document/ids';
+import { detachOpeningAnnotation } from '../document/openingAnnotations';
 import type {
   AssetRecord,
   BlockRecord,
@@ -281,7 +282,7 @@ export function importBlockPackage(doc: CadDocument, pkg: BlockPackage): string 
       }
     }
     for (const e of pkg.entities) {
-      const clone = structuredClone(e) as Entity & { style?: string; blockId?: Id; sourceBlockId?: Id };
+      const clone = structuredClone(detachOpeningAnnotation(e)) as Entity & { style?: string; blockId?: Id; sourceBlockId?: Id };
       clone.id = entityMap.get(e.id)!;
       clone.owner = idMap.get(e.owner) ?? e.owner;
       clone.layer = mapLayer.get(e.layer) ?? LAYER0_ID;

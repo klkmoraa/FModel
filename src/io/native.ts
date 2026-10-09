@@ -7,6 +7,8 @@ import { INPUT_LIMITS } from './limits';
 import { assertArrayExpansionLimits, assertDocumentRecord, assertDocumentSettings, assertDynamicBlockDefinition, assertEntityRecord, assertFiniteValues, assertPointLimits, ENTITY_TYPES, InputValidationError } from './validation';
 import { assertAssetRecord, AssetValidationError } from './assets';
 import { constraintProblem, namedExpressions } from '../constraints/drawing';
+import { detachOpeningAnnotation, repairOpeningAnnotations } from '../document/openingAnnotations';
+import type { Entity } from '../document/types';
 
 /**
  * Formato nativo FModel 2D CAD.
@@ -18,7 +20,7 @@ import { constraintProblem, namedExpressions } from '../constraints/drawing';
  * Nunca se escriben coordenadas en píxeles: todo va en unidades de dibujo.
  */
 export const FORMAT = 'fmodel-2dcad';
-export const FORMAT_VERSION = 4;
+export const FORMAT_VERSION = 5;
 
 export interface NativeFile {
   format: typeof FORMAT;
@@ -60,6 +62,8 @@ const MIGRATIONS: Migration[] = [
   },
   // v3 → v4: restricciones, parámetros y variantes del dibujo
   (f) => ({ ...f, collections: { ...f.collections, constraints: f.collections.constraints ?? [], parameters: f.collections.parameters ?? [], parameterSets: f.collections.parameterSets ?? [] }, version: 4 }),
+  // v4 → v5: earlier files never implied an automatic opening association.
+  (f) => ({ ...f, collections: { ...f.collections, entities: (f.collections.entities ?? []).map(e => detachOpeningAnnotation(e as Entity)) }, version: 5 }),
 ];
 
 export function toNativeFile(data: DocumentData, documentId: Id, opts: { embedAssets?: boolean } = {}): NativeFile {
@@ -73,7 +77,7 @@ export function toNativeFile(data: DocumentData, documentId: Id, opts: { embedAs
     if (c === 'assets' && !opts.embedAssets) values = (values as AssetRecord[]).map(({ dataUrl: _d, ...rest }) => rest);
     collections[c] = values;
   }
-  assertNativeInput(() => assertArrayExpansionLimits([...data.entities.values()]));
+  assertNativeInput(() => { for (const entity of data.entities.values()) if ('openingSchedule' in entity || 'openingTag' in entity) assertEntityRecord(entity); assertArrayExpansionLimits([...data.entities.values()]); });
   return { format: FORMAT, version: FORMAT_VERSION, generator: 'FModel 2D CAD', savedAt: new Date().toISOString(), documentId, settings: { ...data.settings, modifiedAt: Date.now() }, collections };
 }
 
@@ -406,6 +410,7 @@ export function fromNativeFile(input: unknown): { data: DocumentData; documentId
     }
   }
   assertNativeInput(() => assertArrayExpansionLimits([...data.entities.values()]));
+  warnings.push(...repairOpeningAnnotations(data));
   return { data, documentId: file.documentId, warnings };
 }
 

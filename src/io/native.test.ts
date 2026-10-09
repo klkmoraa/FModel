@@ -567,7 +567,7 @@ describe('formato nativo', () => {
       },
     };
     const res = fromNativeFile(old);
-    expect(res.warnings).toEqual(['Migrado a formato v2.', 'Migrado a formato v3.', 'Migrado a formato v4.']);
+    expect(res.warnings).toEqual(['Migrado a formato v2.', 'Migrado a formato v3.', 'Migrado a formato v4.', 'Migrado a formato v5.']);
     expect(res.data.layers.get('muros')?.transparency).toBe(0);
     expect([...res.data.layouts.values()][0].page.margins).toBeTruthy();
     expect((res.data.entities.get('l1') as LineEntity).order).toBe(1);
@@ -613,7 +613,7 @@ describe('formato nativo: diseño paramétrico (v4)', () => {
     const file = toNativeFile(data, id);
     const { constraints: _c, parameters: _p, parameterSets: _s, ...collections } = file.collections;
     const res = fromNativeFile({ ...file, version: 3, collections });
-    expect(res.warnings).toEqual(['Migrado a formato v4.']);
+    expect(res.warnings).toEqual(['Migrado a formato v4.', 'Migrado a formato v5.']);
     expect(res.data.constraints.size).toBe(0);
     expect(res.data.parameters.size).toBe(0);
   });

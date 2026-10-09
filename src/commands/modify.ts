@@ -10,6 +10,7 @@ import type { Vec2 } from '../geometry/vec';
 import { angleOf, dist, sub } from '../geometry/vec';
 import type { ArrayEntity, BlockRecord, Entity, GroupRecord, Id, Loop, LwPolylineEntity, Polyline2dEntity, RegionEntity } from '../document/types';
 import { newId } from '../document/ids';
+import { detachOpeningAnnotation } from '../document/openingAnnotations';
 import { kindOf } from '../model/registry';
 import { entityVisible } from '../model/visibility';
 import { stretchEntity } from '../model/stretch';
@@ -331,7 +332,7 @@ const OFFSET: CommandDef = {
         }
         api.apply('OFFSET', (tx) => {
           for (const o of out) {
-            const { id: _i, order: _o, ...rest } = o;
+            const { id: _i, order: _o, ...rest } = detachOpeningAnnotation(o);
             tx.addEntity({ ...rest, layer: toCurrentLayer ? doc.settings.currentLayer : rest.layer } as never);
           }
           if (erase) tx.removeEntity(e.id);
@@ -384,7 +385,7 @@ async function trimOrExtend(api: CommandApi, kind: 'trim' | 'extend') {
         res.replace.forEach((r, i) => {
           if (i === 0 && r.id === id) tx.put('entities', { ...r, order: e.order });
           else {
-            const { id: _i, order: _o, ...rest } = r;
+            const { id: _i, order: _o, ...rest } = detachOpeningAnnotation(r);
             if (i === 0) tx.removeEntity(id);
             tx.addEntity(rest as never);
           }
@@ -523,7 +524,7 @@ async function cornerCommand(api: CommandApi, kind: 'fillet' | 'chamfer') {
     api.apply(kind.toUpperCase(), (tx) => {
       for (const u of res.update) tx.put('entities', u);
       for (const a of res.add) {
-        const { id: _i, order: _o, ...rest } = a;
+        const { id: _i, order: _o, ...rest } = detachOpeningAnnotation(a);
         tx.addEntity(rest as never);
       }
     });
@@ -604,7 +605,7 @@ function makeArraySource(api: CommandApi, ids: Id[], basePoint: Vec2): { blockId
     tx.add('blocks', rec);
     for (const id of ids) {
       const e = doc.entity(id)!;
-      const { id: _i, order: _o, ...rest } = e;
+      const { id: _i, order: _o, ...rest } = detachOpeningAnnotation(e);
       tx.addEntity({ ...rest, owner: blockId } as never);
       tx.removeEntity(id);
     }
@@ -716,7 +717,7 @@ async function arrayCommand(api: CommandApi, kind: 'rect' | 'polar' | 'path') {
     api.apply('ARRAY EXPLODE', (tx) => {
       tx.removeEntity(arr.id);
       for (const p of parts) {
-        const { id: _i, order: _o, ...rest } = p;
+        const { id: _i, order: _o, ...rest } = detachOpeningAnnotation(p);
         tx.addEntity(rest as never);
       }
       for (const e of doc.entitiesOf(src.blockId)) tx.removeEntity(e.id);
@@ -766,7 +767,7 @@ const JOIN: CommandDef = {
       if (first.type === source.type) tx.put('entities', { ...first, id: source.id, order: source.order });
       else {
         tx.removeEntity(source.id);
-        const { id: _i, order: _o, ...rest } = first;
+        const { id: _i, order: _o, ...rest } = detachOpeningAnnotation(first);
         tx.addEntity(rest as never);
       }
       for (const id of res.consumed) tx.removeEntity(id);
@@ -806,7 +807,7 @@ async function breakCommand(api: CommandApi, atPoint: boolean) {
     res.forEach((x, i) => {
       if (i === 0) tx.add('entities', { ...x, id: e.id, order: e.order });
       else {
-        const { id: _i, order: _o, ...rest } = x;
+        const { id: _i, order: _o, ...rest } = detachOpeningAnnotation(x);
         tx.addEntity(rest as never);
       }
     });
@@ -839,7 +840,7 @@ const EXPLODE: CommandDef = {
         }
         tx.removeEntity(id);
         for (const p of parts) {
-          const { id: _i, order: _o, ...rest } = p;
+          const { id: _i, order: _o, ...rest } = detachOpeningAnnotation(p);
           tx.addEntity(rest as never);
           n++;
         }

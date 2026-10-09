@@ -1,6 +1,6 @@
 # Plan maestro de mejoras de FModel
 
-> **Para agentes o desarrolladores:** ejecutar una tarea a la vez. No marcarla como cerrada hasta cumplir todos sus criterios de aceptación y registrar evidencia. Para implementaciones asistidas, usar `superpowers:subagent-driven-development` o `superpowers:executing-plans`.
+> **Para agentes o desarrolladores:** ejecutar una tarea a la vez. Usar el plugin externo Superpowers. Comprobar cada cambio con las pruebas mínimas necesarias según `AGENTS.md`; esta política sustituye contratos de pruebas anteriores del backlog y de los planes.
 
 **Objetivo:** convertir la auditoría completa del producto en un backlog único, priorizado, enlazado y verificable.
 
@@ -72,6 +72,7 @@
 | 45 | ARC-007 | P2 | Limpieza reversible de encuentros y recorte contra columnas | Cerrada: instantánea T/X y columnas verificada | ARC-002, ARC-003, ARC-004 | [Geometría](./02-geometria-comandos.md#arc-007--limpieza-reversible-de-encuentros-de-muros) |
 | 46 | ARC-008 | P2 | Cuadro de huecos asociados por tipo y ancho | Cerrado (tabla independiente por tipo/ancho) | ARC-004 | [Geometría](./02-geometria-comandos.md#arc-008--cuadro-de-huecos-asociados) |
 | 47 | ARC-009 | P2 | Exportar cuadros y tablas a CSV | Cerrado (CSV de tablas nativas) | ARC-008 | [Geometría](./02-geometria-comandos.md#arc-009--exportar-cuadros-y-tablas-a-csv) |
+| 48 | ARC-010 | P2 | Etiquetas y cuadro de huecos con actualización automática | Cerrado (2026-10-08) | ARC-008, ARC-009 | [Geometría](./02-geometria-comandos.md#arc-010--etiquetas-y-cuadro-de-huecos-automáticos) |
 
 ## Mapa de dependencias
 
@@ -96,9 +97,9 @@ TST-002 ──► GEO-001
 Una tarea solo está cerrada cuando:
 
 1. Todos sus criterios de aceptación están marcados.
-2. Las pruebas nuevas fallaron antes del cambio y pasan después, cuando el trabajo corrige un defecto.
-3. `pnpm verify` y `pnpm lint` pasan sin errores; después de `CI-001`, ambos deben formar una sola puerta.
-4. Se registran commit/PR, fecha y salida resumida de las verificaciones.
+2. Las comprobaciones focalizadas necesarias cubren el comportamiento modificado y sus riesgos concretos.
+3. No quedan fallos conocidos del cambio; no se exige suite completa, cobertura ni `pnpm verify`.
+4. Se registran fecha y resultados de las comprobaciones realizadas; commit/PR sólo cuando el usuario lo solicita.
 5. El índice de este archivo se actualiza al mismo estado.
 
 Formato de evidencia para pegar al final de una tarea:

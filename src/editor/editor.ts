@@ -32,6 +32,8 @@ import { SpatialIndex } from '../spatial/spatialIndex';
 import { installDrawingConstraints } from '../constraints/drawing';
 import { installCenterMarks } from '../annotation/centerMarks';
 import { installDimensionBreaks } from '../annotation/dimBreaks';
+import { installOpeningAnnotations } from '../model/openingAnnotations';
+import { detachOpeningAnnotation } from '../document/openingAnnotations';
 import { ViewTransform } from '../view/viewTransform';
 import type { Preferences } from './preferences';
 import { loadPreferences, savePreferences } from './preferences';
@@ -136,6 +138,7 @@ export class Editor {
     installDrawingConstraints(doc, { infer: () => this.prefs.inferConstraints });
     installCenterMarks(doc);
     installDimensionBreaks(doc, this.ctx);
+    installOpeningAnnotations(doc);
     doc.subscribe((e) => {
       if (e.source === 'load') {
         this.selection.clear();
@@ -1038,7 +1041,7 @@ export class Editor {
           throw invalidTransform();
         }
         if (copy) {
-          const { id: _old, order: _o, ...rest } = t as Entity;
+          const { id: _old, order: _o, ...rest } = detachOpeningAnnotation(t as Entity);
           created.push(tx.addEntity(rest as Entity).id);
         } else tx.put('entities', t as Entity);
       }

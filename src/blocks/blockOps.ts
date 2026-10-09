@@ -2,6 +2,7 @@ import type { Vec2 } from '../geometry/vec';
 import type { CadDocument, Transaction } from '../document/document';
 import { unitConversion } from '../document/defaults';
 import { newId } from '../document/ids';
+import { detachOpeningAnnotation } from '../document/openingAnnotations';
 import type { AttdefEntity, BlockRecord, DrawingUnits, Entity, Id, InsertEntity } from '../document/types';
 import { MODEL_SPACE_ID } from '../document/types';
 
@@ -84,7 +85,7 @@ export function createBlock(tx: Transaction, doc: CadDocument, o: CreateBlockOpt
     if (!e) continue;
     owner = e.owner;
     if (e.type === 'insert' && wouldCreateCycle(doc, blockId, e.blockId)) continue;
-    const { id: _i, order: _o, ...rest } = e;
+    const { id: _i, order: _o, ...rest } = detachOpeningAnnotation(e);
     const copy = tx.addEntity({ ...structuredClone(rest), owner: blockId } as never) as Entity;
     if (copy.type === 'attdef') attdefs.push(copy);
     if (o.mode !== 'retain') tx.removeEntity(id);
@@ -150,7 +151,7 @@ export function redefineBlock(tx: Transaction, doc: CadDocument, blockId: Id, en
   if (!block) throw new Error('Bloque inexistente.');
   for (const e of doc.entitiesOf(blockId)) tx.removeEntity(e.id);
   for (const e of entities) {
-    const { id: _i, order: _o, ...rest } = e;
+    const { id: _i, order: _o, ...rest } = detachOpeningAnnotation(e);
     tx.addEntity({ ...structuredClone(rest), owner: blockId } as never);
   }
   tx.update('blocks', blockId, { revision: block.revision + 1, basePoint: basePoint ?? block.basePoint });

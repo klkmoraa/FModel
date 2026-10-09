@@ -12,6 +12,15 @@ export interface EvidenceRecord {
 }
 
 export const EVIDENCE_CATALOG: Record<string, EvidenceRecord> = {
+  'MODEL-OPENING-ANNOTATIONS': {
+    kind: 'unit', testFile: 'src/model/openingAnnotations.test.ts', testName: 'updates opening keys, counts, positions and additions atomically', testCommand: 'pnpm vitest run src/model/openingAnnotations.test.ts',
+  },
+  'BEH-OPENING-TAGS': {
+    kind: 'unit', testFile: 'src/commands/behavior/openingTags.test.ts', testName: 'confirms physical opening tags', testCommand: 'pnpm vitest run src/commands/behavior/openingTags.test.ts', commands: ['OPENINGTAGS', 'OPENINGSCHEDULE'],
+  },
+  'IO-OPENING-ANNOTATIONS': {
+    kind: 'integration', testFile: 'src/io/openingAnnotations.test.ts', testName: 'retains opening associations in native v5', testCommand: 'pnpm vitest run src/io/openingAnnotations.test.ts',
+  },
   'IO-TABLE-CSV': {
     kind: 'unit', testFile: 'src/io/tableCsv.test.ts', testName: 'exports UTF-8 Excel CSV', testCommand: 'pnpm vitest run src/io/tableCsv.test.ts',
   },
@@ -23,7 +32,7 @@ export const EVIDENCE_CATALOG: Record<string, EvidenceRecord> = {
   },
   'UI-OPENING-SCHEDULE': {
     kind: 'integration', testFile: 'src/ui/panels/openingScheduleAccess.test.ts', testName: 'opening schedule native access',
-    testCommand: 'pnpm vitest run src/ui/panels/openingScheduleAccess.test.ts', commands: ['OPENINGSCHEDULE', 'TABLECSV'],
+    testCommand: 'pnpm vitest run src/ui/panels/openingScheduleAccess.test.ts', commands: ['OPENINGSCHEDULE', 'OPENINGTAGS', 'TABLECSV'],
   },
   'BEH-OPENING-SCHEDULE': {
     kind: 'unit', testFile: 'src/commands/behavior/openingSchedule.test.ts', testName: 'opening schedule groups once per assembly',

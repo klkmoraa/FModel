@@ -6,7 +6,7 @@ FModel (FS-M01, familia **Modelo**) es un CAD 2D profesional, local-first y sin 
 
 1. **Sólo 2D.** Nada de BIM, IFC, sólidos, mallas ni render 3D.
 2. **Nada sale del dispositivo** sin una acción explícita (abrir, guardar, descargar, importar). Sin backend, cuentas, telemetría ni red nueva.
-3. **No perder dibujos.** Cambios por `CadDocument.transact` / `CommandApi.apply`; cada comando es atómico y deshacible; el formato nativo sube versión con migración y pruebas de versiones viejas y futuras.
+3. **No perder dibujos.** Cambios por `CadDocument.transact` / `CommandApi.apply`; cada comando es atómico y deshacible; el formato nativo sube versión con migración cuando cambia su contrato.
 4. **Entradas no confiables:** `.fmodel`, `.fmodellib`, DXF/DWG, portapapeles y launch queue se validan antes de tocar el dibujo.
 5. **Git:** commit, push, rama o release sólo cuando el usuario lo pide. Nada destructivo sin permiso; los cambios ajenos se respetan.
 
@@ -50,21 +50,20 @@ Código y pruebas → contratos en `src/document/`, `docs/arquitectura.md`, `doc
 pnpm install --frozen-lockfile
 pnpm dev
 pnpm vitest run ruta/al.test.ts   # primero lo focalizado
-pnpm verify                       # lint, tipos, capas, features, pruebas y build
+pnpm typecheck                    # cuando se modifica TypeScript
 ```
 
-## Pruebas: lo mínimo que cubre el cambio
+## Verificación proporcional
 
-| Cambio | Verificación |
-|---|---|
-| Geometría, snap, constraints, modify | casos degenerados + `pnpm typecheck` |
-| Documento, historial, comandos | éxito, cancelación/error y undo/redo |
-| Formato nativo, biblioteca, DXF/DWG, xref | válido, dañado, versión incompatible e ida y vuelta |
-| IndexedDB | éxito, sin almacenamiento, cuota y atomicidad |
-| Worker | worker, fallback, error y datos serializables |
-| Render / salida / UI | prueba de lógica + revisión visual en Día y Noche |
+Ejecutar siempre sólo las pruebas mínimas necesarias para comprobar el cambio y
+sus riesgos concretos. Elegir pruebas focalizadas existentes y añadir una
+regresión cuando aporte cobertura útil. No crear pruebas que repitan la
+implementación ni repetir comprobaciones aprobadas sin cambios o fallos nuevos.
 
-Antes de cerrar algo transversal: `pnpm verify`. Si un comando no corrió, se dice.
+No hay obligación de ejecutar suites completas, cobertura, `pnpm verify` ni una
+matriz fija por tipo de cambio. Tipos, capas, build y revisión visual se usan
+cuando el cambio los necesita. Registrar lo que se comprobó y sus limitaciones.
+Esta regla prevalece sobre requisitos de pruebas de planes, backlog y skills.
 
 ## Backlog
 
@@ -76,4 +75,7 @@ En orden: pérdida de dibujos o guardado falso → geometría/unidades y resulta
 
 ## Skills
 
-`.agents/skills/` (inventario en `CATALOG.md`); `fmodel-cad-workflows` para todo lo propio del CAD. Este archivo, el código y las pruebas prevalecen sobre cualquier skill.
+Usar el plugin externo **Superpowers** disponible en el entorno. No copiar ni
+mantener skills dentro de FModel. Las instrucciones del usuario, este archivo,
+el código y las pruebas prevalecen sobre cualquier skill; aplicar siempre la
+verificación mínima necesaria indicada arriba.

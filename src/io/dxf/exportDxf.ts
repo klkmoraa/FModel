@@ -153,6 +153,10 @@ export function exportDxf(doc: CadDocument, ctx: ModelContext): { text: string; 
     report.warnings.push('DXF pierde la asociación editable entre muro y huecos; guarda en .fmodel para conservarla. / DXF loses editable wall and openings associations; save as .fmodel to preserve them.');
   }
 
+  if ([...data.entities.values()].some(e => (e.type === 'table' && e.openingSchedule) || (e.type === 'text' && e.openingTag))) {
+    transformed('FMODELOPENINGANNOTATION', 'Cuadro y etiquetas se conservan como contenido fijo; se pierde su actualización automática. / Schedule and tags survive as fixed contents; automatic updates are lost.');
+    report.warnings.push('DXF pierde el vínculo automático del cuadro y etiquetas; guarda en .fmodel para conservarlo. / DXF loses automatic schedule/tag links; save as .fmodel to keep them.');
+  }
   // ------------------------------------------------------------------ handles fijos
   const T = { VPORT: H.next(), LTYPE: H.next(), LAYER: H.next(), STYLE: H.next(), VIEW: H.next(), UCS: H.next(), APPID: H.next(), DIMSTYLE: H.next(), BLOCK_RECORD: H.next() };
   const OBJ = { root: H.next(), group: H.next(), layout: H.next(), mlinestyleDict: H.next(), mlineStandard: H.next(), plotSettings: H.next(), plotStyleName: H.next(), placeholder: H.next(), imageDict: '', imageVars: '', rasterVars: '', wipeoutDict: '', wipeoutVars: '' };

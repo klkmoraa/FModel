@@ -1,6 +1,7 @@
 import type { DocumentSettings, DynamicBlockDefinition, DynamicInstanceState, Entity } from '../document/types';
 import { arrayExpansionWithinLimit, arrayInstanceCount } from '../document/arrayLimits';
 import { INPUT_LIMITS } from './limits';
+import { validOpeningAnnotations } from '../document/openingAnnotations';
 
 export const ENTITY_TYPES: ReadonlySet<string> = new Set([
   'point', 'line', 'ray', 'xline', 'circle', 'arc', 'ellipse', 'lwpolyline', 'polyline2d', 'spline', 'mline', 'region', 'hatch', 'text', 'mtext', 'leader', 'mleader', 'table', 'wipeout', 'image', 'pdfunderlay', 'insert', 'attdef', 'dimension', 'viewport', 'array', 'centermark',
@@ -576,7 +577,7 @@ export function assertEntityRecord(value: unknown): asserts value is Entity {
     return fail('El archivo contiene una entidad inválida.', 'The file contains an invalid entity.');
   }
   const entity = value;
-  if (typeof entity.type !== 'string' || !ENTITY_TYPES.has(entity.type) || !hasEntityBase(entity)) {
+  if (typeof entity.type !== 'string' || !ENTITY_TYPES.has(entity.type) || !hasEntityBase(entity) || !validOpeningAnnotations(entity)) {
     fail('El archivo contiene una entidad inválida.', 'The file contains an invalid entity.');
   }
   let valid = false;

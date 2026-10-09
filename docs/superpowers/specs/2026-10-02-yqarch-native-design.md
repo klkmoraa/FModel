@@ -48,6 +48,6 @@ No se incluyen programas compilados, código propietario, dibujos ni bibliotecas
 
 ## Verificación y entrega
 
-Por familia se prueban resultado, medidas/unidades, entradas degeneradas, cancelación, error sin mutación, undo/redo y guardado nativo/DXF. La interfaz se ejercita en navegador en Día/Noche y teléfono; sus capturas proceden de una ejecución real. Antes de cerrar cada cambio transversal se ejecuta `pnpm verify`. El catálogo y el backlog sólo se cierran con evidencia correspondiente al código final.
+La verificación se elige por cambio y riesgo concreto, con sólo las pruebas mínimas necesarias según `AGENTS.md`. No se exige una matriz fija, suite completa, cobertura ni `pnpm verify`. El catálogo y el backlog registran únicamente las comprobaciones realmente realizadas sobre el código final.
 
 La entrega final indica cobertura verificada y excepciones. La existencia del inventario de referencia no significa que todas las capacidades ya estén implementadas.

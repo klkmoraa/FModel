@@ -34,9 +34,9 @@ pnpm install
 pnpm dev
 ```
 
-```bash
-pnpm verify
-```
+Para comprobar un cambio, ejecuta sólo las pruebas focalizadas necesarias y las
+comprobaciones pertinentes de tipos, capas o compilación. `AGENTS.md` define esta
+política; la suite completa y la cobertura son opcionales.
 
 | Script | Qué hace |
 |---|---|

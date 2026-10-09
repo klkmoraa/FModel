@@ -90,3 +90,5 @@ Vitest cubre geometría, contornos, modelo, edición, asociatividad, autoría de
 - **Insertar**: `insertLibraryBlock` trae la definición al dibujo y la reutiliza mientras el bloque de la biblioteca no cambie.
 - **Bloques estirables** (`blocks/stretchable.ts`): `BESTIRABLE` añade a un bloque estático los parámetros lineales Ancho y Fondo con acciones de estirar; el marco empieza en la línea de corte que menos entidades cruza (35–65 %), así lo que queda a un lado se traslada sin deformarse. Los muebles paramétricos (`blocks/furniture.ts`) usan lo mismo más una matriz sobre el Ancho para las piezas que se repiten.
 - **Biblioteca inicial** (`public/library/librecad/`, `blocks/starterLibrary.ts`, `LIBRARYSTARTER`): 100 DXF de LibreCAD (GPL-2.0) con un manifiesto de nombres, categorías y unidades reales; fuera de la precarga del service worker.
+
+El formato nativo v5 añade `TableEntity.openingSchedule` y `TextEntity.openingTag`. `model/openingAnnotations.ts` comparte recuento y posiciones y actualiza por reactor dentro de la transacción de edición; el nativo valida enlaces y migra v4 manteniendo sus anotaciones independientes.

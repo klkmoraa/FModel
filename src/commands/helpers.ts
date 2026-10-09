@@ -2,6 +2,7 @@ import type { Curve } from '../geometry/curves';
 import type { Vec2 } from '../geometry/vec';
 import { entityDefaults } from '../document/defaults';
 import { newId } from '../document/ids';
+import { detachOpeningAnnotation } from '../document/openingAnnotations';
 import type { Entity, EntityBase, Id } from '../document/types';
 import { kindOf } from '../model/registry';
 import type { CommandApi, Keyword, L10n } from './types';
@@ -28,7 +29,7 @@ export function add<E extends Entity>(api: CommandApi, label: string, props: New
 export function addMany(api: CommandApi, label: string, entities: Entity[]): Id[] {
   return api.apply(label, (tx) =>
     entities.map((e) => {
-      const { id: _i, order: _o, ...rest } = e;
+      const { id: _i, order: _o, ...rest } = detachOpeningAnnotation(e);
       return tx.addEntity(rest as never).id;
     }),
   );

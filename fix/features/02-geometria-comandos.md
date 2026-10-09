@@ -199,3 +199,10 @@
 - **Evidencia visual y descarga:** [CI 37834084772](https://github.com/klkmoraa/FModel/actions/runs/37834084772), dos recorridos nuevos aprobados y [cuatro capturas originales revisadas](../../docs/brandbook/opening-schedule-qa.md), escritorio/teléfono Día/Noche. Disponible en este alcance.
 - **CI previa:** [37828626031](https://github.com/klkmoraa/FModel/actions/runs/37828626031) pasó para ARC-008 en `06f338cc`; no se atribuye al CSV nuevo.
 - **Diseño y registro:** [Cuadro y CSV](../../docs/plans/2026-10-08-opening-schedule.md). Continúa el módulo 5; no lo declara completo.
+
+## ARC-010 — Etiquetas y cuadro de huecos automáticos
+
+- [x] **Estado: Cerrado** — 2026-10-08; Codex.
+- **Alcance aprobado:** etiquetas P/V/H por hueco y cuadro vinculado por tipo/ancho/cantidad, actualizados en una transacción; guardar/reabrir en nativo v5; copias independientes y DXF conservan contenido visible.
+- **Diseño/plan:** `docs/superpowers/specs/2026-10-08-opening-annotations-design.md`, `docs/superpowers/plans/2026-10-08-opening-annotations.md`.
+- **Evidencia:** 15 pruebas de asociaciones/comando, 5 de cuadro, 47 de nativo y 2 de acceso aprobadas; tipos, lint focalizado, capas, catálogo y build público aprobados. Un recorrido real Chromium de actualización/undo/cancelación y capturas Día/Noche inspeccionadas: `docs/brandbook/opening-annotations-qa.md`. Revisión independiente, con correcciones de bloques, capas/estilos y reparación nativa. Sin suite completa ni cobertura. Commit y push autorizados posteriormente por el usuario.

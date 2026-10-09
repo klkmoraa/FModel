@@ -135,3 +135,5 @@ Las instancias pasan a ser instancias de la definición dinámica con los valore
 | `VIEWPORT` en mosaico del espacio modelo | configuración de pantalla, no de dibujo |
 | `OLE2FRAME`, `ACAD_PROXY_ENTITY` | objetos propietarios |
 | Cotas de tipo desconocido, sombreados con contorno ilegible, inserciones de bloques inexistentes | se listan en el informe con su causa |
+
+Cuadros/etiquetas vinculados (ARC-010): DXF conserva la geometría y los textos mediante las rutas TABLE/TEXT existentes; no conserva `openingSchedule`/`openingTag` ni la actualización automática. El informe lo advierte. Guardar en `.fmodel` v5 conserva vínculos. / Linked schedules/tags retain geometry/text in DXF; native automatic associations are lost with a report warning.

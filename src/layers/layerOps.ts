@@ -1,7 +1,7 @@
 import type { CadDocument, Transaction } from '../document/document';
 import { DEFPOINTS_LAYER_ID, LAYER0_ID, LT_CONTINUOUS_ID } from '../document/defaults';
 import { newId } from '../document/ids';
-import type { Id, LayerFilterRecord, LayerRecord, LayerStateRecord } from '../document/types';
+import type { Id, LayerFilterRecord, LayerRecord, LayerStateRecord, TableEntity } from '../document/types';
 
 /** Caracteres no válidos en nombres de capa (compatibilidad DXF/DWG). */
 export const INVALID_NAME_CHARS = /[<>/\\":;?*|=`]/;
@@ -19,7 +19,13 @@ export function validateLayerName(doc: CadDocument, name: string, exceptId?: Id)
 
 export function layerUsage(doc: CadDocument): Map<Id, number> {
   const m = new Map<Id, number>();
-  for (const e of doc.data.entities.values()) m.set(e.layer, (m.get(e.layer) ?? 0) + 1);
+  for (const e of doc.data.entities.values()) {
+    m.set(e.layer, (m.get(e.layer) ?? 0) + 1);
+    if (e.type === 'table' && e.openingSchedule?.tags) {
+      const layer = e.openingSchedule.tags.layer;
+      m.set(layer, (m.get(layer) ?? 0) + 1);
+    }
+  }
   return m;
 }
 
@@ -68,6 +74,9 @@ export function mergeLayers(tx: Transaction, doc: CadDocument, sources: Id[], ta
     if (sources.includes(e.layer)) {
       tx.updateEntity(e.id, { layer: target });
       n++;
+    }
+    if (e.type === 'table' && e.openingSchedule?.tags && sources.includes(e.openingSchedule.tags.layer)) {
+      tx.updateEntity<TableEntity>(e.id, { openingSchedule: { ...e.openingSchedule, tags: { ...e.openingSchedule.tags, layer: target } } });
     }
   }
   for (const s of sources) if (s !== target && s !== LAYER0_ID && s !== DEFPOINTS_LAYER_ID) tx.remove('layers', s);

@@ -127,6 +127,7 @@ export function ToolPalettesPanel({ editor }: { editor: Editor }) {
           { kind: 'command', cmd: 'WALLWINDOW', label: { es: 'Ventana', en: 'Window' }, icon: 'window' },
           { kind: 'command', cmd: 'TABLECSV', label: { es: 'Exportar tabla CSV', en: 'Export table CSV' }, icon: 'table' },
           { kind: 'command', cmd: 'OPENINGSCHEDULE', label: { es: 'Cuadro de huecos', en: 'Opening schedule' }, icon: 'table' },
+          { kind: 'command', cmd: 'OPENINGTAGS', label: { es: 'Etiquetas de huecos', en: 'Opening tags' }, icon: 'text' },
           ...([['OPENINGMOVE', 'Mover hueco', 'Move opening'], ['OPENINGCOPY', 'Copiar hueco', 'Copy opening'], ['OPENINGEDIT', 'Editar hueco', 'Edit opening'], ['OPENINGMIRROR', 'Reflejar hueco', 'Mirror opening'], ['OPENINGDELETE', 'Borrar hueco', 'Delete opening'], ['WALLTHICKNESS', 'Espesor de muro', 'Wall thickness']] as const).map(([cmd, es, en]) => ({ kind: 'command' as const, cmd, label: { es, en }, icon: 'wall' })),
           ...['100mm', '150mm', '200mm'].map(value => ({ kind: 'command' as const, cmd: 'WALL', args: [value], label: { es: `Muro ${value}`, en: `Wall ${value}` }, icon: 'wall' })),
         ],

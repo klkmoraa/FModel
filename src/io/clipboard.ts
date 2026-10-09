@@ -1,6 +1,7 @@
 import type { CadDocument, Transaction } from '../document/document';
 import { LAYER0_ID } from '../document/defaults';
 import { newId } from '../document/ids';
+import { detachOpeningAnnotation } from '../document/openingAnnotations';
 import type {
   AssetRecord,
   BlockConstraint,
@@ -221,9 +222,9 @@ export function createClipboardPackage(doc: CadDocument, entityIds: Id[], ctx?: 
     format: CLIPBOARD_FORMAT,
     version: CLIPBOARD_VERSION,
     base,
-    entities: structuredClone(entities),
+    entities: structuredClone(entities.map(detachOpeningAnnotation)),
     blocks: [...blocks.values()].map((b) => structuredClone(b)),
-    blockEntities: blockEntities.map((be) => structuredClone(be)),
+    blockEntities: blockEntities.map((be) => structuredClone(detachOpeningAnnotation(be))),
     layers: [...layers].map((id) => doc.data.layers.get(id)).filter(Boolean).map((l) => structuredClone(l!)),
     linetypes: [...linetypes].map((id) => doc.data.linetypes.get(id)).filter(Boolean).map((lt) => structuredClone(lt!)),
     textStyles: [...textStyles].map((id) => doc.data.textStyles.get(id)).filter(Boolean).map((ts) => structuredClone(ts!)),
@@ -1336,7 +1337,7 @@ export function pasteClipboardPackage(
       const newOwner = mapBlock.get(be.owner);
       if (!newOwner) continue;
 
-      const clone = structuredClone(be);
+      const clone = structuredClone(detachOpeningAnnotation(be));
       clone.id = blockEntityMap.get(be.id)!;
       clone.owner = newOwner;
       clone.layer = mapLayer.get(be.layer) ?? (doc.data.layers.has(be.layer) ? be.layer : LAYER0_ID);
@@ -1423,7 +1424,7 @@ export function pasteClipboardPackage(
         warnings.push(`No se pudo transformar la entidad ${e.type} (${e.id}).`);
         continue;
       }
-      const clone = structuredClone(moved);
+      const clone = structuredClone(detachOpeningAnnotation(moved));
       const newIdVal = topEntityMap.get(e.id)!;
       clone.id = newIdVal;
       clone.owner = owner;

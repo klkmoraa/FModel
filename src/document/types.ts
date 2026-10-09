@@ -179,6 +179,7 @@ export type TextVAlign = 'baseline' | 'bottom' | 'middle' | 'top';
 
 export interface TextEntity extends EntityBase {
   type: 'text';
+  openingTag?: OpeningTagLink;
   position: Vec2;
   /** Segundo punto para alineaciones distintas de izquierda/base */
   alignPoint?: Vec2;
@@ -190,6 +191,21 @@ export interface TextEntity extends EntityBase {
   style: Id;
   halign: TextHAlign;
   valign: TextVAlign;
+}
+
+export interface OpeningScheduleLink {
+  version: 1;
+  language: 'es' | 'en';
+  tags?: { height: number; style: Id; layer: Id };
+  status?: 'review';
+}
+export interface OpeningTagLink {
+  version: 1;
+  scheduleId: Id;
+  anchorId: Id;
+  openingId: string;
+  /** Last generated position; manual displacement is position minus base. */
+  base: Vec2;
 }
 
 /** Adjunto MTEXT 1–9: 1=Superior izq … 9=Inferior der. */
@@ -255,6 +271,7 @@ export interface TableCell {
 
 export interface TableEntity extends EntityBase {
   type: 'table';
+  openingSchedule?: OpeningScheduleLink;
   /** Esquina superior izquierda */
   position: Vec2;
   rotation: number;

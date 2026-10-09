@@ -5,6 +5,7 @@ import { applyToPoint, invert, insertMatrix } from '../geometry/matrix';
 import type { Vec2 } from '../geometry/vec';
 import { angleOf, dist, sub } from '../geometry/vec';
 import { newId } from '../document/ids';
+import { detachOpeningAnnotation } from '../document/openingAnnotations';
 import type {
   BlockConstraint,
   BlockRecord,
@@ -225,7 +226,7 @@ const BSAVEAS: CommandDef = {
       const dyn = b.dynamic ? remapDynamicBlockDef(b.dynamic, map) : undefined;
       tx.add('blocks', { ...structuredClone(b), id, name: n.value.trim(), revision: 1, dynamic: dyn, favorite: false });
       for (const e of doc.entitiesOf(b.id)) {
-        const { order: _o, ...rest } = structuredClone(e);
+        const { order: _o, ...rest } = structuredClone(detachOpeningAnnotation(e));
         tx.addEntity({ ...rest, id: map.get(e.id), owner: id } as never);
       }
     });
