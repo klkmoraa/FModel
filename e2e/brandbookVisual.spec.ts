@@ -394,14 +394,50 @@ test.describe('alineación visual con FusionStructureBrand', () => {
     const field = dialog.locator('select.select').first();
     const fieldStyle = await field.evaluate((element) => {
       const style = getComputedStyle(element);
-      return { background: style.backgroundColor, shadow: style.boxShadow };
+      return { background: style.backgroundColor, border: style.borderColor, borderWidth: style.borderWidth, radius: style.borderTopLeftRadius, color: style.color };
     });
-    expect(fieldStyle.background).toBe('rgb(237, 239, 233)');
-    expect(fieldStyle.shadow).toContain('inset');
+    expect(fieldStyle).toMatchObject({ background: 'rgb(237, 239, 233)', border: 'rgb(221, 226, 220)', borderWidth: '1px', color: 'rgb(20, 23, 26)' });
+    expect(Number.parseFloat(fieldStyle.radius)).toBeGreaterThan(0);
+    await expect(field).toHaveAccessibleName(/^(Idioma|Language)$/);
+    const initialLanguage = await field.inputValue(), alternateLanguage = initialLanguage === 'es' ? 'en' : 'es';
+    await field.selectOption(alternateLanguage);
+    await expect.poll(() => page.evaluate(() => (window as any).fmodel.editor.prefs.lang)).toBe(alternateLanguage);
+    await field.selectOption(initialLanguage);
+    await expect.poll(() => page.evaluate(() => (window as any).fmodel.editor.prefs.lang)).toBe(initialLanguage);
+    await expect(field).toHaveValue(initialLanguage);
+    // WebKit's native select omits box-shadow; the text input renders the field material.
+    const autosave = dialog.getByRole('textbox', { name: /Autoguardado|Autosave/ });
+    expect(await autosave.evaluate((element) => getComputedStyle(element).boxShadow)).toContain('inset');
+    await expect(autosave).toHaveCSS('border-top-left-radius', '12px');
 
     const checkbox = dialog.locator('input[type="checkbox"]').first();
     expect(await checkbox.evaluate((element) => getComputedStyle(element).accentColor)).toBe('rgb(118, 87, 213)');
   });
+
+  for (const theme of ['dia', 'noche'] as const) {
+    test(`los select nativos conservan foco visible en Opciones y UNITS (${theme})`, async ({ page }) => {
+      await page.goto('/?surface=workspace');
+      await page.waitForFunction(() => !!(window as any).fmodel?.editor);
+      await page.evaluate((value) => (window as any).fmodel.editor.setPrefs({ onboardingDone: true, theme: value }), theme);
+      const command = page.getByRole('textbox', { name: /Línea de comandos|Command line/ });
+      for (const name of ['OPTIONS', 'UNITS']) {
+        await command.fill(name);
+        await command.press('Enter');
+        const dialog = page.getByRole('dialog', { name: name === 'OPTIONS' ? /^(Opciones|Options)$/ : /^(Unidades del dibujo|Drawing units)$/ });
+        await expect(dialog).toBeVisible();
+        const field = dialog.locator('select.select').first();
+        await field.focus();
+        await page.keyboard.press('ArrowDown');
+        await expect(field).toBeFocused();
+        expect(await field.evaluate((element) => element.matches(':focus-visible'))).toBe(true);
+        await expect(field).toHaveCSS('outline-color', theme === 'dia' ? 'rgb(118, 87, 213)' : 'rgb(169, 144, 255)');
+        await expect(field).toHaveCSS('outline-style', 'solid');
+        await expect(field).toHaveCSS('outline-width', '2px');
+        await dialog.getByRole('button', { name: /^(Cerrar|Close)$/ }).click();
+        await expect(dialog).toHaveCount(0);
+      }
+    });
+  }
 
   test('en Noche el primario usa #A990FF con texto oscuro', async ({ page }) => {
     await page.goto('/?surface=workspace');

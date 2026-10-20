@@ -11,7 +11,7 @@ test('la vista previa de trazado incluye una imagen incrustada', async ({ page }
   await page.evaluate(() => {
     const doc = (window as unknown as { fmodel: { editor: { doc: CadDocument } } }).fmodel.editor.doc;
     const settings = doc.settings;
-    const dataUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+X2y8AAAAASUVORK5CYII=';
+    const dataUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=';
     doc.transact('IMAGE', (tx) => {
       tx.add('assets', { id: 'preview-logo', name: 'logo.png', mime: 'image/png', size: 68, dataUrl });
       tx.addEntity<ImageEntity>({

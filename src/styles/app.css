@@ -1610,6 +1610,10 @@ kbd {
   /* el anillo lo dibuja el box-shadow; el contorno transparente reaparece en modo de alto contraste */
   outline: 2px solid transparent;
 }
+/* Native selects in WebKit omit box-shadow, including the focus ring. */
+.select:focus-visible {
+  outline-color: var(--fs-interaction);
+}
 .input[aria-invalid='true'] {
   border-color: var(--fm-danger);
 }

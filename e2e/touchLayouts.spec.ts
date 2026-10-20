@@ -7,6 +7,17 @@ async function openWorkspace(page: Page, theme: 'dia' | 'noche' = 'dia'): Promis
   await page.waitForFunction(() => !!(window as any).fmodel?.editor);
   await page.evaluate((value) => (window as any).fmodel.editor.setPrefs({ onboardingDone: true, theme: value }), theme);
   await expect(page.getByRole('dialog', { name: /Bienvenido a FModel 2D CAD|Welcome to FModel 2D CAD/ })).toHaveCount(0);
+  const canvas = page.getByRole('application', { name: /Lienzo de dibujo|Drawing canvas/ });
+  await expect(canvas).toBeVisible();
+  // The editor is exposed before React effects/ResizeObserver finish mounting the canvas.
+  await page.waitForFunction(async () => {
+    const host = document.querySelector('.canvas-host');
+    if (!host) return false;
+    const before = host.getBoundingClientRect();
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    const after = host.getBoundingClientRect(), view = (window as any).fmodel.editor.view;
+    return after.width > 0 && after.height > 0 && before.width === after.width && before.height === after.height && view.width === after.width && view.height === after.height;
+  });
 }
 
 async function seriousViolations(page: Page, selector: string) {
@@ -69,7 +80,9 @@ test.describe('teléfono en vertical (UI-006)', () => {
     await page.evaluate(() => {
       void (window as any).fmodel.editor.command('CIRCLE');
     });
+    await expect.poll(() => page.evaluate(() => (window as any).fmodel.editor.runner.pending?.req.kind)).toBe('point');
     await page.touchscreen.tap(195, 420);
+    await expect.poll(() => page.evaluate(() => (window as any).fmodel.editor.runner.pending?.req.kind)).toBe('distance');
     await page.touchscreen.tap(255, 420);
     await expect(page.getByRole('application', { name: /Lienzo de dibujo|Drawing canvas/ })).toHaveAttribute('aria-description', /Objetos: 1|Objects: 1/);
 
