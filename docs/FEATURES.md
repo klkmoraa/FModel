@@ -2,12 +2,41 @@
 
 > Archivo generado con `node scripts/features-md.mjs` desde `src/app/features.ts`, la misma fuente que la pestaña «Estado de funciones» de la ayuda (F1). No lo edites a mano.
 
-**Disponible**: 14 · **Experimental**: 55 · **Planeado**: 0 · **No comprometido**: 1
+**Disponible**: 14 · **Experimental**: 59 · **Planeado**: 0 · **No comprometido**: 1
 
 - **Disponible**: funciona de extremo a extremo y tiene pruebas con evidencia vinculada.
 - **Experimental**: funciona con limitaciones documentadas y evidencia parcial.
 - **Planeado**: no implementado todavía; no hay botones que lo simulen.
 - **No comprometido**: fuera de alcance por motivos legales o técnicos.
+
+## Precisión
+
+| Función | Estado | Comandos | Evidencia | Notas |
+|---|---|---|---|---|
+| Menú de referencias de un solo uso y FROM/M2P/MTP | Experimental | `MID` `GCE` | `BEH-POINT-PRECISION` `UI-POINT-PRECISION` | Menú por Mayús+clic derecho y botón PC/teléfono. FROM relativo por defecto, #/* absoluto, @polar; M2P finito, 8 niveles y Escape por marco. Overrides ligados al comando, conservados en keywords/none y suspendidos en transparentes; carga invalida solicitudes. SCU configurable no implementado; usa las transformadas de propietario/viewport existentes. Validación local Chromium; dispositivo físico pendiente. |
+| Coordenadas absolutas, relativas y polares; distancia directa; entrada dinámica | Experimental | `DYNTOGGLE` | `BEH-DRAW` `GEO-INVARIANTS` | Evidencia ejecutada pendiente para: DYNTOGGLE. La función no se publica como Disponible hasta enlazar cada comando a una prueba real. |
+| Orto, rastreo polar, referencias a objetos permanentes y temporales, rastreo OTRACK, Tab entre candidatos | Experimental | `ORTHOTOGGLE` `POLARTOGGLE` `OSNAP` `OTRACKTOGGLE` | `BEH-DRAW` `GEO-CURVES` | Evidencia ejecutada pendiente para: ORTHOTOGGLE, POLARTOGGLE, OSNAP, OTRACKTOGGLE. La función no se publica como Disponible hasta enlazar cada comando a una prueba real. |
+
+## Capas y propiedades
+
+| Función | Estado | Comandos | Evidencia | Notas |
+|---|---|---|---|---|
+| Parámetros de MATCHPROP con diez filtros | Experimental | `MATCHPROP` | `BEH-MATCH-SETTINGS` `UI-CAD-SETTINGS` | Borrador con Todas/Ninguna, cancelación sin cambios, origen conservado y destinos editables del mismo espacio. Una operación de undo por comando. Verificación local PC/teléfono. |
+| Administrador de capas: estados, filtros, aislar, fusionar, congelación por viewport; herencia PorCapa/PorBloque | Experimental | `LAYER` `LAYERSTATE` `LAYISO` `LAYMRG` `VPLAYER` | `BEH-MANAGEMENT` | Evidencia ejecutada pendiente para: LAYER, LAYERSTATE, LAYISO, LAYMRG, VPLAYER. La función no se publica como Disponible hasta enlazar cada comando a una prueba real. |
+| Inspector de propiedades con edición por lotes e igualar propiedades | Experimental | `PROPERTIES` `MATCHPROP` | `BEH-MANAGEMENT` | Evidencia ejecutada pendiente para: PROPERTIES. La función no se publica como Disponible hasta enlazar cada comando a una prueba real. |
+| Copiar objetos a otra capa y recorrer las capas una a una | Experimental | `COPYTOLAYER` `LAYWALK` | `BEH-PRODUCTION` | LAYWALK solo cambia la vista y la restaura al salir. |
+
+## Productividad
+
+| Función | Estado | Comandos | Evidencia | Notas |
+|---|---|---|---|---|
+| Formulario UNITS con muestras y precisión lineal/angular | Experimental | `UNITS` `-UNITS` | `BEH-UNITS-FORM` `UI-CAD-SETTINGS` | Unidades de inserción y formatos, precisión entera 0–8, muestras existentes y protección de dibujo/versión obsoletos. No reescala geometría. -UNITS y ejecución sin interfaz conservan la secuencia textual. Una transacción deshacible. |
+| Edición por doble clic o doble toque según entidad | Experimental | `TEXTEDIT` `PEDIT` `BEDIT` | `BEH-DOUBLE-CLICK` `UI-POINT-PRECISION` | Reutiliza editores de anotación, polilínea, bloque y propiedades de hatch. Prioriza ciclos nativos de piezas, muros, huecos y habitaciones. Respeta comandos activos, capas, espacio y referencias externas; viewports conservan prioridad en presentaciones. Chromium PC/teléfono simulado; dispositivo físico pendiente. |
+| Paleta de comandos, alias y atajos configurables, repetir último, favoritos, propiedades rápidas, historial de comandos y ayuda contextual | Experimental | `OPTIONS` `HELP` `QUICKPROPERTIES` `TEXTSCR` | `E2E-CRITICAL-JOURNEYS` `UI-A11Y` | Evidencia ejecutada pendiente para: OPTIONS, HELP, QUICKPROPERTIES, TEXTSCR. La función no se publica como Disponible hasta enlazar cada comando a una prueba real. |
+| Autoguardado, recuperación tras cierre y versiones locales | Experimental | `VERSIONS` `RECOVER` | `STORAGE-PERSISTENCE` `E2E-CRITICAL-JOURNEYS` | Evidencia ejecutada pendiente para: VERSIONS, RECOVER. La función no se publica como Disponible hasta enlazar cada comando a una prueba real. |
+| Español e inglés | Experimental | `OPTIONS` | `UI-A11Y` | Evidencia ejecutada pendiente para: OPTIONS. La función no se publica como Disponible hasta enlazar cada comando a una prueba real. |
+| Aplicación instalable con uso sin conexión (PWA) y apertura de .fmodel/.dxf desde el sistema | Experimental | `UPDATEAPP` | `PWA-SW` `E2E-CRITICAL-JOURNEYS` | El service worker precarga toda la versión y está cubierto por pruebas; la instalación y la apertura de archivos dependen del navegador (Safari no abre archivos desde el sistema). |
+| Copiar con punto base, pegar en coordenadas originales y pegar como bloque | Experimental | `COPYBASE` `PASTEORIG` `PASTEBLOCK` | `BEH-PRODUCTION` | PASTEORIG se rechaza en el mismo dibujo de origen para no duplicar objetos encima. |
 
 ## Arquitectura
 
@@ -49,13 +78,6 @@
 | Aislar, ocultar, bloquear y pantalla limpia; paneles acoplables | Experimental | `ISOLATEOBJECTS` `HIDEOBJECTS` `CLEANSCREENON` | `BEH-MANAGEMENT` | Evidencia ejecutada pendiente para: ISOLATEOBJECTS, HIDEOBJECTS, CLEANSCREENON. La función no se publica como Disponible hasta enlazar cada comando a una prueba real. |
 | Uso táctil: encuadre, pellizco, pulsación larga, doble pulsación, lupa al situar puntos; en el teléfono, dock flotante, tarjeta de comando con Aceptar, Cancelar y opciones, y hojas de paneles, precisión y herramientas; en la tableta, la mesa de escritorio con zoom táctil y Aceptar; el teléfono se usa en vertical y, girado, propone volver a vertical sin impedir seguir | Experimental |  | `UI-TOUCH-MATRIX` | El dedo sitúa el punto con lupa y apertura ampliada; dos dedos encuadran y solo hacen zoom al separarse. Máquina de estados desacoplada en TouchGestureController con aislamiento estricto de pointercancel y rechazo de palma (3+ dedos). Probado con simulación y matriz de dispositivos en fix/features/evidence/; en teléfono el dibujo detallado sigue limitado por el tamaño de pantalla. |
 
-## Precisión
-
-| Función | Estado | Comandos | Evidencia | Notas |
-|---|---|---|---|---|
-| Coordenadas absolutas, relativas y polares; distancia directa; entrada dinámica | Experimental | `DYNTOGGLE` | `BEH-DRAW` `GEO-INVARIANTS` | Evidencia ejecutada pendiente para: DYNTOGGLE. La función no se publica como Disponible hasta enlazar cada comando a una prueba real. |
-| Orto, rastreo polar, referencias a objetos permanentes y temporales, rastreo OTRACK, Tab entre candidatos | Experimental | `ORTHOTOGGLE` `POLARTOGGLE` `OSNAP` `OTRACKTOGGLE` | `BEH-DRAW` `GEO-CURVES` | Evidencia ejecutada pendiente para: ORTHOTOGGLE, POLARTOGGLE, OSNAP, OTRACKTOGGLE. La función no se publica como Disponible hasta enlazar cada comando a una prueba real. |
-
 ## Dibujo
 
 | Función | Estado | Comandos | Evidencia | Notas |
@@ -71,15 +93,7 @@
 |---|---|---|---|---|
 | Borrar, desplazar, copiar, girar, escalar, simetría, desfase, recortar, alargar, empalme, chaflán, estirar | Experimental | `ERASE` `MOVE` `COPY` `ROTATE` `SCALE` `MIRROR` `OFFSET` `TRIM` `EXTEND` `FILLET` `CHAMFER` `STRETCH` | `BEH-MODIFY` `E2E-CRITICAL-JOURNEYS` | Evidencia ejecutada pendiente para: OFFSET, TRIM, EXTEND, CHAMFER, STRETCH. La función no se publica como Disponible hasta enlazar cada comando a una prueba real. |
 | Matrices rectangular, polar y por trayectoria (asociativas) | Experimental | `ARRAYRECT` `ARRAYPOLAR` `ARRAYPATH` | `BEH-MODIFY` | Evidencia ejecutada pendiente para: ARRAYRECT, ARRAYPOLAR, ARRAYPATH. La función no se publica como Disponible hasta enlazar cada comando a una prueba real. |
-| Juntar, partir, partir en punto, descomponer, editar polilínea, longitud, alinear, invertir, orden de dibujo, grupos, operaciones booleanas | Experimental | `JOIN` `BREAK` `BREAKATPOINT` `EXPLODE` `PEDIT` `LENGTHEN` `ALIGN` `REVERSE` `DRAWORDER` `GROUP` `UNION` | `BEH-MODIFY` `GEO-INVARIANTS` | Evidencia ejecutada pendiente para: JOIN, BREAK, BREAKATPOINT, PEDIT, LENGTHEN, ALIGN, REVERSE, DRAWORDER, GROUP, UNION. La función no se publica como Disponible hasta enlazar cada comando a una prueba real. |
-
-## Capas y propiedades
-
-| Función | Estado | Comandos | Evidencia | Notas |
-|---|---|---|---|---|
-| Administrador de capas: estados, filtros, aislar, fusionar, congelación por viewport; herencia PorCapa/PorBloque | Experimental | `LAYER` `LAYERSTATE` `LAYISO` `LAYMRG` `VPLAYER` | `BEH-MANAGEMENT` | Evidencia ejecutada pendiente para: LAYER, LAYERSTATE, LAYISO, LAYMRG, VPLAYER. La función no se publica como Disponible hasta enlazar cada comando a una prueba real. |
-| Inspector de propiedades con edición por lotes e igualar propiedades | Experimental | `PROPERTIES` `MATCHPROP` | `BEH-MANAGEMENT` | Evidencia ejecutada pendiente para: PROPERTIES, MATCHPROP. La función no se publica como Disponible hasta enlazar cada comando a una prueba real. |
-| Copiar objetos a otra capa y recorrer las capas una a una | Experimental | `COPYTOLAYER` `LAYWALK` | `BEH-PRODUCTION` | LAYWALK solo cambia la vista y la restaura al salir. |
+| Juntar, partir, partir en punto, descomponer, editar polilínea, longitud, alinear, invertir, orden de dibujo, grupos, operaciones booleanas | Experimental | `JOIN` `BREAK` `BREAKATPOINT` `EXPLODE` `PEDIT` `LENGTHEN` `ALIGN` `REVERSE` `DRAWORDER` `GROUP` `UNION` | `BEH-MODIFY` `GEO-INVARIANTS` | Evidencia ejecutada pendiente para: JOIN, BREAK, BREAKATPOINT, LENGTHEN, ALIGN, REVERSE, DRAWORDER, GROUP, UNION. La función no se publica como Disponible hasta enlazar cada comando a una prueba real. |
 
 ## Anotación
 
@@ -101,8 +115,8 @@
 | Hacer estirable cualquier bloque: Ancho y Fondo para alargarlo, acortarlo, ensancharlo o estrecharlo sin deformar lo que no cruza el corte | Experimental | `BESTIRABLE` | `BEH-LIBRARY` | Evidencia ejecutada pendiente para: BESTIRABLE. La función no se publica como Disponible hasta enlazar cada comando a una prueba real. |
 | Biblioteca inicial: 100 bloques de LibreCAD (GPL-2.0) y 12 muebles paramétricos (clósets que añaden hojas, mesa que añade sillas, cama con anchos estándar…) | Experimental | `LIBRARYSTARTER` | `BEH-LIBRARY` | Evidencia ejecutada pendiente para: LIBRARYSTARTER. La función no se publica como Disponible hasta enlazar cada comando a una prueba real. |
 | Biblioteca integrada: 398 bloques CAD 2D en formato nativo de FModel, con unidades y miniaturas | Disponible |  | `BEH-LIBRARY` |  |
-| Bloques dinámicos: parámetros, acciones, estados de visibilidad, tablas de consulta, fórmulas y variables | Experimental | `BEDIT` `BPARAMETER` `BACTION` `BVSTATE` `BVARIABLE` | `BEH-LIBRARY` `IO-DXF` | Evidencia ejecutada pendiente para: BEDIT, BPARAMETER, BACTION, BVSTATE, BVARIABLE. La función no se publica como Disponible hasta enlazar cada comando a una prueba real. |
-| Editor de bloques con prueba, edición en contexto, validación y vista previa en vivo | Experimental | `BEDIT` `BTESTBLOCK` `BCLOSE` | `BEH-LIBRARY` | Evidencia ejecutada pendiente para: BEDIT, BTESTBLOCK, BCLOSE. La función no se publica como Disponible hasta enlazar cada comando a una prueba real. |
+| Bloques dinámicos: parámetros, acciones, estados de visibilidad, tablas de consulta, fórmulas y variables | Experimental | `BEDIT` `BPARAMETER` `BACTION` `BVSTATE` `BVARIABLE` | `BEH-LIBRARY` `IO-DXF` | Evidencia ejecutada pendiente para: BPARAMETER, BACTION, BVSTATE, BVARIABLE. La función no se publica como Disponible hasta enlazar cada comando a una prueba real. |
+| Editor de bloques con prueba, edición en contexto, validación y vista previa en vivo | Experimental | `BEDIT` `BTESTBLOCK` `BCLOSE` | `BEH-LIBRARY` | Evidencia ejecutada pendiente para: BTESTBLOCK, BCLOSE. La función no se publica como Disponible hasta enlazar cada comando a una prueba real. |
 | Restricciones geométricas y dimensionales dentro de bloques, con glifos, cotas de restricción y conflictos en el lienzo | Experimental | `BCONSTRAINT` `BCPARAMETER` | `SOLVER-CONSTRAINTS` | Resolvedor numérico por mínimos cuadrados amortiguados: las restricciones incompatibles se marcan en conflicto en lugar de ignorarse. |
 
 ## Paramétrico
@@ -151,16 +165,6 @@
 | Auditoría con corrección, informe de salud, limpieza de duplicados y elementos sin uso | Experimental | `AUDIT` `HEALTHREPORT` `OVERKILL` `PURGE` | `BEH-MANAGEMENT` `WORKER-ASYNC` | Evidencia ejecutada pendiente para: HEALTHREPORT, OVERKILL, PURGE. La función no se publica como Disponible hasta enlazar cada comando a una prueba real. |
 | Comparación de revisiones | Experimental | `COMPARE` | `BEH-MANAGEMENT` | Evidencia ejecutada pendiente para: COMPARE. La función no se publica como Disponible hasta enlazar cada comando a una prueba real. |
 | Propiedades de masa: área, centroide, inercias, producto de inercia, ejes principales y radios de giro | Experimental | `MASSPROP` | `BEH-PRODUCTION` `GEO-MASSPROP` | Integración exacta en líneas y arcos (Green + Gauss-Legendre); huecos restados por anidamiento; splines aproximadas y avisadas. |
-
-## Productividad
-
-| Función | Estado | Comandos | Evidencia | Notas |
-|---|---|---|---|---|
-| Paleta de comandos, alias y atajos configurables, repetir último, favoritos, propiedades rápidas, historial de comandos y ayuda contextual | Experimental | `OPTIONS` `HELP` `QUICKPROPERTIES` `TEXTSCR` | `E2E-CRITICAL-JOURNEYS` `UI-A11Y` | Evidencia ejecutada pendiente para: OPTIONS, HELP, QUICKPROPERTIES, TEXTSCR. La función no se publica como Disponible hasta enlazar cada comando a una prueba real. |
-| Autoguardado, recuperación tras cierre y versiones locales | Experimental | `VERSIONS` `RECOVER` | `STORAGE-PERSISTENCE` `E2E-CRITICAL-JOURNEYS` | Evidencia ejecutada pendiente para: VERSIONS, RECOVER. La función no se publica como Disponible hasta enlazar cada comando a una prueba real. |
-| Español e inglés | Experimental | `OPTIONS` | `UI-A11Y` | Evidencia ejecutada pendiente para: OPTIONS. La función no se publica como Disponible hasta enlazar cada comando a una prueba real. |
-| Aplicación instalable con uso sin conexión (PWA) y apertura de .fmodel/.dxf desde el sistema | Experimental | `UPDATEAPP` | `PWA-SW` `E2E-CRITICAL-JOURNEYS` | El service worker precarga toda la versión y está cubierto por pruebas; la instalación y la apertura de archivos dependen del navegador (Safari no abre archivos desde el sistema). |
-| Copiar con punto base, pegar en coordenadas originales y pegar como bloque | Experimental | `COPYBASE` `PASTEORIG` `PASTEBLOCK` | `BEH-PRODUCTION` | PASTEORIG se rechaza en el mismo dibujo de origen para no duplicar objetos encima. |
 
 ## Rendimiento
 

@@ -1,3 +1,7 @@
+import { requestUi } from '../app/services';
+import { matchSettings, parseMatchSettings, type MatchSettings, type MatchSettingsSession } from './matchPropertiesSettings';
+export { matchSettings } from './matchPropertiesSettings';
+export type { MatchSettings } from './matchPropertiesSettings';
 import { boxCenter, boxFromCorners } from '../geometry/bbox';
 import type { Curve } from '../geometry/curves';
 import { tessellateCurve } from '../geometry/curves';
@@ -1023,21 +1027,6 @@ const ALIGN: CommandDef = {
   },
 };
 
-export interface MatchSettings {
-  color: boolean;
-  layer: boolean;
-  linetype: boolean;
-  ltscale: boolean;
-  lineweight: boolean;
-  transparency: boolean;
-  text: boolean;
-  dimension: boolean;
-  hatch: boolean;
-  polyline: boolean;
-}
-
-export const matchSettings: MatchSettings = { color: true, layer: true, linetype: true, ltscale: true, lineweight: true, transparency: true, text: true, dimension: true, hatch: true, polyline: true };
-
 export function matchProperties(src: Entity, dst: Entity, s: MatchSettings = matchSettings): Entity {
   let out: Entity = { ...dst };
   if (s.color) out.color = src.color;
@@ -1063,17 +1052,37 @@ const MATCHPROP: CommandDef = {
   async run(api) {
     const src = await api.getEntity({ prompt: L('Designe el objeto de origen', 'Select source object'), allowLocked: true });
     if (src.kind !== 'entity') return;
-    const source = api.editor.doc.entity(src.id)!;
+    const editor = api.editor, doc = editor.doc;
+    const source = doc.entity(src.id);
+    if (!source || source.owner !== editor.inputOwner || !editor.isSelectable(source.id, undefined, true)) throw new CommandError(L('El origen no está disponible en este espacio.', 'The source is unavailable in this space.'));
+    let settings = { ...matchSettings };
     for (;;) {
-      const r = await api.getSelection({ prompt: L('Designe objetos de destino o [Parámetros]', 'Select destination objects or [Settings]'), keywords: [K('Settings', 'Parámetros', 'Settings', ['p', 's'])], usePreselection: false });
-      if (!r.length) return;
-      api.apply('MATCHPROP', (tx) => {
-        for (const id of r) {
-          const d = api.editor.doc.entity(id);
-          if (d && id !== source.id) tx.put('entities', matchProperties(source, d));
+      const response = await api.request({ kind: 'selection', prompt: L('Designe objetos de destino o elija Parámetros', 'Select destination objects or choose Settings'), keywords: [K('Settings', 'Parámetros', 'Settings', ['p', 's'])], allowNone: true });
+      if (response.kind === 'keyword' && response.key === 'Settings') {
+        const answer = api.getString({ prompt: L('Propiedades que se copiarán', 'Properties to copy'), inputLabel: L('Parámetros de copia recibidos', 'Copy settings received'), allowSpaces: true, allowNone: true });
+        const session: MatchSettingsSession = { doc, version: doc.version, pending: editor.runner.pending!, settings: { ...settings } };
+        requestUi('matchprop-settings', session);
+        const result = await answer;
+        if (result.kind === 'string') {
+          if (editor.doc !== doc || doc.version !== session.version) { api.warn(L('El dibujo cambió. Revisa de nuevo los parámetros.', 'The drawing changed. Review the settings again.')); continue; }
+          try { settings = parseMatchSettings(result.value); Object.assign(matchSettings, settings); }
+          catch { api.warn(L('Parámetros de MATCHPROP no válidos; se conservan los anteriores.', 'Invalid MATCHPROP settings; previous settings retained.')); }
+        }
+        continue;
+      }
+      if (response.kind !== 'selection' || !response.ids.length) return;
+      if (editor.doc !== doc || !doc.entity(source.id)) return;
+      const ids = response.ids.filter(id => id !== source.id && doc.entity(id)?.owner === editor.inputOwner && editor.isSelectable(id));
+      if (!ids.length || !Object.values(settings).some(Boolean)) { api.info(L('No hay propiedades ni destinos editables que aplicar.', 'No selected properties or editable destinations to apply.')); continue; }
+      const currentSource = doc.entity(source.id)!;
+      if (currentSource.owner !== editor.inputOwner || !editor.isSelectable(currentSource.id, undefined, true)) return;
+      api.apply('MATCHPROP', tx => {
+        for (const id of ids) {
+          const destination = doc.entity(id);
+          if (destination) tx.put('entities', matchProperties(currentSource, destination, settings));
         }
       });
-      api.info(L(`Propiedades aplicadas a ${r.length} objeto(s).`, `Properties applied to ${r.length} object(s).`));
+      api.info(L(`Propiedades aplicadas a ${ids.length} objeto(s).`, `Properties applied to ${ids.length} object(s).`));
     }
   },
 };

@@ -1,3 +1,6 @@
+import { editDoubleClickedEntity } from './doubleClick';
+import { isPointRequest } from '../app/pointPrecision';
+import { SNAP_LABELS } from '../model/snapLabels';
 import type { BBox } from '../geometry/bbox';
 import { boxFromCorners, emptyBox, expandBox, inflate, isEmptyBox, transformBox } from '../geometry/bbox';
 import type { Curve } from '../geometry/curves';
@@ -110,7 +113,8 @@ export class Editor {
   acquisition = new AcquisitionState();
   candidateIndex = 0;
   angleLock: number | null = null;
-  osnapOverride: SnapType[] | null = null;
+  get osnapOverride(): SnapType[] | null { return this.runner.pointSnapOverride; }
+  set osnapOverride(types: SnapType[] | null) { this.runner.pointSnapOverride = types; }
   window: WindowState | null = null;
   fence: Vec2[] | null = null;
   polygonSelect: { points: Vec2[]; crossing: boolean } | null = null;
@@ -147,6 +151,8 @@ export class Editor {
     installWallNetwork(doc);
     doc.subscribe((e) => {
       if (e.source === 'load') {
+        this.runner.resetForLoad();
+        this.angleLock = null;
         this.selection.clear();
         this.space = MODEL_SPACE_ID;
         this.views.clear();
@@ -339,12 +345,18 @@ export class Editor {
     this.emit('view');
   }
 
-  /** Doble clic en una presentación: dentro de un viewport lo activa; fuera vuelve al papel. */
+  /** Viewports keep priority in layouts; model entities reuse their existing editors. */
   doubleClick(screen: Vec2): boolean {
-    if (this.spaceKind !== 'layout' || this.runner.busy) return false;
-    const vp = this.viewportAt(this.view.toWorld(screen));
-    this.activateViewport(vp ? vp.id : null);
-    return true;
+    if (this.runner.busy) return false;
+    if (this.spaceKind === 'layout') {
+      const vp = this.viewportAt(this.view.toWorld(screen));
+      this.activateViewport(vp ? vp.id : null);
+      return true;
+    }
+    const world = this.screenToOwner(screen), tol = this.prefs.pickboxPx * this.ownerPerPixel;
+    const hit = pickAt(this.ctx, this.index, this.inputOwner, world, tol, undefined, this.visibility()).find(candidate => this.isSelectable(candidate.id));
+    const entity = hit ? this.doc.entity(hit.id) : null;
+    return !!entity && editDoubleClickedEntity(this, entity, world);
   }
 
   /** Viewport de la presentación actual que contiene un punto de papel. */
@@ -570,7 +582,21 @@ export class Editor {
     this.emit('overlay');
   }
 
+  setPointSnapOverride(types: SnapType[]): boolean {
+    const req = this.runner.pointPending?.req;
+    if (!isPointRequest(req) || (req?.kind === 'point' && req.noSnap)) return false;
+    this.osnapOverride = [...types];
+    this.candidateIndex = 0;
+    this.pointerMove(this.hover.screen);
+    this.runner.message('info', {
+      es: types.length ? `Siguiente punto: ${types.map(type => SNAP_LABELS[type].es).join(', ')}.` : 'Siguiente punto: sin referencias a objetos.',
+      en: types.length ? `Next point: ${types.map(type => SNAP_LABELS[type].en).join(', ')}.` : 'Next point: no object snaps.',
+    });
+    return true;
+  }
+
   setAngleLock(angle: number | null) {
+    if (angle !== null && !Number.isFinite(angle)) return;
     this.angleLock = angle;
     this.emit('overlay');
   }
@@ -616,7 +642,7 @@ export class Editor {
       cursor,
       worldPerPixel: this.ownerPerPixel,
       settings: noSnap ? { ...settings, osnap: false, otrack: false } : { ...settings, ortho: settings.ortho && !(req?.kind === 'point' && req.noOrtho) },
-      override: this.osnapOverride,
+      override: noSnap ? null : this.osnapOverride,
       lastPoint: this.pendingBase() ?? (gripActive ? this.gripContext!.base : null),
       vis: this.visibility(),
       acquisition: this.acquisition,
@@ -707,7 +733,16 @@ export class Editor {
     // adquisición por pausa (OTRACK, extensión, paralela)
     const cand = resolved.candidates[resolved.candidateIndex];
     const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
-    if (cand && (this.prefs.snap.otrack || this.prefs.snap.types.includes('extension') || this.prefs.snap.types.includes('parallel'))) {
+    const curveOverride = this.osnapOverride?.some(type => type === 'extension' || type === 'parallel');
+    const noSnap = this.runner.pending?.req.kind === 'point' && this.runner.pending.req.noSnap;
+    if (curveOverride && !noSnap) {
+      const tol = this.prefs.snap.aperturePx * this.ownerPerPixel;
+      const hit = pickAt(this.ctx, this.index, this.inputOwner, world, tol, undefined, this.visibility())[0];
+      const entity = hit ? this.doc.entity(hit.id) : null;
+      const curve = entity ? kindOf(entity).curves(entity, this.ctx).filter(c => c.kind === 'line' || c.kind === 'arc').sort((a, b) => distanceToCurve(a, world) - distanceToCurve(b, world))[0] : null;
+      if (entity && curve && distanceToCurve(curve, world) <= tol) this.acquisition.dwell(`curve|${entity.id}`, now, 350, () => { this.acquisition.acquireCurve({ c: curve, id: entity.id }); this.emit('overlay'); });
+      else this.acquisition.dwell('', now, 350, () => undefined);
+    } else if (cand && (this.prefs.snap.otrack || this.prefs.snap.types.includes('extension') || this.prefs.snap.types.includes('parallel'))) {
       const key = `${cand.type}|${cand.p.x.toFixed(6)}|${cand.p.y.toFixed(6)}`;
       this.acquisition.dwell(key, now, 350, () => {
         if (this.prefs.snap.otrack && cand.type !== 'nearest' && cand.type !== 'extension' && cand.type !== 'parallel') this.acquisition.togglePoint(cand.p);
@@ -791,7 +826,7 @@ export class Editor {
     }
   }
 
-  pointerUp(screen: Vec2, button: number, mods: { shift?: boolean; ctrl?: boolean } = {}) {
+  pointerUp(screen: Vec2, button: number, mods: { shift?: boolean; ctrl?: boolean; deferGrip?: (activate: () => void) => void } = {}) {
     const wasPanning = this.panning;
     this.panning = null;
     const down = this.downAt;
@@ -849,7 +884,11 @@ export class Editor {
     if (!req) {
       const grip = this.selection.size ? this.gripAt(screen) : null;
       if (grip) {
-        this.startGripEdit(grip);
+        const version = this.doc.version, selectionVersion = this.selection.version, owner = this.inputOwner;
+        const activate = () => {
+          if (!this.runner.busy && this.doc.version === version && this.selection.version === selectionVersion && this.inputOwner === owner && this.isSelectable(grip.entityId)) this.startGripEdit(grip);
+        };
+        if (mods.deferGrip) mods.deferGrip(activate); else activate();
         return;
       }
     }
@@ -968,6 +1007,7 @@ export class Editor {
   key(key: string, mods: { ctrl?: boolean; shift?: boolean; alt?: boolean } = {}): boolean {
     this.shiftDown = !!mods.shift;
     if (key === 'Escape') {
+      if (this.runner.cancelPointModifier()) return true;
       if (this.cycling) {
         this.cycling = null;
         this.emit('overlay');

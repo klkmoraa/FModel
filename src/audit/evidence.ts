@@ -12,6 +12,12 @@ export interface EvidenceRecord {
 }
 
 export const EVIDENCE_CATALOG: Record<string, EvidenceRecord> = {
+  'BEH-POINT-PRECISION': { kind: 'unit', testFile: 'src/commands/pointPrecision.test.ts', testName: 'sets a typed one-shot snap', testCommand: 'pnpm vitest run src/commands/pointPrecision.test.ts', commands: ['LINE', 'MID', 'GCE'] },
+  'UI-POINT-PRECISION': { kind: 'integration', testFile: 'src/ui/CanvasView.test.ts', testName: 'latches Shift-right gesture', testCommand: 'pnpm vitest run src/ui/CanvasView.test.ts' },
+  'BEH-MATCH-SETTINGS': { kind: 'unit', testFile: 'src/commands/matchPropertiesSettings.test.ts', testName: 'copies only chosen properties', testCommand: 'pnpm vitest run src/commands/matchPropertiesSettings.test.ts', commands: ['MATCHPROP'] },
+  'BEH-UNITS-FORM': { kind: 'unit', testFile: 'src/commands/units.test.ts', testName: 'applies validated settings in one undo step', testCommand: 'pnpm vitest run src/commands/units.test.ts', commands: ['UNITS', '-UNITS'] },
+  'UI-CAD-SETTINGS': { kind: 'integration', testFile: 'src/ui/dialogs/CadSettingsDialogs.test.ts', testName: 'keeps MATCHPROP Settings pending in StrictMode', testCommand: 'pnpm vitest run src/ui/dialogs/CadSettingsDialogs.test.ts' },
+  'BEH-DOUBLE-CLICK': { kind: 'unit', testFile: 'src/editor/doubleClick.test.ts', testName: 'double-click edits exact %s through existing editor', testCommand: 'pnpm vitest run src/editor/doubleClick.test.ts', commands: ['TEXTEDIT', 'PEDIT', 'BEDIT'] },
   'E2E-ARCHITECTURAL-PRODUCTION': {kind:'e2e',testFile:'e2e/architecturalProduction.spec.ts',testName:'architectural production live plan and multi-page PDF in Day/Night',testCommand:'pnpm exec playwright test e2e/architecturalProduction.spec.ts --project=chromium'},
   'BEH-PLAN-DIMENSIONS': {kind:'unit',testFile:'src/commands/behavior/architecturalProduction.test.ts',testName:'creates native dimensions',testCommand:'pnpm vitest run src/commands/behavior/architecturalProduction.test.ts',commands:['WALLDIM']},
   'BEH-ROOMS': {kind:'unit',testFile:'src/commands/behavior/rooms.test.ts',testName:'room quantities',testCommand:'pnpm vitest run src/commands/behavior/rooms.test.ts',commands:['ROOMDATA','ROOMSCHEDULE','MATERIALSCHEDULE']},

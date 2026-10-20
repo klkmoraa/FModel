@@ -1,3 +1,6 @@
+import { UnitsDialog } from './dialogs/UnitsDialog';
+import { MatchSettingsDialog } from './dialogs/MatchSettingsDialog';
+import { PointPrecisionDialog } from './dialogs/PointPrecisionDialog';
 import { X } from 'lucide-react';
 import { createContext, useContext, useRef, type ReactNode, type RefObject } from 'react';
 import type { Editor } from '../editor/editor';
@@ -66,6 +69,9 @@ export function Dialog({ title, onClose, children, footer, wide, lang }: { title
 type DialogRenderer = (editor: Editor, onClose: () => void, onUi: (ui: string, cmd?: string, payload?: unknown) => void, state: DialogState) => ReactNode;
 
 export const DIALOGS: Record<string, DialogRenderer> = {
+  units: (editor, close, _onUi, state) => <UnitsDialog editor={editor} payload={state.payload} onClose={close} />,
+  'matchprop-settings': (editor, close, _onUi, state) => <MatchSettingsDialog editor={editor} payload={state.payload} onClose={close} />,
+  'point-precision': (editor, close) => <PointPrecisionDialog editor={editor} onClose={close} />,
   'drafting-settings': (e, close) => <DraftingSettings editor={e} onClose={close} />,
   'file-menu': (e, close, onUi) => <FileMenu editor={e} onClose={close} onUi={onUi} />,
   'attribute-extraction': (e, close) => <AttributeExtraction editor={e} onClose={close} />,

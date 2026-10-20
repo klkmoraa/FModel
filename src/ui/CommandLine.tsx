@@ -14,10 +14,7 @@ export const CommandLine = forwardRef<CommandLineHandle, { editor: Editor; onDis
   const [text, setText] = useState('');
   const [active, setActive] = useState(0);
   const [histIdx, setHistIdx] = useState(-1);
-  // El historial es una consulta puntual, no otra capa permanente sobre el dibujo.
-  const [showLog, setShowLog] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const logRef = useRef<HTMLDivElement>(null);
   const lang = editor.lang;
   const pending = editor.runner.pending;
   const isIdle = !pending && !editor.runner.active && !text;
@@ -31,16 +28,6 @@ export const CommandLine = forwardRef<CommandLineHandle, { editor: Editor; onDis
     },
     hasFocus: () => document.activeElement === inputRef.current,
   }));
-
-  useEffect(() => {
-    logRef.current?.scrollTo({ top: logRef.current.scrollHeight });
-  }, [editor.runner.log.length]);
-
-  useEffect(() => {
-    const toggle = () => setShowLog((v) => !v);
-    window.addEventListener('fmodel:cmdlog', toggle);
-    return () => window.removeEventListener('fmodel:cmdlog', toggle);
-  }, []);
 
   const suggestions = useMemo(() => {
     if (pending || !text.trim() || text.includes(' ')) return [];
@@ -108,19 +95,8 @@ export const CommandLine = forwardRef<CommandLineHandle, { editor: Editor; onDis
     }
   };
 
-  const recentLog = editor.runner.log.slice(-40);
-
   return (
     <div className={`cmdline${isIdle ? ' cmdline--idle' : ''}`}>
-      {showLog && (
-        <div className="cmdline__log" ref={logRef} aria-live="polite">
-          {recentLog.map((l, i) => (
-            <div key={`${l.at}-${i}`} className={`log--${l.kind}`}>
-              {l.kind === 'command' ? `» ${l.text}` : l.text}
-            </div>
-          ))}
-        </div>
-      )}
       <div style={{ position: 'relative' }}>
         {suggestions.length > 0 && (
           <div className="cmdline__suggest" role="listbox">
@@ -144,9 +120,9 @@ export const CommandLine = forwardRef<CommandLineHandle, { editor: Editor; onDis
           </div>
         )}
         <div className="cmdline__bar">
-          <button className="icon-btn" style={{ width: 26, height: 26 }} onClick={() => setShowLog((s) => !s)} title={lang === 'es' ? 'Historial de comandos' : 'Command history'} aria-pressed={showLog}>
+          <button className="icon-btn" style={{ width: 26, height: 26 }} onMouseDown={(event) => event.preventDefault()} onClick={() => window.dispatchEvent(new CustomEvent('fmodel:cmdlog'))} aria-haspopup="dialog" title={lang === 'es' ? 'Historial de comandos' : 'Command history'}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d={showLog ? 'm6 15 6-6 6 6' : 'm6 9 6 6 6-6'} />
+              <path d="m6 9 6 6 6-6" />
             </svg>
           </button>
           {pending ? (
@@ -172,7 +148,12 @@ export const CommandLine = forwardRef<CommandLineHandle, { editor: Editor; onDis
               value={text}
               onChange={(e) => setText(e.target.value)}
               onKeyDown={onKey}
-              onBlur={() => onDismiss?.()}
+              onBlur={(event) => {
+                const next = event.relatedTarget;
+                // En móvil, conservar la barra al consultar historial y devolverle el foco al cerrar.
+                if (next instanceof Element && (event.currentTarget.closest('.cmdline')?.contains(next) || next.closest('[aria-modal="true"]'))) return;
+                onDismiss?.();
+              }}
               placeholder={pending ? (compact ? prompt.replace(/\s*\[[^\]]*\]/, '') : '') : compact ? (lang === 'es' ? 'Escribe un comando (L, C, TR…)' : 'Type a command (L, C, TR…)') : lang === 'es' ? 'Escribe un comando (L, C, TR…) o pulsa Ctrl+K' : 'Type a command (L, C, TR…) or press Ctrl+K'}
               aria-label={lang === 'es' ? 'Línea de comandos' : 'Command line'}
               autoComplete="off"

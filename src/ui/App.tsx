@@ -9,6 +9,7 @@ import { themeFor } from '../render/theme';
 import { CanvasView } from './CanvasView';
 import type { CommandLineHandle } from './CommandLine';
 import { CommandLine } from './CommandLine';
+import { CommandFeedback } from './CommandFeedback';
 import { CommandPalette } from './CommandPalette';
 import type { DynamicInputHandle } from './DynamicInput';
 import { DynamicInput } from './DynamicInput';
@@ -122,6 +123,8 @@ export function App({ editor }: { editor: Editor }) {
     setPhoneSheet(null);
     setDialog({ id: ui, cmd, payload });
   }, [editor, isPhone]);
+
+  const openPointPrecision = useCallback(() => openUi('point-precision'), [openUi]);
 
   // Los comandos con UI abren su panel o diálogo
   useEffect(() => {
@@ -342,8 +345,9 @@ export function App({ editor }: { editor: Editor }) {
         {!isPhone && <Docks editor={editor} side="left" onUi={openUi} />}
         <section className="stage">
           <div className={`stage__canvas${isPhone && !cmdOpen ? ' stage__canvas--nocmd' : ''}${deckOpen && !editor.runner.pending ? ' stage__canvas--deck-open' : ''}`}>
-            <CanvasView editor={editor} theme={theme} />
+            <CanvasView editor={editor} theme={theme} onContextMenu={openPointPrecision} />
             <DynamicInput ref={dynRef} editor={editor} />
+            <CommandFeedback editor={editor} />
             <CommandLine ref={cmdRef} editor={editor} compact={isPhone} onDismiss={isPhone ? () => setCmdOpen(false) : undefined} />
             <CyclingList editor={editor} />
             {!isPhone && <QuickProperties editor={editor} onMore={() => openUi('panel:properties')} />}

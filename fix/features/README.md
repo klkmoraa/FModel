@@ -117,3 +117,16 @@ Formato de evidencia para pegar al final de una tarea:
 - Prueba manual: navegador/dispositivo y resultado
 - Documentación actualizada: rutas
 ```
+
+
+## Continuación CADCraft · cambios propios
+
+| Orden | ID | Prioridad | Tarea | Estado | Depende de | Documento |
+|---:|---|:---:|---|:---:|---|---|
+| 59 | UI-012 | P2 | Mostrar errores de comandos y abrir historial accesible | Cerrada (2026-10-20, local) | UI-001 | [Interfaz](./04-interfaz-accesibilidad.md#ui-012--mostrar-errores-de-comandos-y-abrir-historial-accesible) |
+| 60 | UI-013 | P2 | Menú de referencias de precisión | Cerrada local | UI-012 | [Interfaz](./04-interfaz-accesibilidad.md#ui-013--menú-de-referencias-de-precisión) |
+| 61 | CMD-002 | P2 | Parámetros de MATCHPROP | Cerrada local | CMD-001 | [Comandos](./02-geometria-comandos.md#cmd-002--parámetros-de-matchprop) |
+| 62 | TST-003 | P2 | Propiedad de preview y verificación completa | Cerrada local | TST-001 | [Calidad](./06-calidad-arquitectura-pruebas.md#tst-003--propiedad-de-la-vista-previa-y-verificación-completa) |
+| 63 | CMD-003 | P2 | FROM y M2P/MTP | Cerrada local | UI-013 | [Comandos](./02-geometria-comandos.md#cmd-003--modificadores-from-y-m2pmtp) |
+| 64 | UI-014 | P2 | Formulario UNITS | Cerrada local | UI-013 | [Interfaz](./04-interfaz-accesibilidad.md#ui-014--formulario-de-unidades) |
+| 65 | UI-015 | P2 | Edición por doble clic | Cerrada local | UI-013 | [Interfaz](./04-interfaz-accesibilidad.md#ui-015--edición-por-doble-clic) |

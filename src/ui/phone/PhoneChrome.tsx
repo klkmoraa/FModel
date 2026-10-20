@@ -1,3 +1,4 @@
+import { isPointRequest } from '../../app/pointPrecision';
 import { Check, ChevronRight, Command as CommandIcon, FolderOpen, HelpCircle, Home, Keyboard, LayoutGrid, Magnet, MousePointer2, PanelsTopLeft, Search, Settings, Settings2, X } from 'lucide-react';
 import { findCommand } from '../../commands/registry';
 import type { Editor } from '../../editor/editor';
@@ -106,6 +107,7 @@ export function PhoneContext({ editor, onKeyboard, onUi }: { editor: Editor; onK
           </div>
         )}
         <div className="phone-card__actions">
+          {isPointRequest(pending?.req) && <button type="button" className="btn point-precision-trigger" aria-haspopup="dialog" onClick={() => onUi('point-precision')}>{tr(lang, 'Referencia', 'Point reference')}</button>}
           <button type="button" className="btn btn--ghost" onClick={onKeyboard} aria-label={tr(lang, 'Escribir un valor o una opción', 'Type a value or option')}>
             <Keyboard size={17} />
             {tr(lang, 'Escribir', 'Type')}

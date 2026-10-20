@@ -239,3 +239,44 @@
 - [x] Las pruebas e2e dejan de depender de la tarjeta; capturas del brandbook regeneradas.
 
 **Verificación:** `pnpm verify` y `playwright test` en Chromium.
+
+## UI-012 — Mostrar errores de comandos y abrir historial accesible
+
+- [x] **Estado:** Cerrada localmente, 2026-10-20
+- **Prioridad:** P2
+- **Responsable:** Sol 6.1 xhigh · **Inicio:** 2026-10-20
+- **Depende de:** UI-001
+
+**Alcance:** aviso compartido PC/teléfono para errores y advertencias del runner, con persistencia hasta descarte o respuesta aceptada/siguiente comando normal. Historial modal accesible por F2 o botón incluso con el teclado móvil cerrado. Conserva el documento, caret, comandos transparentes y mensajes del historial. Inspirado en feedback inline de CADCraft, con chrome y tokens propios.
+
+**Criterios de aceptación:**
+- [x] Un error se ve sin abrir historial/teclado y no roba el foco.
+- [x] Otra entrada inválida actualiza el aviso; una respuesta válida lo retira.
+- [x] Descartar conserva el historial; comandos transparentes no borran aviso/solicitud.
+- [x] Historial usable por teclado y a 320 px, Día/Noche y ES/EN.
+- [x] Evidencia focalizada y ficha visual local registradas.
+
+**Evidencia:** 14 regresiones nuevas pasan (9 runner + 5 UI); tras corregir un literal L10n de prueba, sus 2 casos asíncronos pasan de nuevo. Typecheck final y lint focalizado exit 0. Chromium local PC 1280×800 y teléfono simulado 320×844 Día/Noche: error visible, corrección, descarte, F2/Escape, solicitud pendiente y foco/caret intactos. Axe focalizado sin violaciones con la hoja asentada; primera medición móvil durante animación conservada en logs. Dos hallazgos P2 de revisión independiente resueltos con RED→GREEN y re-revisión sin pendientes. [Ficha, capturas y límites](../../docs/brandbook/command-feedback-qa.md) · [comparación recuperada y priorización](../../docs/research/2026-10-20-cadcraft-fmodel.md).
+
+**Límites históricos de UI-012:** la prueba preexistente de vista previa `runner.test.ts:74` falla desde antes del cambio y se conserva fuera de alcance. En aquella entrega no se acreditaba la suite completa. La carpeta local mixta pasó 1609/1609; la candidata aislada de publicación pasa 1430/1430 y no contiene el subsistema causante. Véase su ficha QA. Dispositivo físico, teclado virtual y lector de pantalla real siguen pendientes. Sin commit, push ni publicación.
+
+## UI-013 — Menú de referencias de precisión
+
+- [x] **Estado:** Cerrada localmente, 2026-10-20
+- **Responsable:** Sol 6.1 xhigh · **Prioridad:** P2
+
+**Alcance y evidencia:** implementación de la propuesta autorizada tras la comparación con CADCraft, con regresiones y revisión fresca independiente. [Ficha común: contratos, pruebas completas, capturas y límites](../../docs/brandbook/six-cad-improvements-qa.md). UI-012 y trabajo previo conservados; sin commit/push/publicación. UI-002 no se cierra.
+
+## UI-014 — Formulario de unidades
+
+- [x] **Estado:** Cerrada localmente, 2026-10-20
+- **Responsable:** Sol 6.1 xhigh · **Prioridad:** P2
+
+**Alcance y evidencia:** implementación de la propuesta autorizada tras la comparación con CADCraft, con regresiones y revisión fresca independiente. [Ficha común: contratos, pruebas completas, capturas y límites](../../docs/brandbook/six-cad-improvements-qa.md). UI-012 y trabajo previo conservados; sin commit/push/publicación. UI-002 no se cierra.
+
+## UI-015 — Edición por doble clic
+
+- [x] **Estado:** Cerrada localmente, 2026-10-20
+- **Responsable:** Sol 6.1 xhigh · **Prioridad:** P2
+
+**Alcance y evidencia:** implementación de la propuesta autorizada tras la comparación con CADCraft, con regresiones y revisión fresca independiente. [Ficha común: contratos, pruebas completas, capturas y límites](../../docs/brandbook/six-cad-improvements-qa.md). UI-012 y trabajo previo conservados; sin commit/push/publicación. UI-002 no se cierra.

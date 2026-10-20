@@ -159,3 +159,10 @@ La evidencia histórica de otros recorridos no se reutiliza como cierre: esta ta
 - [ ] Las herramientas de desarrollo siguen disponibles localmente.
 
 **Verificación:** `pnpm build`, buscar `globalThis.fmodel` en `dist`, y smoke E2E
+
+## TST-003 — Propiedad de la vista previa y verificación completa
+
+- [x] **Estado:** Verificada para publicación, 2026-10-20
+- **Responsable:** Sol 6.1 xhigh · **Prioridad:** P2
+
+La prueba original de preview pasa en HEAD integrado sin room-recognition. El subsistema que causaba el fallo local y su corrección idle/worker permanecen en la carpeta de trabajo y se excluyen de la publicación. La candidata pasa 1430 pruebas, cobertura, tipos, lint y build público. [Evidencia del árbol exacto](../../docs/brandbook/six-cad-improvements-qa.md).

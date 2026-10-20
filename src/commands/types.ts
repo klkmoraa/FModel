@@ -51,7 +51,7 @@ export type InputRequest =
   | (BaseRequest & { kind: 'distance'; base?: Vec2 | null; defaultValue?: number; allowNegative?: boolean; allowZero?: boolean })
   | (BaseRequest & { kind: 'angle'; base?: Vec2 | null; defaultValue?: number })
   | (BaseRequest & { kind: 'number'; defaultValue?: number; integer?: boolean; min?: number; max?: number })
-  | (BaseRequest & { kind: 'string'; defaultValue?: string; allowSpaces?: boolean; multiline?: boolean })
+  | (BaseRequest & { kind: 'string'; inputLabel?: L10n; defaultValue?: string; allowSpaces?: boolean; multiline?: boolean })
   | (BaseRequest & { kind: 'keyword'; defaultValue?: string })
   | (BaseRequest & { kind: 'selection'; types?: EntityType[]; single?: boolean; allowLocked?: boolean })
   | (BaseRequest & { kind: 'entity'; types?: EntityType[]; allowLocked?: boolean; highlight?: boolean });

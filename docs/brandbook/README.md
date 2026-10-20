@@ -77,3 +77,13 @@ Arquitectura ofrece Cuadro de huecos y Exportar tabla CSV con los controles y to
 Arquitectura añade Etiquetas de huecos junto al cuadro, en panel, cinta y paleta. Los controles heredan foco, material y tokens existentes. `ETIQUETASHUECOS` / `OPENINGTAGS` pide altura y confirma la vista previa con Intro; Esc cancela. Etiquetas y cuadro se actualizan juntos al editar sus huecos, con undo/redo y persistencia nativa. / Existing Architecture controls and tokens; tags and schedule update together with atomic history and native persistence.
 
 [Registro QA local y alcance](opening-annotations-qa.md): pruebas focalizadas, build público y un recorrido Chromium aprobados; revisión independiente y dos originales 1280×900 inspeccionados. [Día](assets/opening-annotations-dia.png) · [Noche](assets/opening-annotations-noche.png). La escena muestra P-01/V-01 y el cuadro completos. Esta entrega añade asociación automática a la entrega histórica ARC-008; los cuadros v4 siguen independientes hasta vinculación explícita. / Reviewed original Day/Night captures; automatic association extends ARC-008, while legacy tables require explicit linking.
+
+## Avisos de comandos / Command notices (UI-012)
+
+Los errores/advertencias se ven sin abrir historial ni teclado y conservan foco/caret. El aviso persiste durante un rechazo y permite consultar un historial común por F2 o botón; Escape vuelve al dibujo sin responder al comando. En teléfono, el historial funciona con el teclado cerrado y conserva la línea visible cuando se abre desde ella. / Visible command notices preserve focus and caret. Shared F2/button history works on phones and returns to the pending drawing request.
+
+[Ficha QA y límites](command-feedback-qa.md) · [Comparación CADCraft y prioridades](../research/2026-10-20-cadcraft-fmodel.md) · PC [Día](assets/command-feedback-desktop-day-notice.png) / [Noche](assets/command-feedback-desktop-night-history.png) · móvil 320 px [Día](assets/command-feedback-phone320-day-notice.png) / [Noche](assets/command-feedback-phone320-night-history.png). Originales sin editar, verificación local sin publicación ni dispositivo físico.
+
+## Precisión, formularios y edición directa / Precision, forms and direct editing
+
+Seis áreas completadas localmente con suite íntegra y revisión fresca. / Six areas completed locally with full suite and fresh review. [Ficha QA, capturas y límites](six-cad-improvements-qa.md). El menú de precisión y los formularios conservan tokens y foco propios; UI-002 sigue abierta para dispositivos físicos.

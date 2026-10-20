@@ -232,3 +232,17 @@
 - **Evidencia:** 3 pruebas mm/m, escala/encaje, error/cancelación/undo y PDF de dos páginas. [Recorrido de descarga y hojas Día/Noche](../../docs/brandbook/architectural-production-qa.md) aprobado, con PDF real conservado.
 
 Especificación/plan compartidos: `docs/superpowers/specs/2026-10-09-architectural-production-design.md`, `docs/superpowers/plans/2026-10-09-architectural-production.md`. [Guía de uso y límites](../../docs/produccion-arquitectonica.md). Tipos, capas, lint, catálogo, build público y comprobaciones focalizadas aprobados. Revisión independiente final sin defectos importantes pendientes. Sin suite completa, cobertura ni nuevo commit/push/publicación; los cierres corresponden al alcance implementado, sin declarar paridad general con YQARCH.
+
+## CMD-002 — Parámetros de MATCHPROP
+
+- [x] **Estado:** Cerrada localmente, 2026-10-20
+- **Responsable:** Sol 6.1 xhigh · **Prioridad:** P2
+
+**Alcance y evidencia:** implementación de la propuesta autorizada tras la comparación con CADCraft, con regresiones y revisión fresca independiente. [Ficha común: contratos, pruebas completas, capturas y límites](../../docs/brandbook/six-cad-improvements-qa.md). UI-012 y trabajo previo conservados; sin commit/push/publicación. UI-002 no se cierra.
+
+## CMD-003 — Modificadores FROM y M2P/MTP
+
+- [x] **Estado:** Cerrada localmente, 2026-10-20
+- **Responsable:** Sol 6.1 xhigh · **Prioridad:** P2
+
+**Alcance y evidencia:** implementación de la propuesta autorizada tras la comparación con CADCraft, con regresiones y revisión fresca independiente. [Ficha común: contratos, pruebas completas, capturas y límites](../../docs/brandbook/six-cad-improvements-qa.md). UI-012 y trabajo previo conservados; sin commit/push/publicación. UI-002 no se cierra.

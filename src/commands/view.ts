@@ -240,9 +240,7 @@ function snapOverride(name: string, type: SnapType, es: string, en: string): Com
     label: L(`Referencia temporal: ${es}`, `Snap override: ${en}`),
     description: L(`Aplica la referencia ${es.toLowerCase()} solo al siguiente punto.`, `Applies ${en.toLowerCase()} snap to the next point only.`),
     run(api) {
-      api.editor.osnapOverride = [type];
-      api.editor.emit('overlay');
-      api.info(L(`Siguiente punto: ${es}`, `Next point: ${en}`));
+      if (!api.editor.setPointSnapOverride([type])) api.warn(L('Inicia primero un comando que pida un punto.', 'Start a command that requests a point first.'));
     },
   };
 }

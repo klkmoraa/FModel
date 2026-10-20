@@ -1,9 +1,10 @@
+import { UNITS, UNITS_CLI } from './units';
 import { getServices } from '../app/services';
 import { pointsSignedArea } from '../geometry/polyline';
 import type { Vec2 } from '../geometry/vec';
 import { dist } from '../geometry/vec';
 import { newId } from '../document/ids';
-import type { DrawingUnits, Entity, Id } from '../document/types';
+import type { Entity, Id } from '../document/types';
 import { captureLayerState, isolateLayers, layerUsage, mergeLayers, restoreLayerState, unisolateLayers, wildcardMatch } from '../layers/layerOps';
 import { kindOf } from '../model/registry';
 import { formatAngle, formatLength } from '../model/format';
@@ -329,29 +330,6 @@ const PTYPE: CommandDef = {
   },
 };
 
-const UNITS: CommandDef = {
-  name: 'UNITS',
-  aliases: ['UN', 'UNIDADES'],
-  category: 'utility',
-  label: L('Unidades del dibujo', 'Drawing units'),
-  description: L('Define unidades de inserción, formato y precisión lineal y angular.', 'Sets insertion units, linear and angular format and precision.'),
-  async run(api) {
-    const s = api.editor.doc.settings;
-    const u = await api.getKeyword({ prompt: L('Unidades de inserción', 'Insertion units'), keywords: ['unitless', 'mm', 'cm', 'm', 'km', 'in', 'ft', 'yd', 'mi'].map((x) => K(x, x, x)), defaultValue: s.units });
-    const f = await api.getKeyword({ prompt: L('Formato lineal', 'Linear format'), keywords: [K('decimal', 'Decimal', 'Decimal', ['d']), K('architectural', 'Arquitectónico', 'Architectural', ['a']), K('engineering', 'Ingeniería', 'Engineering', ['i', 'e']), K('fractional', 'Fraccionario', 'Fractional', ['f']), K('scientific', 'Científico', 'Scientific', ['c', 's'])], defaultValue: s.linearFormat });
-    const p = await api.getNumber({ prompt: L('Precisión lineal (0–8)', 'Linear precision (0–8)'), integer: true, min: 0, max: 8, defaultValue: s.linearPrecision });
-    const af = await api.getKeyword({ prompt: L('Formato angular', 'Angle format'), keywords: [K('degrees', 'Grados decimales', 'Decimal degrees', ['g', 'd']), K('dms', 'GMS', 'DMS', ['dms']), K('grads', 'Centesimales', 'Grads', ['c']), K('radians', 'Radianes', 'Radians', ['r']), K('surveyor', 'Topográfico', 'Surveyor', ['t', 's'])], defaultValue: s.angleFormat });
-    api.apply('UNITS', (tx) =>
-      tx.setSettings({
-        units: (u.kind === 'keyword' ? u.key : s.units) as DrawingUnits,
-        insUnits: (u.kind === 'keyword' ? u.key : s.insUnits) as DrawingUnits,
-        linearFormat: f.kind === 'keyword' ? (f.key as typeof s.linearFormat) : s.linearFormat,
-        linearPrecision: p.kind === 'value' ? p.value : s.linearPrecision,
-        angleFormat: af.kind === 'keyword' ? (af.key as typeof s.angleFormat) : s.angleFormat,
-      }),
-    );
-  },
-};
 
 const RENAME: CommandDef = {
   name: 'RENAME',
@@ -624,6 +602,7 @@ export const UTILITY_COMMANDS: CommandDef[] = [
   LTSCALE,
   PTYPE,
   UNITS,
+  UNITS_CLI,
   RENAME,
   setCurrent('COLOR', ['COL', 'COLOUR'], ['Color actual', 'Current color'], 'currentColor'),
   setCurrent('LINETYPE', ['LT', 'TIPOLIN'], ['Tipo de línea actual', 'Current linetype'], 'currentLinetype'),

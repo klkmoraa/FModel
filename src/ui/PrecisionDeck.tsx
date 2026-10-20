@@ -1,3 +1,4 @@
+import { isPointRequest } from '../app/pointPrecision';
 import { Check, Command, LayoutGrid, MousePointer2, Search, Star, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { findCommand, searchCommands } from '../commands/registry';
@@ -83,6 +84,7 @@ export function PrecisionDeck({
 
   return (
     <div className="precision-deck-shell">
+      {isPointRequest(editor.runner.pending?.req) && <button type="button" className="btn point-precision-trigger" aria-haspopup="dialog" onClick={() => onUi('point-precision')}>{lang === 'es' ? 'Referencia de punto' : 'Point reference'}</button>}
       {open && <ToolDeck editor={editor} onClose={closeDeck} onRun={run} touch={touch} />}
       <nav className="precision-dock" aria-label={lang === 'es' ? 'Herramientas de precisión' : 'Precision tools'}>
         <div className={`precision-dock__context${activeCommand ? ' is-command-active' : ' is-selection-active'}`}>

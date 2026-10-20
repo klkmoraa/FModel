@@ -62,11 +62,13 @@ describe('block editor commands', () => {
     const parameter = editor.runner.execute('BPARAMETER', ['Point']);
     editor.runner.submitText('1e309,0');
     await nextTurn();
-    if (editor.runner.pending?.req.kind === 'string') editor.runner.submitText('Position1');
-    await parameter;
+    expect(editor.runner.pending?.req.kind).toBe('point');
+    expect(editor.runner.feedback?.kind).toBe('error');
+    expect(editor.doc.data.blocks.get(block.id)?.dynamic?.parameters ?? []).toEqual([]);
+    editor.runner.cancel(); await parameter;
 
     expect(editor.doc.data.blocks.get(block.id)?.dynamic?.parameters ?? []).toEqual([]);
-    expect(editor.runner.log.some((entry) => entry.kind === 'error' && /coordenadas|coordinates/i.test(entry.text))).toBe(true);
+    expect(editor.runner.log.some((entry) => entry.kind === 'error' && entry.text.includes('1e309'))).toBe(true);
     await editor.runner.execute('BCLOSE', ['Discard']);
   });
 

@@ -133,15 +133,40 @@ export function CanvasView({ editor, theme, onContextMenu }: Props) {
       return { x: e.clientX - r.left, y: e.clientY - r.top };
     };
     const isTouch = (e: PointerEvent) => e.pointerType === 'touch';
+    let gripTimer: ReturnType<typeof setTimeout> | null = null;
+    const clearGrip = () => { if (gripTimer !== null) clearTimeout(gripTimer); gripTimer = null; };
+    let gestureGrip: { command: typeof editor.runner.active; version: number } | null = null;
+    const cancelUnchangedGestureGrip = () => {
+      const owned = gestureGrip;
+      gestureGrip = null;
+      // Only this gesture's still-unmodified grip may yield to a native double click.
+      if (owned && editor.runner.active === owned.command && owned.command?.def.name === '_GRIP' && editor.doc.version === owned.version) editor.runner.cancelAll();
+    };
+    const currentCommand = () => editor.runner.active;
+    const deferGrip = (activate: () => void) => {
+      clearGrip(); gestureGrip = null;
+      gripTimer = setTimeout(() => { gripTimer = null; const previous = currentCommand(); activate(); const started = currentCommand(); if (!previous && started?.def.name === '_GRIP') gestureGrip = { command: started, version: editor.doc.version }; }, 320);
+    };
+    let secondMouseClick = false;
+    let precisionGesture: { pointerId: number; opened: boolean; cancelled: boolean } | null = null;
+    const mouseDown = (e: MouseEvent) => {
+      if (e.detail < 2) gestureGrip = null;
+      if (e.button === 0 && e.detail >= 2) cancelUnchangedGestureGrip();
+      secondMouseClick = e.button === 0 && e.detail >= 2 && !editor.runner.busy;
+      if (secondMouseClick) clearGrip();
+    };
+
 
     const gesture = new TouchGestureController(
       {
         onTap: (p) => {
           editor.pointerMove(p);
           editor.pointerDown(p, 0);
-          editor.pointerUp(p, 0);
+          editor.pointerUp(p, 0, { deferGrip });
         },
         onDoubleTap: (p) => {
+          clearGrip();
+          cancelUnchangedGestureGrip();
           editor.doubleClick(p);
         },
         onLongPress: (p) => {
@@ -196,7 +221,14 @@ export function CanvasView({ editor, theme, onContextMenu }: Props) {
       }
     );
 
+    const blur = () => {
+      clearGrip(); gestureGrip = null; secondMouseClick = false;
+      // Keep a cancelled right gesture latched until a fresh down consumes its trailing up.
+      if (precisionGesture) precisionGesture.cancelled = true;
+    };
     const down = (e: PointerEvent) => {
+      precisionGesture = null;
+      if (e.button === 2 && e.shiftKey && onContextMenu) { precisionGesture = { pointerId: e.pointerId, opened: false, cancelled: false }; e.preventDefault(); return; }
       try {
         host.setPointerCapture(e.pointerId);
       } catch {
@@ -218,6 +250,11 @@ export function CanvasView({ editor, theme, onContextMenu }: Props) {
       editor.pointerMove(p, { shift: e.shiftKey, buttons: e.buttons });
     };
     const up = (e: PointerEvent) => {
+      if (precisionGesture?.pointerId === e.pointerId && e.button === 2) {
+        e.preventDefault();
+        if (!precisionGesture.opened && !precisionGesture.cancelled) { precisionGesture.opened = true; const p = local(e); onContextMenu?.(p.x, p.y); }
+        return;
+      }
       try {
         if (host.hasPointerCapture(e.pointerId)) {
           host.releasePointerCapture(e.pointerId);
@@ -229,9 +266,12 @@ export function CanvasView({ editor, theme, onContextMenu }: Props) {
         gesture.onPointerUp(e.pointerId, local(e));
         return;
       }
-      editor.pointerUp(local(e), e.button, { shift: e.shiftKey, ctrl: e.ctrlKey || e.metaKey });
+      if (e.button === 0 && secondMouseClick) { secondMouseClick = false; editor.pointerCancel(); return; }
+      editor.pointerUp(local(e), e.button, { shift: e.shiftKey, ctrl: e.ctrlKey || e.metaKey, deferGrip });
     };
     const cancel = (e: PointerEvent) => {
+      clearGrip();
+      if (precisionGesture?.pointerId === e.pointerId) { precisionGesture = null; e.preventDefault(); return; }
       try {
         if (host.hasPointerCapture(e.pointerId)) {
           host.releasePointerCapture(e.pointerId);
@@ -257,12 +297,17 @@ export function CanvasView({ editor, theme, onContextMenu }: Props) {
     const leave = () => editor.pointerLeave();
     const ctx = (e: MouseEvent) => {
       e.preventDefault();
-      if (!editor.runner.busy && onContextMenu && e.shiftKey) {
+      if (precisionGesture) {
+        if (!precisionGesture.opened && !precisionGesture.cancelled) { precisionGesture.opened = true; const p = local(e); onContextMenu?.(p.x, p.y); }
+        return;
+      }
+      if (onContextMenu && e.shiftKey) {
         const p = local(e);
         onContextMenu(p.x, p.y);
       }
     };
     const dbl = (e: MouseEvent) => {
+      clearGrip();
       if (e.button === 1) editor.zoomExtents();
       else if (e.button === 0) editor.doubleClick(local(e));
     };
@@ -291,6 +336,8 @@ export function CanvasView({ editor, theme, onContextMenu }: Props) {
     host.addEventListener('dragover', dragover);
     host.addEventListener('dragleave', dragleave);
     host.addEventListener('drop', drop);
+    window.addEventListener('blur', blur);
+    host.addEventListener('mousedown', mouseDown);
     host.addEventListener('pointerdown', down);
     host.addEventListener('pointermove', move);
     host.addEventListener('pointerup', up);
@@ -301,10 +348,13 @@ export function CanvasView({ editor, theme, onContextMenu }: Props) {
     host.addEventListener('dblclick', dbl);
     host.addEventListener('auxclick', aux);
     return () => {
+      clearGrip();
       gesture.destroy();
       host.removeEventListener('dragover', dragover);
       host.removeEventListener('dragleave', dragleave);
       host.removeEventListener('drop', drop);
+      window.removeEventListener('blur', blur);
+      host.removeEventListener('mousedown', mouseDown);
       host.removeEventListener('pointerdown', down);
       host.removeEventListener('pointermove', move);
       host.removeEventListener('pointerup', up);
