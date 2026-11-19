@@ -87,3 +87,15 @@ Los errores/advertencias se ven sin abrir historial ni teclado y conservan foco/
 ## Precisión, formularios y edición directa / Precision, forms and direct editing
 
 Seis áreas completadas localmente con suite íntegra y revisión fresca. / Six areas completed locally with full suite and fresh review. [Ficha QA, capturas y límites](six-cad-improvements-qa.md). El menú de precisión y los formularios conservan tokens y foco propios; UI-002 sigue abierta para dispositivos físicos.
+
+## Integridad y teclado / Integrity and keyboard (2026-11-18)
+
+El menú Archivo conserva el dibujo si falla la apertura y muestra un aviso accesible ES/EN con el token de peligro. Los modales respetan Tab y Shift+Tab, cada cuadrícula de color mantiene una sola entrada de teclado y las confirmaciones de descarte enfocan Cancelar. / File opening failures preserve the current drawing and show a localized accessible error. Modals respect native Tab order, color grids keep one keyboard entry each, and destructive confirmation initially focuses Cancel.
+
+[Ficha QA, pruebas y límites](integrity-keyboard-qa.md) · [Archivo Día](assets/fmodel-integrity-day.jpg) · [Colores Noche](assets/fmodel-keyboard-night.jpg) · [Confirmación Noche](assets/fmodel-cancel-default.jpg) · [Archivo a 390 px Noche](assets/fmodel-integrity-mobile-night.jpg). Capturas originales del navegador; comprobación local de escritorio y de distribución a 390 px, sin afirmar prueba en dispositivo físico ni aprobación E2E automatizada. / Unmodified browser screenshots from desktop and a 390 px layout check; no physical-device or automated E2E claim.
+
+## Inicio, Archivo y color / Home, File and color (UI-020/021/022)
+
+Pasada de diseño del 2026-11-18: Archivo separa acciones y dibujos, distingue carga/vacío/error y conserva las filas cuando falla eliminar. El selector presenta ACI 1–255, muestras legibles, selección real independiente del foco y Escape en dos pasos. Inicio conserva «sin guardar» ante títulos largos y mejora el contraste del texto funcional con tokens existentes. / Scoped design pass: clearer file hierarchy and states, complete ACI palette with independent focus/selection, and visible unsaved status for long document names.
+
+[Ficha completa: decisiones, 59 pruebas, revisión independiente, originales y límites](design-pass-qa.md). Vistas finales de Archivo [Día](assets/fmodel-design-07-file-after-day.jpg) · [Noche](assets/fmodel-design-08-file-after-night.jpg), color [Día](assets/fmodel-design-14-color-after-day.jpg) · [Noche](assets/fmodel-design-10-color-after-night.jpg), Inicio a [320 px Día](assets/fmodel-design-06-home-long-after-320-day.jpg) · [390 px Noche](assets/fmodel-design-05-home-long-after-mobile-night.jpg). La ficha también incluye controles con sólo 400 px de alto. Capturas reales sin editar; ventanas estrechas simuladas mediante iframe, sin afirmar dispositivos físicos. / Raw browser originals, including a short viewport; no physical-device claim.

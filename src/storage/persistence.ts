@@ -265,6 +265,10 @@ export class Persistence {
   }
 
   private recordSuccess(op: PersistenceHealth['lastOp']) {
+    // Leer, borrar o marcar una salida no demuestra que se pueda guardar el dibujo.
+    // Conserva el aviso y su causa hasta que una instantánea completa se escriba bien.
+    const savedDrawing = op === 'autosave' || op === 'session' || op === 'saveVersion' || op === 'storeDrawing' || op === 'storeDrawingAndVersion';
+    if (this._health.status !== 'protected' && !savedDrawing) return;
     this._health = {
       status: 'protected',
       lastSuccessAt: Date.now(),
@@ -345,6 +349,7 @@ export class Persistence {
           get('recovery').put(rec);
           get('versions').put(vRec);
         });
+        this.recordSuccess('autosave');
         this.lastVersionAt.set(doc.id, now);
         versionSaved = true;
 
@@ -365,8 +370,8 @@ export class Persistence {
         }
       } else {
         await idb.idbPut('recovery', rec);
+        this.recordSuccess('autosave');
       }
-      this.recordSuccess('autosave');
       return { status: 'saved', savedAt: now, versionSaved };
     } catch (err) {
       const classified = this.recordFailure('autosave', err);
@@ -505,6 +510,7 @@ export class Persistence {
         };
         get('versions').put(version);
       });
+      this.recordSuccess('storeDrawingAndVersion');
       try {
         const all = (await idb.idbAll<VersionRecord>('versions'))
           .filter((v) => v.documentId === snapshot.documentId && v.auto)
@@ -519,7 +525,6 @@ export class Persistence {
       } catch {
         // No invalidar la operación principal si falla la poda secundaria
       }
-      this.recordSuccess('storeDrawingAndVersion');
       return { drawing, version };
     } catch (err) {
       this.recordFailure('storeDrawingAndVersion', err);
@@ -542,6 +547,7 @@ export class Persistence {
     };
     try {
       await idb.idbPut('versions', rec);
+      this.recordSuccess('saveVersion');
       // conservar como máximo 40 versiones automáticas por documento
       try {
         const all = (await idb.idbAll<VersionRecord>('versions'))
@@ -557,7 +563,6 @@ export class Persistence {
       } catch {
         // No invalidar el guardado de versión si la poda secundaria falla
       }
-      this.recordSuccess('saveVersion');
       return rec;
     } catch (err) {
       this.recordFailure('saveVersion', err);

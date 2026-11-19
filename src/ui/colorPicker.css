@@ -1,0 +1,228 @@
+.color-picker {
+  min-width: 0;
+}
+
+.color-picker__trigger.input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  height: auto;
+  text-align: left;
+}
+
+@media (max-width: 640px), (pointer: coarse) {
+  .color-picker__trigger.input {
+    min-height: 44px;
+  }
+}
+
+.color-picker__trigger .swatch {
+  flex: 0 0 auto;
+}
+
+.color-picker__value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.color-picker__overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+}
+
+.color-picker__dialog {
+  position: fixed;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  /* En ventanas bajas, el contenido fijo también debe seguir siendo alcanzable. */
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-lifted);
+}
+
+.color-picker__head,
+.color-picker__inherited,
+.color-picker__aci-entry {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.color-picker__head,
+.color-picker__inherited,
+.color-picker__custom,
+.color-picker__palette:not(.color-picker__palette--extended) {
+  flex: 0 0 auto;
+}
+
+.color-picker__head h2 {
+  flex: 1;
+  margin: 0;
+  color: var(--ink-strong);
+  font: 650 16px/1.25 var(--fs-font-display);
+}
+
+.color-picker__dialog .btn {
+  min-width: 44px;
+  min-height: 44px;
+  height: auto;
+}
+
+.color-picker__inherited > .btn {
+  flex: 1;
+}
+
+.color-picker__palette {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.color-picker__palette h3,
+.color-picker__custom label {
+  margin: 0;
+  color: var(--ink-secondary);
+  font: 550 12px/1.4 var(--fs-font-ui);
+}
+
+.color-picker__palette h3 {
+  flex: 0 0 auto;
+}
+
+.color-picker__palette--extended {
+  flex: 1 1 auto;
+  min-height: 76px;
+}
+
+.color-picker__grid {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 3px;
+  margin: -3px;
+}
+
+.color-picker__grid--scroll {
+  max-height: 192px;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.color-picker__row {
+  display: grid;
+  flex: 0 0 auto;
+  gap: 4px;
+}
+
+.color-picker__cell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
+  min-height: 48px;
+  padding: 5px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-xs);
+  background: var(--surface-sunken);
+  color: var(--ink);
+  font: 500 11px/1 var(--fs-font-data);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.color-picker__cell:hover {
+  background: var(--surface-hover);
+}
+
+.color-picker__cell[aria-selected='true'] {
+  border-color: var(--fs-interaction);
+  background: var(--fs-interaction-soft);
+  box-shadow: inset 0 0 0 1px var(--fs-interaction);
+  color: var(--fs-interaction-text);
+}
+
+.color-picker__cell:focus-visible {
+  outline: 2px solid var(--fs-interaction);
+  outline-offset: 1px;
+}
+
+.color-picker__chip {
+  display: block;
+  height: 18px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+}
+
+.color-picker__selected {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--fs-interaction-text);
+  font: 700 12px/1 var(--fs-font-ui);
+}
+
+.color-picker__custom {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 96px;
+  align-items: start;
+  gap: 6px 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.color-picker__precise,
+.color-picker__true-color {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.color-picker__aci-entry {
+  gap: 6px;
+}
+
+.color-picker__aci-entry .input {
+  min-width: 0;
+  min-height: 44px;
+  height: auto;
+  font-size: 16px;
+}
+
+.color-picker__true-color input {
+  width: 100%;
+  height: 44px;
+  padding: 5px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  cursor: pointer;
+}
+
+.color-picker__error {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--fm-danger);
+  font: 500 12px/1.4 var(--fs-font-ui);
+}

@@ -17,7 +17,7 @@ export async function confirmDiscard(editor: Editor): Promise<boolean> {
     lang,
     tr(lang, 'Cambios sin guardar', 'Unsaved changes'),
     tr(lang, 'El dibujo actual tiene cambios sin guardar. Si continúas, se descartarán.', 'The current drawing has unsaved changes. If you continue, they will be discarded.'),
-    { confirmLabel: tr(lang, 'Descartar y continuar', 'Discard and continue') },
+    { confirmLabel: tr(lang, 'Descartar y continuar', 'Discard and continue'), danger: true },
   );
 }
 
