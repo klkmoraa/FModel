@@ -6,9 +6,15 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 44px;
+  min-height: 40px;
   height: auto;
   text-align: left;
+}
+
+@media (max-width: 640px), (pointer: coarse) {
+  .color-picker__trigger.input {
+    min-height: 44px;
+  }
 }
 
 .color-picker__trigger .swatch {

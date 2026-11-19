@@ -17,6 +17,7 @@ El controlador inspeccionó los originales de esta ejecución y comprobó los co
 | P2 | Selector de color: tamaño y significado | Muestras básicas de 22 × 22 px y ampliadas de aproximadamente 8.6 × 9 px; PorBloque anunciaba ACI 1 seleccionado | Muestras de 48 px de alto, número visible y nombre accesible, selección real separada del foco; 5 columnas a 320 px y 6 a 390 px/escritorio | Permite identificar y elegir colores con precisión. Capturas 02, 10–12 y 14; Tab/flechas no modifican el color |
 | P2 | Selector de color: rango y teclado | Paleta ampliada terminaba en ACI 249 y no había entrada precisa | ACI 1–255 completo, campo validado, portal con foco propio y Escape en dos pasos | ACI 256 se rechaza; 255 se aplica y queda seleccionado al reabrir. Primer Escape vuelve al disparador; segundo, al comando |
 | P2 | Selector de color: poca altura | En la primera candidata a 320 × 400, Aplicar terminaba en y425.59 fuera del viewport | El diálogo ofrece scroll cuando su contenido mínimo no cabe; tras enfocar ACI, Aplicar termina en y378.59 | La revisión independiente encontró el caso; el controlador lo reprodujo y verificó la corrección. Captura 13 |
+| P2 | Inspector de capas: densidad | El disparador de color de 44 px elevaba el inspector inicial a 434.69 px, por encima de su contrato de 430 px | Disparador de 40 px en escritorio y 44 px en ventana estrecha/puntero grueso; muestras de 48 px intactas | Detectado por el E2E existente; se corrige el control compartido y se conserva el límite de la prueba |
 | P2 | Inicio: estado del dibujo | Un nombre largo recortaba por completo «sin guardar» a 390 px | Se trunca sólo el título; el estado conserva espacio propio y puede ocupar otra línea a 320 px | Evita esconder un estado de datos importante. Capturas 04–06 |
 | P2 | Inicio: texto secundario | Etiqueta, contadores y descripciones funcionales usaban el token más tenue | Usan el token secundario existente; contadores con cifras tabulares | Contraste calculado con los colores renderizados: Noche 2.98:1 → 5.42:1 y Día 3.55:1 → 5.55:1 sobre la tarjeta. No es una certificación global de contraste |
 
@@ -61,6 +62,12 @@ git diff --check
 
 La [ficha anterior](integrity-keyboard-qa.md) conserva los resultados históricos de integridad (126 pruebas conjuntas y cinco posteriores de App/modal). La pasada actual amplía las regresiones del selector y Archivo. `e2e/modalKeyboard.spec.ts` se actualiza para el portal y Escape anidado; el ejecutor local de Playwright no pudo iniciar el navegador por la restricción de sockets ya documentada, por lo que aquí no se afirma un E2E automatizado aprobado. GitHub Actions mantiene sus gates existentes.
 
+### Primera ejecución remota y corrección del inspector
+
+[CI 44464362338](https://github.com/klkmoraa/FModel/actions/runs/44464362338), sobre `872b19c`, pasó **1502 pruebas en 157 archivos**, cobertura y build público. En Chromium pasaron **79 de 80 recorridos**, incluido el nuevo de Tab/Escape. El único fallo, repetido en sus tres intentos, fue `brandbookVisual.spec.ts`: el inspector de capas medía 434.6875 px frente al máximo existente de 430 px.
+
+La investigación encontró que el nuevo `min-height: 44px` del disparador de color dominaba el `height: 26px` de las dos filas iniciales de capas. Se ajusta sólo el disparador a 40 px en escritorio y se conservan 44 px para ventanas de hasta 640 px o puntero grueso. Las muestras y acciones interiores no cambian. No se modifica el assert, sus reintentos ni el workflow. La revisión visual independiente de la corrección midió ambos disparadores a 40 px. En el mismo Chrome de 1363 × 936, el inspector en inglés mide **423.6875 px**, dentro del límite de 430 px. En español mide **438.6875 px**: Blanco/Negro hace que la tabla exceda 2 px de ancho y aparezca una barra horizontal nativa de 15 px. En inglés, White/Black cabe y esa barra desaparece. Las capturas 16/17 documentan esa diferencia; no se presenta el valor español como una medida del escenario inglés del CI. El resultado de la candidata posterior queda registrado en el [PR #8](https://github.com/klkmoraa/FModel/pull/8).
+
 ## Originales de esta ejecución
 
 Todos los archivos siguientes son JPEG de **1363 × 936**, copiados byte a byte desde el navegador, sin recorte, retoque ni composición. En las vistas estrechas, el área de FModel es un iframe de 320/390 px, rodeado por el marco gris del fixture. Los selectores «Ancho/Alto de prueba» pertenecen al fixture ignorado por Git, no a la aplicación.
@@ -82,6 +89,8 @@ Todos los archivos siguientes son JPEG de **1363 × 936**, copiados byte a byte 
 | [13 · Color después, 320 × 400 Noche](assets/fmodel-design-13-color-after-320x400-night.jpg) | ACI y Aplicar accesibles después de desplazar el panel |
 | [14 · Color después, Día](assets/fmodel-design-14-color-after-day.jpg) | ACI 255 seleccionado y extremo completo de la paleta |
 | [15 · Archivo después, 390 px Noche](assets/fmodel-design-15-file-after-390-night.jpg) | Lista adaptable y objetivo de eliminar con foco |
+| [16 · Capas después, Día ES](assets/fmodel-design-16-layers-after-day.jpg) | Disparadores de 40 px, inspector en español con barra horizontal nativa |
+| [17 · Capas después, Día EN](assets/fmodel-design-17-layers-after-day-en.jpg) | Inspector en inglés de 423.69 px sin barra horizontal |
 
 ## Límites y pendientes
 
@@ -109,4 +118,6 @@ e38d06c64abfdb021e572ecef27f9a9ac8ce47b9ca15f5e6837b2f1d6e6d4468  fmodel-design-
 37410ebd0fc6005236def4cbe764948754cbc78b1378a5cdb1d2d6550f45e0c9  fmodel-design-13-color-after-320x400-night.jpg
 50e96da6c26759b0fdae78eaaf276ba2a54e3650b4290fb8e9ed087eef08ce30  fmodel-design-14-color-after-day.jpg
 5fe975094065242ac63fa41dc37db28fb94397281a56501d0bbaf1a1fbbd5833  fmodel-design-15-file-after-390-night.jpg
+0a935de2726961a3719284c9b75712871461b149dff460903b0b7c52a6dfdf15  fmodel-design-16-layers-after-day.jpg
+c5664a4803779861834d2ddaf2054842e9434f04776198275d1b939b419fe3ba  fmodel-design-17-layers-after-day-en.jpg
 ```
