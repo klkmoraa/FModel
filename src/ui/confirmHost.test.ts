@@ -4,6 +4,9 @@ import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { askConfirm, askText, ConfirmHost } from './ConfirmHost';
 import { Dialog } from './Dialogs';
+import { createDocument } from '../document/defaults';
+import { Editor } from '../editor/editor';
+import { confirmDiscard } from './welcome/actions';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -40,6 +43,23 @@ describe('ConfirmHost: confirmaciones propias en lugar de diálogos nativos', ()
     });
     await act(async () => findButton('Cancelar')?.click());
     expect(await answer).toBe(false);
+  });
+
+  it('descartar cambios da foco a Cancelar y permite volver al dibujo sin perderlo', async () => {
+    const editor = new Editor(createDocument({ title: 'Plano pendiente' }));
+    editor.setPrefs({ lang: 'es' });
+    editor.doc.dirty = true;
+    const data = editor.doc.data;
+    await act(async () => root.render(createElement(ConfirmHost, { lang: 'es' })));
+
+    let answer: Promise<boolean> = Promise.resolve(true);
+    await act(async () => { answer = confirmDiscard(editor); });
+
+    expect(document.activeElement).toBe(findButton('Cancelar'));
+    await act(async () => (document.activeElement as HTMLElement).click());
+    expect(await answer).toBe(false);
+    expect(editor.doc.data).toBe(data);
+    expect(editor.doc.dirty).toBe(true);
   });
 
   it('askText devuelve el texto escrito o null al cancelar', async () => {

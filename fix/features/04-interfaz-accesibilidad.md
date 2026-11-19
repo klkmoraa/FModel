@@ -280,3 +280,158 @@
 - **Responsable:** Sol 6.1 xhigh · **Prioridad:** P2
 
 **Alcance y evidencia:** implementación de la propuesta autorizada tras la comparación con CADCraft, con regresiones y revisión fresca independiente. [Ficha común: contratos, pruebas completas, capturas y límites](../../docs/brandbook/six-cad-improvements-qa.md). UI-012 y trabajo previo conservados; sin commit/push/publicación. UI-002 no se cierra.
+
+---
+
+## UI-016 — Respetar la navegación por Tab en diálogos
+
+- **Prioridad:** P2 — recorridos de teclado excesivos o desviados a controles no disponibles
+- **Responsable:** Codex
+- **Registro:** 2026-11-18
+- **Estado vigente:** consultar el índice de [README.md](./README.md)
+
+**Falla identificada:** el atrapamiento de foco de los modales seleccionaba todos los botones habilitados, incluidos los de `tabIndex=-1`, y sustituía el comportamiento de cada pulsación de Tab. Esto anulaba el recorrido de pestañas segmentadas y podía convertir las 249 muestras del selector de color en paradas consecutivas. Tampoco excluía correctamente controles bajo antecesores ocultos, inertes o deshabilitados. Al dejar el recorrido interno al navegador apareció otro defecto en el selector: las flechas cambiaban el foco, pero el único `tabIndex=0` seguía en el color seleccionado; Shift+Tab podía volver dentro de la misma cuadrícula en vez de salir de ella.
+
+**Corrección:** `useModalFocusTrap` filtra los controles disponibles y solo interviene en los extremos, cuando el foco está fuera o cuando no hay ninguna parada secuencial. Dentro del diálogo se conserva el recorrido nativo. Sigue respetando Escape consumido por un control, el modal superior y la devolución del foco al cerrar. `ColorPicker` mantiene una parada independiente por cuadrícula y la actualiza al recibir foco: las flechas recorren colores sin confirmarlos, Tab y Shift+Tab pueden salir y volver al último color enfocado, y una reapertura parte del color seleccionado o de una entrada válida por defecto.
+
+**Archivos:** `src/ui/modalFocus.ts`, `src/ui/modalFocus.test.ts`, `src/ui/controls.tsx`, `src/ui/colorPicker.test.ts`, `e2e/modalKeyboard.spec.ts`.
+
+**Criterios de aceptación:**
+
+- [x] El foco inicial y la vuelta entre extremos omiten índices negativos, controles deshabilitados, campos ocultos y contenidos bajo `hidden`, `inert`, `aria-hidden`, `display:none` o visibilidad no disponible.
+- [x] El modal no cancela el Tab interior y conserva el orden secuencial, incluidos índices positivos, cuando interviene en sus extremos.
+- [x] Los modales apilados conservan Escape y restauran el foco; un control que consume Escape puede mantener abierto su diálogo.
+- [x] Cada cuadrícula de color conserva una sola parada de Tab, actualizada por las flechas sin cambiar la selección.
+- [x] La confirmación cambia el color y cierra el selector; cerrar sin confirmar no convierte el último foco en una selección.
+- [x] Reabrir el selector restablece entradas válidas para colores básicos, ampliados, PorCapa y color verdadero.
+
+**Pruebas focalizadas:** `src/ui/modalFocus.test.ts` contiene 19 casos sobre exclusiones, límites, foco programático y modales apilados; `src/ui/colorPicker.test.ts` contiene 6 sobre foco y selección. La ampliación del selector falló en 3/6 casos antes de corregirse y después pasaron 25/25 entre ambos archivos. Los dos están incluidos en la [verificación conjunta de 126 pruebas](./01-integridad-archivos.md#verificación-conjunta-de-dat-009-a-ui-017).
+
+**Límites de evidencia:** jsdom no ejecuta el desplazamiento nativo de Tab; sus pruebas comprueban cuándo el modal lo permite y qué controles mantienen las paradas. `e2e/modalKeyboard.spec.ts` cubre la secuencia prevista en Estilos: pestaña a contenido, vuelta entre Cerrar y Listo, flechas y recorrido de ida y vuelta entre ambas cuadrículas y Color verdadero, Escape y retorno a la línea de comandos. El ejecutor E2E quedó bloqueado por `EPERM` al abrir el socket y no se declara aprobado. La revisión manual de la vista previa se registra por separado en `docs/brandbook/`; no acredita lectores de pantalla ni dispositivos táctiles físicos y no cierra UI-002.
+
+---
+
+## UI-017 — Cancelar por defecto al descartar cambios
+
+- **Prioridad:** P2 — una confirmación de pérdida de cambios enfocaba la acción destructiva
+- **Responsable:** Codex
+- **Registro:** 2026-11-18
+- **Estado vigente:** consultar el índice de [README.md](./README.md)
+
+**Falla reproducida:** `confirmDiscard`, compartido por las aperturas desde Inicio y los dibujos guardados de Archivo, no marcaba la confirmación como destructiva. `ConfirmHost` enfocaba entonces «Descartar y continuar»; una activación adicional podía confirmar la pérdida de los cambios actuales. Esto contradecía el criterio de foco seguro ya definido en UI-005.
+
+**Corrección:** `confirmDiscard` declara `danger: true` y utiliza el comportamiento existente de `ConfirmHost`: foco inicial en Cancelar y apariencia de peligro en la acción de descarte. El usuario puede confirmar explícitamente si quiere continuar; no se cambian los datos del dibujo al presentar o cancelar la pregunta.
+
+**Archivos:** `src/ui/welcome/actions.ts`, `src/ui/confirmHost.test.ts`.
+
+**Criterios de aceptación:**
+
+- [x] La confirmación de cambios sin guardar enfoca Cancelar al abrirse.
+- [x] Hacer clic en Cancelar, la opción inicialmente enfocada, devuelve `false`, conserva el documento y mantiene su estado de cambios pendientes.
+- [x] Se conserva el comportamiento existente de las demás confirmaciones, entrada de texto y Escape con diálogos apilados.
+- [x] Se reutilizan los textos bilingües, controles y tokens existentes.
+
+**Pruebas focalizadas:** la regresión nueva falló inicialmente porque el foco estaba en «Descartar y continuar». Tras el cambio, `pnpm exec vitest run src/storage/persistence.test.ts src/ui/confirmHost.test.ts --maxWorkers=2` pasó 45/45 pruebas en esa etapa: 41 de persistencia y 4 de confirmación. La [verificación conjunta posterior](./01-integridad-archivos.md#verificación-conjunta-de-dat-009-a-ui-017), que incluye las nuevas carreras de DAT-011, pasó 126/126.
+
+**Límite:** UI-017 corrige el valor inicial seguro de esta confirmación compartida. Su regresión activa Cancelar mediante clic; no acredita la propagación de Intro o Espacio desde la aplicación completa. No altera los comandos de guardado ni sustituye la validación de archivos de DAT-009.
+
+---
+
+## UI-018 — Respetar el teclado de las confirmaciones modales
+
+- **Prioridad:** P2 — Intro, Espacio y atajos podían llegar al editor detrás de una confirmación
+- **Responsable:** Codex
+- **Registro:** 2026-11-18
+- **Estado vigente:** consultar el índice de [README.md](./README.md)
+
+**Falla reproducida:** al iniciar un dibujo desde Inicio con cambios pendientes, Cancelar recibía foco pero Intro y Espacio no lo activaban. El listener global de `App` sólo comprobaba sus estados de diálogo y paleta; `ConfirmHost` mantiene estado independiente. La tecla llegaba a `editor.key`, que podía repetir o continuar comandos y cancelaba la activación nativa del botón. Ctrl+S también podía ejecutar QSAVE detrás de esa confirmación.
+
+**Corrección:** el listener global devuelve el control antes de atajos y comandos si el evento ya está consumido o se origina dentro de `[aria-modal="true"]`. Los botones conservan la activación nativa; Escape y los límites de Tab siguen perteneciendo al modal.
+
+**Archivos:** `src/ui/App.tsx`, `src/ui/appModalKeyboard.test.ts`.
+
+**Criterios de aceptación:**
+
+- [x] Intro y Espacio en Cancelar no se cancelan ni llegan al editor.
+- [x] Los atajos del editor no actúan detrás de la confirmación modal.
+- [x] Una tecla previamente consumida no se vuelve a procesar.
+- [x] Tab, Shift+Tab y Escape mantienen el comportamiento del modal.
+- [x] Activar Cancelar conserva el dibujo y sus cambios pendientes.
+
+**Evidencia:** la nueva integración de `App`, `ConfirmHost`, `Editor` y `Persistence` reales falló en cuatro de cinco casos antes de corregirse. `pnpm vitest run src/ui/appModalKeyboard.test.ts --maxWorkers=2` pasó **5/5** y `pnpm typecheck` pasó. jsdom comprueba la propagación y la acción por separado: no simula la activación nativa de un botón por teclado. La revisión manual posterior sí confirmó Intro y Espacio: ambos cierran la confirmación y conservan dos entidades sin guardar. La revisión independiente no encontró bloqueadores. Lint y build público se volvieron a comprobar después del cambio.
+
+**Límites:** no modifica el alcance general de atajos de Inicio fuera de un modal; esa observación se registra en UI-019. [Ficha QA y capturas](../../docs/brandbook/integrity-keyboard-qa.md).
+
+---
+
+## UI-019 — Delimitar los atajos del lienzo en Inicio
+
+- **Prioridad:** P2
+- **Registro:** 2026-11-18
+- **Estado vigente:** consultar el índice de [README.md](./README.md)
+
+**Observación de revisión:** el listener global de teclado de `App` sigue activo cuando `surface === 'welcome'`. Fuera de los campos de texto y de los modales, botones de Inicio pueden enviar Intro o Espacio a `editor.key`. UI-018 protege las confirmaciones, pero no define qué atajos deben permanecer globales en Inicio.
+
+**Trabajo pendiente:** separar los atajos deliberadamente globales (por ejemplo, la búsqueda) de las teclas propias del lienzo. Añadir una regresión con la aplicación completa para la activación nativa de botones de Inicio y para el regreso al lienzo. Comprobar que no se repiten comandos detrás de Inicio ni se pierden atajos previstos. No implementar una guardia indiscriminada que suprima esos accesos.
+
+**Evidencia actual:** inspección de `App` y `Editor.key`; el defecto de la confirmación relacionado se reprodujo en navegador y está resuelto en UI-018. Esta tarea más amplia no se declara implementada ni verificada.
+
+---
+
+## UI-020 — Claridad y estados del menú Archivo
+
+- **Prioridad:** P2
+- **Registro y cierre de implementación:** 2026-11-18
+- **Estado vigente:** consultar el índice de [README.md](./README.md)
+
+**Problema:** acciones y dibujos competían en cuatro columnas; los nombres compartían una fila estrecha con la fecha, y eliminar medía 28 px. Durante la consulta se mostraba un falso vacío; los fallos de lectura o eliminación no tenían una respuesta accesible.
+
+**Corrección:** tres grupos adaptables de acciones y una sección separada de archivos, nombres ajustables y fechas localizadas en `<time>`. Eliminar mide 40 px en escritorio y 44 px en ventana estrecha/puntero grueso. La consulta distingue carga, vacío y error con Reintentar; eliminar comunica espera y conserva la fila si falla. Se mantiene la apertura segura de DAT-009.
+
+- [x] Nombres largos y fechas permanecen legibles en Día/Noche y a 320/390 px.
+- [x] Carga, resultado vacío y fallo tienen estados diferentes.
+- [x] Reintentar recupera una lectura fallida; un rechazo al eliminar no retira la fila.
+- [x] Se preservan `confirmDiscard`, validación del paquete y separación del archivo físico anterior.
+- [x] Textos ES/EN, controles existentes y capturas originales registrados.
+
+**Evidencia:** 12/12 pruebas de Archivo, ocho regresiones nuevas inicialmente rojas. Revisión independiente sin bloqueadores; DOM real confirma los tamaños y ausencia de desbordamiento. [Ficha de diseño: capturas 01, 07–09 y 15, pruebas y límites](../../docs/brandbook/design-pass-qa.md).
+
+---
+
+## UI-021 — Selector de color legible y accesible
+
+- **Prioridad:** P2
+- **Registro y cierre de implementación:** 2026-11-18
+- **Estado vigente:** consultar el índice de [README.md](./README.md)
+
+**Problema:** la paleta ampliada tenía objetivos de aproximadamente 8.6 × 9 px; el foco inicial se confundía con selección de rojo y faltaban ACI 250–255. El contenedor podía recortar el selector.
+
+**Corrección:** diálogo en portal con el trap de foco existente, muestras numeradas de 48 px de alto y cinco/seis columnas según el ancho. Selección y foco independientes, rango ACI 1–255 completo, entrada precisa validada y scroll de paleta. A poca altura, el panel también puede desplazarse para alcanzar los controles inferiores.
+
+- [x] PorCapa, PorBloque, color verdadero y valores mezclados no seleccionan falsamente ACI 1.
+- [x] Flechas corresponden a las columnas reales; Tab mantiene una parada por cuadrícula sin modificar el dibujo.
+- [x] ACI fuera de 1–255 se rechaza; confirmar cierra y devuelve foco al disparador.
+- [x] Escape cierra sólo el selector; otro Escape queda al diálogo padre.
+- [x] Clic exterior cierra sin modificar el color ni activar el contenedor React.
+- [x] Revisión Día/Noche, 320/390 px y altura de 400 px, con objetivos conservados.
+
+**Evidencia:** 16 pruebas del selector y 20 de foco modal; las cinco regresiones App/modal también pasan. El navegador confirma 256 rechazado, 255 aplicado/seleccionado, flechas y Escape en dos pasos. La revisión independiente detectó el desbordamiento vertical de la primera candidata; tras corregirlo, Aplicar queda accesible a 320 × 400. [Ficha y originales 02, 10–14](../../docs/brandbook/design-pass-qa.md). El E2E actualizado se incorpora a los gates existentes; la ficha local no anticipa su resultado remoto.
+
+---
+
+## UI-022 — Estado y legibilidad del dibujo en Inicio
+
+- **Prioridad:** P2
+- **Registro y cierre de implementación:** 2026-11-18
+- **Estado vigente:** consultar el índice de [README.md](./README.md)
+
+**Problema:** un título largo recortaba «sin guardar» fuera de la tarjeta; etiquetas y contadores usaban un token demasiado tenue para su función.
+
+**Corrección:** el título tiene su propio truncado y el indicador de cambios conserva espacio o pasa a otra línea. El texto funcional utiliza el token secundario existente y los contadores usan cifras tabulares.
+
+- [x] El aviso permanece visible con el título largo a 390 px Noche y 320 px Día.
+- [x] Los contadores y el estado del documento conservan sus valores; no cambia la apertura ni el guardado.
+- [x] No hay desbordamiento horizontal en la ventana de 320 px.
+- [x] Texto funcional con más contraste usando la paleta actual; capturas antes/después registradas.
+
+**Evidencia:** inspección visual y medidas del DOM. El contraste de texto secundario sobre la tarjeta pasa de 2.98:1 a 5.42:1 en Noche y de 3.55:1 a 5.55:1 en Día; estos cálculos no certifican el producto completo. Revisión independiente sin bloqueadores; regresiones existentes de Inicio conservadas. [Ficha y originales 03–06](../../docs/brandbook/design-pass-qa.md). UI-019 permanece abierta.

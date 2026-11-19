@@ -130,3 +130,20 @@ Formato de evidencia para pegar al final de una tarea:
 | 63 | CMD-003 | P2 | FROM y M2P/MTP | Cerrada local | UI-013 | [Comandos](./02-geometria-comandos.md#cmd-003--modificadores-from-y-m2pmtp) |
 | 64 | UI-014 | P2 | Formulario UNITS | Cerrada local | UI-013 | [Interfaz](./04-interfaz-accesibilidad.md#ui-014--formulario-de-unidades) |
 | 65 | UI-015 | P2 | Edición por doble clic | Cerrada local | UI-013 | [Interfaz](./04-interfaz-accesibilidad.md#ui-015--edición-por-doble-clic) |
+
+## Revisión de integridad y teclado · 2026-11-18
+
+| ID | Prioridad | Tarea | Estado | Documento |
+|---|:---:|---|---|---|
+| DAT-009 | P1 | Separar el archivo físico anterior al abrir un dibujo local | [x] Cerrada local (2026-11-18) | [Integridad](./01-integridad-archivos.md#dat-009--abrir-un-dibujo-local-sin-sobrescribir-el-archivo-anterior) |
+| DAT-010 | P1 | Conservar números DXF grandes y rechazar desbordamientos | [x] Cerrada local (2026-11-18) | [Integridad](./01-integridad-archivos.md#dat-010--escribir-números-dxf-sin-corromper-la-geometría) |
+| DAT-011 | P1 | Mantener el aviso de almacenamiento hasta guardar datos | [x] Cerrada local (2026-11-18) | [Integridad](./01-integridad-archivos.md#dat-011--no-ocultar-fallos-de-guardado-con-lecturas-exitosas) |
+| UI-016 | P2 | Respetar el orden de Tab y los controles ocultos en modales | [x] Cerrada local (2026-11-18) | [Interfaz](./04-interfaz-accesibilidad.md#ui-016--respetar-la-navegación-por-tab-en-diálogos) |
+| UI-017 | P2 | Dar foco inicial a Cancelar al descartar cambios | [x] Cerrada local (2026-11-18) | [Interfaz](./04-interfaz-accesibilidad.md#ui-017--cancelar-por-defecto-al-descartar-cambios) |
+| UI-018 | P2 | Evitar que el editor capture teclas de confirmaciones modales | [x] Cerrada local (2026-11-18) | [Interfaz](./04-interfaz-accesibilidad.md#ui-018--respetar-el-teclado-de-las-confirmaciones-modales) |
+| UI-019 | P2 | Revisar el alcance de los atajos del lienzo en Inicio | Abierta | [Interfaz](./04-interfaz-accesibilidad.md#ui-019--delimitar-los-atajos-del-lienzo-en-inicio) |
+| UI-020 | P2 | Ordenar dibujos guardados y distinguir carga, vacío y error | [x] Cerrada (2026-11-18) | [Interfaz](./04-interfaz-accesibilidad.md#ui-020--claridad-y-estados-del-menú-archivo) |
+| UI-021 | P2 | Hacer legible y preciso el selector de colores | [x] Cerrada (2026-11-18) | [Interfaz](./04-interfaz-accesibilidad.md#ui-021--selector-de-color-legible-y-accesible) |
+| UI-022 | P2 | Conservar el estado sin guardar y mejorar la lectura en Inicio | [x] Cerrada (2026-11-18) | [Interfaz](./04-interfaz-accesibilidad.md#ui-022--estado-y-legibilidad-del-dibujo-en-inicio) |
+
+**Evidencia de implementación:** [integridad y teclado](../../docs/brandbook/integrity-keyboard-qa.md) y [pasada de diseño](../../docs/brandbook/design-pass-qa.md), con pruebas, revisión independiente, originales y límites. Las seis correcciones iniciales se conservan junto a UI-020/021/022; la integración autorizada se registra mediante su PR. UI-019 permanece abierta.

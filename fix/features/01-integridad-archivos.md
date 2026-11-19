@@ -283,3 +283,101 @@ Una polilínea válida con menos de dos vértices provocaba `TypeError` al ejecu
 - [x] Mantener el error bilingüe de biblioteca demasiado grande.
 
 **Evidencia de cierre:** `writeLibraryArchive` comprueba `1 + blocks.length` antes de recorrer los bloques. La suite existente `src/blocks/libraryArchive.test.ts`, incluido el umbral de entradas ZIP, pasó 34/34 pruebas; `pnpm typecheck` pasó.
+
+---
+
+## DAT-009 — Abrir un dibujo local sin sobrescribir el archivo anterior
+
+- **Prioridad:** P1 — pérdida de datos por reutilizar el destino de otro dibujo
+- **Responsable:** Codex
+- **Registro:** 2026-11-18
+- **Estado vigente:** consultar el índice de [README.md](./README.md)
+
+**Falla reproducida:** después de abrir un archivo físico A, seleccionar un dibujo B en Archivo → Guardados en este navegador sustituía el documento pero conservaba el manejador de A. El siguiente `QSAVE` escribía B sobre A sin pedir un destino nuevo. Ese camino también dejaba desactualizado `ctx.fileName`, no retiraba la extensión `.FMODEL` en mayúsculas y no mostraba un aviso cuando el paquete guardado estaba dañado.
+
+**Corrección:** `FileMenu` reutiliza `openStoredDrawing`, que ya usaba Inicio. El paquete se valida antes de sustituir el documento; una apertura válida sincroniza los nombres y desvincula el archivo físico anterior. Una apertura fallida mantiene el diálogo y muestra un aviso bilingüe con `role="alert"` en su pie, usando los tokens existentes y permitiendo partir nombres largos. No cambia el formato nativo ni la política de confirmación previa; el foco seguro de esa confirmación se trata en UI-017.
+
+**Archivos:** `src/ui/dialogs/FileMenu.tsx`, `src/ui/dialogs/fileMenu.test.ts`; se reutiliza, sin duplicarlo, el contrato de `src/ui/welcome/actions.ts`.
+
+**Criterios de aceptación:**
+
+- [x] Abrir B desde Archivo desvincula el manejador de A antes de un guardado posterior.
+- [x] El siguiente `QSAVE` solicita un destino nuevo y escribe el identificador y contenido de B; A no recibe ninguna escritura.
+- [x] El nombre visible y el del contexto quedan sincronizados, también con extensión en mayúsculas.
+- [x] Un paquete dañado conserva el documento anterior, su identidad, historial, versión, cambios pendientes y destino de guardado.
+- [x] El fallo de apertura se anuncia en español e inglés y no cierra el diálogo.
+
+**Pruebas focalizadas:** `pnpm vitest run src/ui/dialogs/fileMenu.test.ts src/ui/welcome/welcome.test.ts src/commands/file.test.ts` pasó 26/26 pruebas en tres archivos. Antes de la corrección, las cuatro regresiones nuevas fallaron: la prueba principal observó una escritura indebida sobre A, la extensión no se normalizaba y ambos idiomas carecían de alerta ante corrupción. Las pruebas recorren el componente, el comando y el serializador reales; los manejadores de archivo y la persistencia se simulan en sus fronteras. La [verificación conjunta](#verificación-conjunta-de-dat-009-a-ui-017) volvió a incluir estos archivos.
+
+**Límite:** esta regresión no acredita permisos del selector nativo ni comportamiento de un dispositivo físico. Los fallos al consultar o eliminar elementos de la lista de Archivo quedan fuera de DAT-009.
+
+---
+
+## DAT-010 — Escribir números DXF sin corromper la geometría
+
+- **Prioridad:** P1 — alteración silenciosa de coordenadas al exportar
+- **Responsable:** Codex
+- **Registro:** 2026-11-18
+- **Estado vigente:** consultar el índice de [README.md](./README.md)
+
+**Falla reproducida:** el formateador añadía `.0` a todo número entero, incluidos valores que JavaScript representa como `1e+21`. El token resultante `1e+21.0` no era válido: una línea de `(1e21, -1e21)` a `(2e21, 1e21)` volvía de DXF con ambos extremos en `(0, 0)`. Además, el escritor sustituía números no finitos por cero; una altura de viewport calculada a partir de `1e308 / 1e-308` podía exportarse como cero sin informar el desbordamiento.
+
+**Corrección:** `num` conserva la notación exponencial válida de los enteros grandes. Tanto `num` como `TagBuffer.tag` rechazan los valores numéricos no finitos con un error bilingüe, antes de añadir el par código/valor inválido. El rechazo también cubre códigos de grupo enteros. Se conserva el comportamiento válido de dibujos vacíos y de los intercambios ya cubiertos; no se cambia la geometría del documento para hacerla exportable.
+
+**Archivos:** `src/io/dxf/tags.ts`, `src/io/dxf/tags.test.ts`, `src/io/dxf/exportDxf.test.ts`.
+
+**Criterios de aceptación:**
+
+- [x] Los valores finitos grandes, incluidos negativos y `Number.MAX_VALUE`, se escriben como tokens numéricos válidos.
+- [x] La línea extrema del caso reproducido conserva sus coordenadas tras exportar e importar DXF.
+- [x] `NaN`, `Infinity` y `-Infinity` se rechazan; no se convierten silenciosamente en cero.
+- [x] El búfer no añade un par inválido, tanto en grupos numéricos flotantes como enteros.
+- [x] Un viewport cuya altura derivada desborda provoca un error y conserva contenido, versión y estado de cambios del dibujo.
+- [x] Un dibujo vacío conserva extensiones finitas y un viewport válido en el DXF.
+
+**Pruebas focalizadas:** el primer recorrido de `src/io/dxf/tags.test.ts` y `src/io/dxf/exportDxf.test.ts` produjo 11 fallos y 8 aprobadas, reproduciendo la pérdida de coordenadas y el desbordamiento oculto. Después, `pnpm vitest run src/io/dxf/tags.test.ts src/io/dxf/exportDxf.test.ts src/io/dxf/dynamicRoundTrip.test.ts src/io/dxf/foreignDxf.test.ts` pasó 27/27 pruebas en cuatro archivos. Esos archivos también pasan en la [verificación conjunta](#verificación-conjunta-de-dat-009-a-ui-017).
+
+**Límite:** este cambio protege la escritura numérica DXF. No cierra DAT-005 ni demuestra que todos los consumidores de geometría extrema admitan cualquier valor finito.
+
+---
+
+## DAT-011 — No ocultar fallos de guardado con lecturas exitosas
+
+- **Prioridad:** P1 — indicador de protección que podía ocultar una copia no guardada
+- **Responsable:** Codex
+- **Registro:** 2026-11-18
+- **Estado vigente:** consultar el índice de [README.md](./README.md)
+
+**Falla reproducida:** después de un guardado fallido por cuota, consultar dibujos, versiones o recuperación, marcar una salida limpia o borrar datos podía volver a declarar el almacenamiento protegido. Esas operaciones no demuestran que se haya escrito una copia completa del dibujo. Había además una carrera: un guardado ya confirmado podía esperar a la limpieza de versiones antiguas; si durante esa espera fallaba una sesión posterior, el aviso desaparecía al finalizar aquella limpieza.
+
+**Corrección:** cuando la salud está degradada o no disponible, `recordSuccess` conserva el aviso y su causa hasta que se completa una escritura de dibujo: autoguardado, sesión, versión, copia local o copia con versión. En `autosave`, `saveVersion` y `storeDrawingAndVersion`, el éxito se registra inmediatamente después de confirmar la escritura principal, antes de esperar a la limpieza secundaria. Así, terminar una limpieza anterior no sobrescribe un fallo de sesión posterior. Los fallos de esa limpieza siguen sin invalidar la copia principal ya guardada.
+
+**Archivos:** `src/storage/persistence.ts`, `src/storage/persistence.test.ts`.
+
+**Criterios de aceptación:**
+
+- [x] Las lecturas y la marca de salida limpia no eliminan el estado ni la causa de un guardado fallido.
+- [x] Liberar espacio, borrar una versión o borrar una copia no anuncian protección por sí solos.
+- [x] Una escritura posterior completa puede recuperar el estado protegido y su copia se puede leer con el contenido esperado.
+- [x] Una limpieza de versiones pendiente no oculta un fallo de sesión posterior, tanto en autoguardado como en guardado de versión o copia con versión.
+- [x] El documento en memoria y sus ediciones posteriores se conservan durante los casos de fallo comprobados.
+
+**Pruebas focalizadas:** tres regresiones iniciales reprodujeron la falsa recuperación y otras tres, parametrizadas por operación, reprodujeron la carrera de limpieza. Se comprobaron rojas antes de sus correcciones. `pnpm exec vitest run src/storage/persistence.test.ts src/commands/file.test.ts --maxWorkers=2` pasó 64/64 pruebas: 44 de persistencia y 20 de comandos de archivo. Las pruebas controlan el momento de liberación de la limpieza para que la carrera sea determinista; no dependen de una espera arbitraria. La verificación conjunta posterior incluye ambas suites.
+
+**Límite:** las pruebas usan IndexedDB simulado e inyectan el error de cuota. El estado de salud informa de las escrituras locales comprobadas; no representa una garantía de retención indefinida por parte del navegador ni un cambio en el significado de «archivo guardado».
+
+### Verificación conjunta de DAT-009 a UI-017
+
+El 2026-11-18 se ejecutó la siguiente selección sobre los cinco cambios integrados, con **11 archivos y 126/126 pruebas aprobadas**, código de salida 0:
+
+```bash
+pnpm vitest run \
+  src/io/dxf/tags.test.ts src/io/dxf/exportDxf.test.ts \
+  src/io/dxf/dynamicRoundTrip.test.ts src/io/dxf/foreignDxf.test.ts \
+  src/storage/persistence.test.ts src/commands/file.test.ts \
+  src/ui/dialogs/fileMenu.test.ts src/ui/welcome/welcome.test.ts \
+  src/ui/confirmHost.test.ts src/ui/modalFocus.test.ts src/ui/colorPicker.test.ts \
+  --maxWorkers=2
+```
+
+No se ejecutó la suite completa. El recorrido añadido en `e2e/modalKeyboard.spec.ts` está preparado, pero el ejecutor E2E quedó bloqueado por `EPERM` al abrir el socket; no se registra como aprobado. La revisión manual en la vista previa y sus capturas se documentan por separado en `docs/brandbook/`.

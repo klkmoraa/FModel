@@ -67,6 +67,47 @@ function richDocument() {
 }
 
 describe('DXF export', () => {
+  it('round-trips finite coordinates that use exponential notation', () => {
+    const doc = createDocument();
+    const start = { x: 1e21, y: -1e21 };
+    const end = { x: 2e21, y: 1e21 };
+    doc.transact('seed', (tx) => tx.addEntity<LineEntity>({ ...entityDefaults(doc), type: 'line', start, end }));
+
+    const { text } = exportDxf(doc, createContext(doc));
+    const back = createDocument();
+    const report = importDxfIntoDocument(back, text, { replace: true });
+
+    expect(back.entitiesOf(MODEL_SPACE_ID)).toEqual([expect.objectContaining({ type: 'line', start, end })]);
+    expect(report.ignored).toEqual({});
+  });
+
+  it('rejects a nonrepresentable viewport height without changing the drawing', () => {
+    const doc = createDocument();
+    const layout = [...doc.data.layouts.values()][0];
+    doc.transact('seed', (tx) => tx.addEntity<ViewportEntity>({
+      ...entityDefaults(doc, layout.id), type: 'viewport', center: { x: 0, y: 0 }, width: 100, height: 1e308,
+      viewCenter: { x: 0, y: 0 }, scale: 1e-308, viewTwist: 0, displayLocked: false, on: true,
+      frozenLayers: [], layerOverrides: {},
+    }));
+    const before = structuredClone(doc.data);
+    const version = doc.version;
+
+    expect(() => exportDxf(doc, createContext(doc))).toThrow(/DXF.*no finito.*non-finite/i);
+    expect(doc.data).toEqual(before);
+    expect(doc.version).toBe(version);
+    expect(doc.dirty).toBe(true);
+  });
+
+  it('exports finite default extents and a valid viewport for an empty drawing', () => {
+    const doc = createDocument();
+    const { text } = exportDxf(doc, createContext(doc));
+    const parsed = parseDxf(text);
+
+    expect(parsed.header.get('$EXTMIN')).toEqual([[10, '0.0'], [20, '0.0'], [30, '0.0']]);
+    expect(parsed.header.get('$EXTMAX')).toEqual([[10, '0.0'], [20, '0.0'], [30, '0.0']]);
+    expect(parsed.tables.get('VPORT')?.records[0].pairs).toContainEqual([40, '297.0']);
+  });
+
   it.each([
     { units: 'mm' as const, spacing: 100, angle: Math.PI / 4, double: false, origin: { x: 1250, y: 2300 }, size: 500 },
     { units: 'mm' as const, spacing: 100, angle: Math.PI / 4, double: true, origin: { x: 1250, y: 2300 }, size: 500 },

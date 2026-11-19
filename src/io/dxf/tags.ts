@@ -1,9 +1,16 @@
 import type { Vec2 } from '../../geometry/vec';
 
+function assertFiniteDxfNumber(value: number): void {
+  if (!Number.isFinite(value)) throw new Error('El DXF contiene un valor no finito. / DXF contains a non-finite value.');
+}
+
 /** Formato numérico DXF: hasta 12 decimales significativos, sin notación innecesaria. */
 export function num(v: number): string {
-  if (!Number.isFinite(v)) return '0.0';
-  if (Number.isInteger(v)) return `${v}.0`;
+  assertFiniteDxfNumber(v);
+  if (Number.isInteger(v)) {
+    const s = String(v);
+    return s.includes('e') ? s : `${s}.0`;
+  }
   const s = Math.abs(v) >= 1e15 || (Math.abs(v) < 1e-10 && v !== 0) ? v.toExponential(12) : String(Math.round(v * 1e12) / 1e12);
   return s.includes('.') || s.includes('e') ? s : `${s}.0`;
 }
@@ -20,8 +27,10 @@ export class TagBuffer {
   tag(code: number, value: string | number | boolean) {
     let v: string;
     if (typeof value === 'boolean') v = value ? '1' : '0';
-    else if (typeof value === 'number') v = isFloatCode(code) ? num(value) : String(Math.round(value));
-    else v = value.replace(/\r?\n/g, ' ');
+    else if (typeof value === 'number') {
+      assertFiniteDxfNumber(value);
+      v = isFloatCode(code) ? num(value) : String(Math.round(value));
+    } else v = value.replace(/\r?\n/g, ' ');
     this.lines.push(String(code).padStart(3, ' '), v);
   }
 

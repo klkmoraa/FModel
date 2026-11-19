@@ -89,7 +89,7 @@ export function FModelHome({
               <div className="fmodel-open__head">
                 <span className="fmodel-open__label">{tr(lang, 'Dibujo activo', 'Active drawing')}</span>
                 <h2 className="fmodel-open__name" title={activeTitle}>
-                  {activeTitle}
+                  <span className="fmodel-open__title">{activeTitle}</span>
                   {editor.doc.dirty && <span className="fmodel-open__dirty">{tr(lang, 'sin guardar', 'unsaved')}</span>}
                 </h2>
                 <p className="fmodel-open__counts">

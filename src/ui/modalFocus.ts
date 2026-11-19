@@ -1,7 +1,18 @@
 import { useEffect, useRef, type RefObject } from 'react';
 
 const MODAL_FOCUSABLE =
-  'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+  'a[href], button, input, select, textarea, [tabindex]';
+
+function availableForFocus(element: HTMLElement): boolean {
+  // :disabled también cubre los controles dentro de un fieldset deshabilitado.
+  if (element.matches(':disabled, input[type="hidden"]') || element.closest('[hidden], [inert], [aria-hidden="true"]')) return false;
+  const visibility = getComputedStyle(element).visibility;
+  if (visibility === 'hidden' || visibility === 'collapse') return false;
+  for (let ancestor: HTMLElement | null = element; ancestor; ancestor = ancestor.parentElement) {
+    if (getComputedStyle(ancestor).display === 'none') return false;
+  }
+  return true;
+}
 
 /**
  * Contrato de teclado para superficies aria-modal:
@@ -21,12 +32,18 @@ export function useModalFocusTrap(dialogRef: RefObject<HTMLElement | null>, onCl
     const activeOnMount = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const previousFocus = returnFocusRef?.current ?? (activeOnMount && !dialog.contains(activeOnMount) ? activeOnMount : null);
     const focusableElements = () =>
-      Array.from(dialog.querySelectorAll<HTMLElement>(MODAL_FOCUSABLE)).filter(
-        (element) => element.getAttribute('aria-hidden') !== 'true' && !element.hasAttribute('disabled'),
-      );
+      Array.from(dialog.querySelectorAll<HTMLElement>(MODAL_FOCUSABLE))
+        .filter((element) => element.tabIndex >= 0 && availableForFocus(element))
+        .sort((a, b) => {
+          if (a.tabIndex === b.tabIndex) return 0;
+          if (a.tabIndex === 0) return 1;
+          if (b.tabIndex === 0) return -1;
+          return a.tabIndex - b.tabIndex;
+        });
 
     if (!(activeOnMount && dialog.contains(activeOnMount))) {
-      const preferred = dialog.querySelector<HTMLElement>('[autofocus]');
+      const preferred = Array.from(dialog.querySelectorAll<HTMLElement>('[autofocus]'))
+        .find((element) => element.matches(MODAL_FOCUSABLE) && availableForFocus(element));
       const focusable = focusableElements();
       // el foco inicial va al contenido (primer campo, opción o botón de acción), no al «Cerrar» de la cabecera
       const first = focusable.find((element) => !element.closest('.dialog__head')) ?? focusable[0];
@@ -57,13 +74,21 @@ export function useModalFocusTrap(dialogRef: RefObject<HTMLElement | null>, onCl
       }
 
       const active = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-      const activeIndex = active ? focusable.indexOf(active) : -1;
-      const nextIndex = event.shiftKey
-        ? activeIndex <= 0 ? focusable.length - 1 : activeIndex - 1
-        : activeIndex < 0 || activeIndex === focusable.length - 1 ? 0 : activeIndex + 1;
+      const first = focusable[0]!;
+      const last = focusable[focusable.length - 1]!;
+      let wrap = !active || active === dialog || !dialog.contains(active) || active === (event.shiftKey ? first : last);
+      if (!wrap && active && !focusable.includes(active)) {
+        // Las flechas pueden enfocar un color con tabindex=-1. Tab sale del grupo
+        // de forma nativa, salvo si ya no queda ningún control en esa dirección.
+        const direction = event.shiftKey ? Node.DOCUMENT_POSITION_PRECEDING : Node.DOCUMENT_POSITION_FOLLOWING;
+        wrap = !focusable.some((element) => Boolean(active.compareDocumentPosition(element) & direction));
+      }
+      // El navegador conserva el recorrido de radios, pestañas y grupos con foco
+      // móvil. Sólo intervenimos para impedir que el foco salga del diálogo.
+      if (!wrap) return;
       event.preventDefault();
       event.stopPropagation();
-      focusable[nextIndex]!.focus({ preventScroll: true });
+      (event.shiftKey ? last : first).focus({ preventScroll: true });
     };
 
     document.addEventListener('keydown', handleKeyDown, true);

@@ -162,6 +162,93 @@ describe('autoguardado tipado y modelo de salud (PersistenceHealth)', () => {
     expect(transitions).toEqual(['protected', 'degraded', 'protected']);
   });
 
+  it('consultar dibujos, versiones o recuperación y marcar salida limpia no oculta un guardado fallido', async () => {
+    newLine(doc, 1);
+    const transitions: string[] = [];
+    const unsubscribe = persistence.onHealthChange((health) => transitions.push(health.status));
+    vi.spyOn(idb, 'idbWrite').mockRejectedValueOnce(new DOMException('Quota exceeded', 'QuotaExceededError'));
+    await expect(persistence.storeDrawingAndVersion('Plano', 'Guardado manual')).rejects.toThrow();
+    const failure = persistence.health;
+
+    for (const operation of [
+      () => persistence.drawings(),
+      () => persistence.versions(doc.id),
+      () => persistence.pendingRecovery(),
+      () => persistence.markCleanExit(),
+    ]) {
+      await operation();
+      expect(persistence.health).toEqual(failure);
+    }
+    unsubscribe();
+    expect(transitions).toEqual(['protected', 'degraded']);
+    expect(doc.dirty).toBe(true);
+  });
+
+  it('liberar espacio no anuncia protección hasta comprobar una escritura completa del dibujo', async () => {
+    newLine(doc, 1);
+    await persistence.autosave();
+    newLine(doc, 2);
+    vi.spyOn(idb, 'idbWrite').mockRejectedValueOnce(new DOMException('Quota exceeded', 'QuotaExceededError'));
+    await expect(persistence.storeDrawingAndVersion('Plano', 'Guardado manual')).rejects.toThrow();
+
+    expect(await persistence.purgeAutoVersions(0, doc.id)).toBe(1);
+    expect(persistence.health.status).toBe('degraded');
+    expect(persistence.health.lastError?.kind).toBe('quota');
+
+    expect(await persistence.saveSession()).toBe(true);
+    expect(persistence.health.status).toBe('protected');
+    expect(persistence.health.lastError).toBeNull();
+    const restored = await persistence.loadSession();
+    expect(restored?.documentId).toBe(doc.id);
+    expect(restored?.file.collections.entities).toHaveLength(2);
+  });
+
+  it('eliminar copias o versiones no borra el aviso de una sesión que no pudo guardarse', async () => {
+    newLine(doc, 1);
+    const { drawing, version } = await persistence.storeDrawingAndVersion('Plano', 'Primera copia');
+    newLine(doc, 2);
+    vi.spyOn(idb, 'idbPut').mockRejectedValueOnce(new DOMException('Quota exceeded', 'QuotaExceededError'));
+    expect(await persistence.saveSession()).toBe(false);
+    const failure = persistence.health;
+
+    await persistence.deleteVersion(version.id);
+    expect(persistence.health).toEqual(failure);
+    await persistence.deleteDrawing(drawing.id);
+    expect(persistence.health).toEqual(failure);
+    expect(doc.data.entities.size).toBe(2);
+  });
+
+  it.each(['autosave', 'saveVersion', 'storeDrawingAndVersion'] as const)('la poda pendiente de %s no oculta un fallo de sesión posterior', async (operation) => {
+    newLine(doc, 1);
+    let releasePruning!: () => void;
+    let signalPruning!: () => void;
+    const pruningStarted = new Promise<void>((resolve) => { signalPruning = resolve; });
+    const pruningPaused = new Promise<void>((resolve) => { releasePruning = resolve; });
+    const readAll = idb.idbAll;
+    vi.spyOn(idb, 'idbAll').mockImplementationOnce(async (store) => {
+      signalPruning();
+      await pruningPaused;
+      return readAll(store);
+    });
+
+    const earlierSave = operation === 'autosave'
+      ? persistence.autosave()
+      : operation === 'saveVersion'
+        ? persistence.saveVersion('Primera copia')
+        : persistence.storeDrawingAndVersion('Plano', 'Primera copia');
+    await pruningStarted;
+    newLine(doc, 2);
+    vi.spyOn(idb, 'idbPut').mockRejectedValueOnce(new DOMException('Quota exceeded', 'QuotaExceededError'));
+    expect(await persistence.saveSession()).toBe(false);
+    const failure = persistence.health;
+
+    releasePruning();
+    await earlierSave;
+    expect(persistence.health).toEqual(failure);
+    expect(persistence.health.lastOp).toBe('session');
+    expect(doc.data.entities.size).toBe(2);
+  });
+
   it('una salida limpia deja de ofrecer la recuperación', async () => {
     newLine(doc, 1);
     await persistence.autosave();

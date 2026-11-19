@@ -186,6 +186,8 @@ export function App({ editor }: { editor: Editor }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
+      // Los modales y los controles que consumen una tecla conservan su comportamiento nativo.
+      if (e.defaultPrevented || (target instanceof Element && target.closest('[aria-modal="true"]'))) return;
       const inField = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable);
       const combo = comboOf(e);
       if (palette || dialog || !editor.prefs.onboardingDone) return;
