@@ -444,6 +444,10 @@ test.describe('alineación visual con FusionStructureBrand', () => {
     await page.waitForFunction(() => !!(window as any).fmodel?.editor);
     await page.evaluate(() => {
       (window as any).fmodel.editor.setPrefs({ onboardingDone: true, theme: 'noche' });
+    });
+    // El editor se expone antes de montar la UI y registrar sus eventos.
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'noche');
+    await page.evaluate(() => {
       window.dispatchEvent(new CustomEvent('fmodel:ui', { detail: { ui: 'options' } }));
     });
 
